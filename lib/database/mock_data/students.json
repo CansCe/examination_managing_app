@@ -1,0 +1,361 @@
+[
+  {
+    "_id": "684ebdcfea65aae60fcac8cc",
+    "studentId": "20240001",
+    "firstName": "Student1",
+    "lastName": "Last1",
+    "email": "student1@example.com",
+    "password": "12345678",
+    "class": "Class 1",
+    "subjects": [
+      "Mathematics",
+      "Physics",
+      "Chemistry"
+    ],
+    "assignedExams": [
+      "684ebdcfea65aae60fcac878",
+      "684ebdcfea65aae60fcac890",
+      "684ebdcfea65aae60fcac8a2"
+    ]
+  },
+  {
+    "_id": "684ebdcfea65aae60fcac8cd",
+    "studentId": "20240002",
+    "firstName": "Student2",
+    "lastName": "Last2",
+    "email": "student2@example.com",
+    "password": "12345678",
+    "class": "Class 2",
+    "subjects": [
+      "Mathematics",
+      "Physics",
+      "Chemistry"
+    ],
+    "assignedExams": [
+      "684ebdcfea65aae60fcac884"
+    ]
+  },
+  {
+    "_id": "684ebdcfea65aae60fcac8ce",
+    "studentId": "20240003",
+    "firstName": "Student3",
+    "lastName": "Last3",
+    "email": "student3@example.com",
+    "password": "12345678",
+    "class": "Class 3",
+    "subjects": [
+      "Mathematics",
+      "Physics",
+      "Chemistry"
+    ],
+    "assignedExams": [
+      "684ebdcfea65aae60fcac8c6",
+      "684ebdcfea65aae60fcac8a2",
+      "684ebdcfea65aae60fcac872"
+    ]
+  },
+  {
+    "_id": "684ebdcfea65aae60fcac8cf",
+    "studentId": "20240004",
+    "firstName": "Student4",
+    "lastName": "Last4",
+    "email": "student4@example.com",
+    "password": "12345678",
+    "class": "Class 4",
+    "subjects": [
+      "Mathematics",
+      "Physics",
+      "Chemistry"
+    ],
+    "assignedExams": [
+      "684ebdcfea65aae60fcac884",
+      "684ebdcfea65aae60fcac884"
+    ]
+  },
+  {
+    "_id": "684ebdcfea65aae60fcac8d0",
+    "studentId": "20240005",
+    "firstName": "Student5",
+    "lastName": "Last5",
+    "email": "student5@example.com",
+    "password": "12345678",
+    "class": "Class 5",
+    "subjects": [
+      "Mathematics",
+      "Physics",
+      "Chemistry"
+    ],
+    "assignedExams": [
+      "684ebdcfea65aae60fcac8ba",
+      "684ebdcfea65aae60fcac8a8",
+      "684ebdcfea65aae60fcac8c0"
+    ]
+  },
+  {
+    "_id": "684ebdcfea65aae60fcac8d1",
+    "studentId": "20240006",
+    "firstName": "Student6",
+    "lastName": "Last6",
+    "email": "student6@example.com",
+    "password": "12345678",
+    "class": "Class 6",
+    "subjects": [
+      "Mathematics",
+      "Physics",
+      "Chemistry"
+    ],
+    "assignedExams": [
+      "684ebdcfea65aae60fcac8a2",
+      "684ebdcfea65aae60fcac8a2",
+      "684ebdcfea65aae60fcac89c"
+    ]
+  },
+  {
+    "_id": "684ebdcfea65aae60fcac8d2",
+    "studentId": "20240007",
+    "firstName": "Student7",
+    "lastName": "Last7",
+    "email": "student7@example.com",
+    "password": "12345678",
+    "class": "Class 7",
+    "subjects": [
+      "Mathematics",
+      "Physics",
+      "Chemistry"
+    ],
+    "assignedExams": [
+      "684ebdcfea65aae60fcac8ba"
+    ]
+  },
+  {
+    "_id": "684ebdcfea65aae60fcac8d3",
+    "studentId": "20240008",
+    "firstName": "Student8",
+    "lastName": "Last8",
+    "email": "student8@example.com",
+    "password": "12345678",
+    "class": "Class 8",
+    "subjects": [
+      "Mathematics",
+      "Physics",
+      "Chemistry"
+    ],
+    "assignedExams": [
+      "684ebdcfea65aae60fcac8a8"
+    ]
+  },
+  {
+    "_id": "684ebdcfea65aae60fcac8d4",
+    "studentId": "20240009",
+    "firstName": "Student9",
+    "lastName": "Last9",
+    "email": "student9@example.com",
+    "password": "12345678",
+    "class": "Class 9",
+    "subjects": [
+      "Mathematics",
+      "Physics",
+      "Chemistry"
+    ],
+    "assignedExams": [
+      "684ebdcfea65aae60fcac8a2"
+    ]
+  },
+  {
+    "_id": "684ebdcfea65aae60fcac8d5",
+    "studentId": "20240010",
+    "firstName": "Student10",
+    "lastName": "Last10",
+    "email": "student10@example.com",
+    "password": "12345678",
+    "class": "Class 10",
+    "subjects": [
+      "Mathematics",
+      "Physics",
+      "Chemistry"
+    ],
+    "assignedExams": [
+      "684ebdcfea65aae60fcac896"
+    ]
+  },
+  {
+    "_id": "684ebdcfea65aae60fcac8d6",
+    "studentId": "20240011",
+    "firstName": "Student11",
+    "lastName": "Last11",
+    "email": "student11@example.com",
+    "password": "12345678",
+    "class": "Class 1",
+    "subjects": [
+      "Mathematics",
+      "Physics",
+      "Chemistry"
+    ],
+    "assignedExams": [
+      "684ebdcfea65aae60fcac884",
+      "684ebdcfea65aae60fcac8a8"
+    ]
+  },
+  {
+    "_id": "684ebdcfea65aae60fcac8d7",
+    "studentId": "20240012",
+    "firstName": "Student12",
+    "lastName": "Last12",
+    "email": "student12@example.com",
+    "password": "12345678",
+    "class": "Class 2",
+    "subjects": [
+      "Mathematics",
+      "Physics",
+      "Chemistry"
+    ],
+    "assignedExams": [
+      "684ebdcfea65aae60fcac896",
+      "684ebdcfea65aae60fcac890"
+    ]
+  },
+  {
+    "_id": "684ebdcfea65aae60fcac8d8",
+    "studentId": "20240013",
+    "firstName": "Student13",
+    "lastName": "Last13",
+    "email": "student13@example.com",
+    "password": "12345678",
+    "class": "Class 3",
+    "subjects": [
+      "Mathematics",
+      "Physics",
+      "Chemistry"
+    ],
+    "assignedExams": [
+      "684ebdcfea65aae60fcac89c",
+      "684ebdcfea65aae60fcac8c6"
+    ]
+  },
+  {
+    "_id": "684ebdcfea65aae60fcac8d9",
+    "studentId": "20240014",
+    "firstName": "Student14",
+    "lastName": "Last14",
+    "email": "student14@example.com",
+    "password": "12345678",
+    "class": "Class 4",
+    "subjects": [
+      "Mathematics",
+      "Physics",
+      "Chemistry"
+    ],
+    "assignedExams": [
+      "684ebdcfea65aae60fcac8ae",
+      "684ebdcfea65aae60fcac8a2"
+    ]
+  },
+  {
+    "_id": "684ebdcfea65aae60fcac8da",
+    "studentId": "20240015",
+    "firstName": "Student15",
+    "lastName": "Last15",
+    "email": "student15@example.com",
+    "password": "12345678",
+    "class": "Class 5",
+    "subjects": [
+      "Mathematics",
+      "Physics",
+      "Chemistry"
+    ],
+    "assignedExams": [
+      "684ebdcfea65aae60fcac87e",
+      "684ebdcfea65aae60fcac890",
+      "684ebdcfea65aae60fcac878"
+    ]
+  },
+  {
+    "_id": "684ebdcfea65aae60fcac8db",
+    "studentId": "20240016",
+    "firstName": "Student16",
+    "lastName": "Last16",
+    "email": "student16@example.com",
+    "password": "12345678",
+    "class": "Class 6",
+    "subjects": [
+      "Mathematics",
+      "Physics",
+      "Chemistry"
+    ],
+    "assignedExams": [
+      "684ebdcfea65aae60fcac8c6",
+      "684ebdcfea65aae60fcac8a2"
+    ]
+  },
+  {
+    "_id": "684ebdcfea65aae60fcac8dc",
+    "studentId": "20240017",
+    "firstName": "Student17",
+    "lastName": "Last17",
+    "email": "student17@example.com",
+    "password": "12345678",
+    "class": "Class 7",
+    "subjects": [
+      "Mathematics",
+      "Physics",
+      "Chemistry"
+    ],
+    "assignedExams": [
+      "684ebdcfea65aae60fcac884",
+      "684ebdcfea65aae60fcac89c",
+      "684ebdcfea65aae60fcac8c6"
+    ]
+  },
+  {
+    "_id": "684ebdcfea65aae60fcac8dd",
+    "studentId": "20240018",
+    "firstName": "Student18",
+    "lastName": "Last18",
+    "email": "student18@example.com",
+    "password": "12345678",
+    "class": "Class 8",
+    "subjects": [
+      "Mathematics",
+      "Physics",
+      "Chemistry"
+    ],
+    "assignedExams": [
+      "684ebdcfea65aae60fcac89c"
+    ]
+  },
+  {
+    "_id": "684ebdcfea65aae60fcac8de",
+    "studentId": "20240019",
+    "firstName": "Student19",
+    "lastName": "Last19",
+    "email": "student19@example.com",
+    "password": "12345678",
+    "class": "Class 9",
+    "subjects": [
+      "Mathematics",
+      "Physics",
+      "Chemistry"
+    ],
+    "assignedExams": [
+      "684ebdcfea65aae60fcac872",
+      "684ebdcfea65aae60fcac884"
+    ]
+  },
+  {
+    "_id": "684ebdcfea65aae60fcac8df",
+    "studentId": "20240020",
+    "firstName": "Student20",
+    "lastName": "Last20",
+    "email": "student20@example.com",
+    "password": "12345678",
+    "class": "Class 10",
+    "subjects": [
+      "Mathematics",
+      "Physics",
+      "Chemistry"
+    ],
+    "assignedExams": [
+      "684ebdcfea65aae60fcac8c6"
+    ]
+  }
+]

@@ -1,0 +1,72 @@
+[
+  {
+    "_id": "684ebdcfea65aae60fcac86d",
+    "firstName": "Teacher1",
+    "lastName": "Last1",
+    "email": "teacher1@school.com",
+    "username": "teacher1",
+    "password": "12345678",
+    "department": "Science",
+    "subjects": [
+      "Physics",
+      "Chemistry"
+    ],
+    "createdExams": []
+  },
+  {
+    "_id": "684ebdcfea65aae60fcac86e",
+    "firstName": "Teacher2",
+    "lastName": "Last2",
+    "email": "teacher2@school.com",
+    "username": "teacher2",
+    "password": "12345678",
+    "department": "Mathematics",
+    "subjects": [
+      "Algebra",
+      "Calculus"
+    ],
+    "createdExams": []
+  },
+  {
+    "_id": "684ebdcfea65aae60fcac86f",
+    "firstName": "Teacher3",
+    "lastName": "Last3",
+    "email": "teacher3@school.com",
+    "username": "teacher3",
+    "password": "12345678",
+    "department": "Humanities",
+    "subjects": [
+      "Programming",
+      "Database"
+    ],
+    "createdExams": []
+  },
+  {
+    "_id": "684ebdcfea65aae60fcac870",
+    "firstName": "Teacher4",
+    "lastName": "Last4",
+    "email": "teacher4@school.com",
+    "username": "teacher4",
+    "password": "12345678",
+    "department": "Computer Science",
+    "subjects": [
+      "Physics",
+      "Chemistry"
+    ],
+    "createdExams": []
+  },
+  {
+    "_id": "684ebdcfea65aae60fcac871",
+    "firstName": "Teacher5",
+    "lastName": "Last5",
+    "email": "teacher5@school.com",
+    "username": "teacher5",
+    "password": "12345678",
+    "department": "Arts",
+    "subjects": [
+      "Algebra",
+      "Calculus"
+    ],
+    "createdExams": []
+  }
+]
