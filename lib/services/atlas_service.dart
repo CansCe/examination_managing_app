@@ -4,6 +4,7 @@ import '../models/exam.dart';
 import '../models/student.dart';
 import '../models/teacher.dart';
 import '../models/question.dart';
+import '../utils/mock_data_generator.dart';
 
 class AtlasService {
   static Db? _db;
@@ -349,16 +350,46 @@ class AtlasService {
 
   // Get teacher's exams with pagination
   static Future<List<Exam>> getTeacherExams({
-    required String teacherId,
+    required String teacherId, // Use as string for lookup
     int page = 0,
     int limit = 20,
   }) async {
     await _ensureConnection();
     try {
-      final teacherObjectId = ObjectId.fromHexString(teacherId);
+      // Find the teacher by 'teacherId' (which is the _id as string)
+      final teacher = await _db!.collection(DatabaseConfig.teachersCollection)
+          .findOne(where.eq('_id', ObjectId.parse(teacherId)));
+      
+      if (teacher == null) {
+        print('Teacher not found with ID: $teacherId');
+        return [];
+      }
 
+      final List<ObjectId> createdExamIds = [];
+      if (teacher['createdExams'] is List) {
+        for (var id in teacher['createdExams'] as List) {
+          if (id is String) {
+            try {
+              createdExamIds.add(ObjectId.parse(id));
+            } catch (e) {
+              print('Warning: Invalid ObjectId string in createdExams: $id - $e');
+            }
+          } else if (id is ObjectId) {
+            createdExamIds.add(id);
+          } else {
+            print('Warning: Unexpected type in createdExams list: $id');
+          }
+        }
+      }
+
+      if (createdExamIds.isEmpty) {
+        print('No exams found for teacher: $teacherId');
+        return [];
+      }
+
+      // Then get the exam details
       final documents = await _db!.collection(DatabaseConfig.examsCollection)
-          .find(where.eq('createdBy', teacherObjectId))
+          .find(where.oneFrom('_id', createdExamIds))
           .skip(page * limit)
           .take(limit)
           .toList();
@@ -598,6 +629,66 @@ class AtlasService {
     } catch (e) {
       print("Error updating question: $e");
       rethrow;
+    }
+  }
+
+  // Clear all collections
+  static Future<void> clearAllCollections() async {
+    try {
+      print('Clearing all collections...');
+      
+      // Drop and recreate teachers collection
+      await _db!.collection(DatabaseConfig.teachersCollection).drop();
+      await _db!.createCollection(DatabaseConfig.teachersCollection);
+      print('Teachers collection cleared');
+      
+      // Drop and recreate students collection
+      await _db!.collection(DatabaseConfig.studentsCollection).drop();
+      await _db!.createCollection(DatabaseConfig.studentsCollection);
+      print('Students collection cleared');
+      
+      // Drop and recreate exams collection
+      await _db!.collection(DatabaseConfig.examsCollection).drop();
+      await _db!.createCollection(DatabaseConfig.examsCollection);
+      print('Exams collection cleared');
+      
+      // Drop and recreate questions collection
+      await _db!.collection(DatabaseConfig.questionsCollection).drop();
+      await _db!.createCollection(DatabaseConfig.questionsCollection);
+      print('Questions collection cleared');
+      
+      print('All collections cleared successfully');
+    } catch (e) {
+      print('Error clearing collections: $e');
+      throw Exception('Failed to clear collections: $e');
+    }
+  }
+
+  // Generate and insert mock data
+  static Future<void> generateAndInsertMockData() async {
+    try {
+      // First clear all existing data
+      await clearAllCollections();
+      
+      print('Generating mock data...');
+      final mockData = await MockDataGenerator.generateBatch();
+      
+      print('Inserting teachers...');
+      await _db!.collection(DatabaseConfig.teachersCollection).insertAll(mockData['teachers']!);
+      
+      print('Inserting students...');
+      await _db!.collection(DatabaseConfig.studentsCollection).insertAll(mockData['students']!);
+      
+      print('Inserting exams...');
+      await _db!.collection(DatabaseConfig.examsCollection).insertAll(mockData['exams']!);
+      
+      print('Inserting questions...');
+      await _db!.collection(DatabaseConfig.questionsCollection).insertAll(mockData['questions']!);
+      
+      print('Mock data inserted successfully');
+    } catch (e) {
+      print('Error generating and inserting mock data: $e');
+      throw Exception('Failed to generate and insert mock data: $e');
     }
   }
 } 

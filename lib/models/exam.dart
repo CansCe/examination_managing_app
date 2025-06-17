@@ -105,7 +105,35 @@ class Exam {
     }
 
     // Parse exam time (now stored as String)
-    final String parsedExamTime = map['examTime'] as String? ?? '09:00'; // Default to 09:00 if not found
+    String parsedExamTime;
+    try {
+      if (map['examTime'] == null) {
+        parsedExamTime = '09:00'; // Default to 09:00 if null
+      } else if (map['examTime'] is String) {
+        final timeStr = map['examTime'] as String;
+        if (timeStr.contains(':')) {
+          final parts = timeStr.split(':');
+          if (parts.length == 2) {
+            final hour = int.parse(parts[0]);
+            final minute = int.parse(parts[1]);
+            if (hour >= 0 && hour < 24 && minute >= 0 && minute < 60) {
+              parsedExamTime = timeStr;
+            } else {
+              parsedExamTime = '09:00';
+            }
+          } else {
+            parsedExamTime = '09:00';
+          }
+        } else {
+          parsedExamTime = '09:00';
+        }
+      } else {
+        parsedExamTime = '09:00';
+      }
+    } catch (e) {
+      print('Error parsing exam time: $e');
+      parsedExamTime = '09:00';
+    }
 
     return Exam(
       id: examId,

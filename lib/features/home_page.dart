@@ -13,6 +13,7 @@ class HomeScreen extends StatefulWidget {
   final UserRole userRole;
   final String? studentId;
   final String? className;
+  final String? teacherId;
 
   const HomeScreen({
     super.key,
@@ -20,6 +21,7 @@ class HomeScreen extends StatefulWidget {
     required this.userRole,
     this.studentId,
     this.className,
+    this.teacherId,
   });
 
   @override
@@ -62,6 +64,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         _studentId = args['studentId'] as String?;
         _className = args['className'] as String?;
         _teacherId = args['teacherId'] as String?;
+      } else if (widget.teacherId != null) {
+        _teacherId = widget.teacherId;
       }
       _isInitialized = true;
       _loadData();
@@ -137,55 +141,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     });
 
     try {
-      if (widget.userRole == UserRole.teacher) {
-        // Load only teacher's exams
-        if (_teacherId == null) {
-          // If teacherId is not provided, try to get it from the database
-          try {
-            final teacher = await AtlasService.findTeacherByUsername(widget.username!);
-            if (teacher != null) {
-              _teacherId = teacher['_id'].toString();
-            } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Teacher account not found. Please contact support.'),
-                  backgroundColor: Colors.red,
-                ),
-              );
-              return;
-            }
-          } catch (e) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Error finding teacher account: $e'),
-                backgroundColor: Colors.red,
-              ),
-            );
-            return;
-          }
-        }
-
-        if (_teacherId != null) {
-          final exams = await AtlasService.getTeacherExams(
-            teacherId: _teacherId!,
-            page: _currentPage,
-            limit: _pageSize,
-          );
-
-          setState(() {
-            _exams.addAll(exams);
-            _hasMoreData = exams.length == _pageSize;
-            _currentPage++;
-          });
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Could not find teacher ID'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      } else {
+      if (widget.userRole == UserRole.student) {
         // For students, only load their assigned exams
         if (widget.studentId != null) {
           final studentExams = await AtlasService.getStudentExams(
@@ -208,6 +164,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ),
           );
         }
+      } else {
+        // For teachers, use the separate teacher data loading function
+        await _loadTeacherData(refresh: refresh);
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -223,9 +182,96 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     }
   }
 
+  Future<void> _loadTeacherData({bool refresh = false}) async {
+    if (refresh) {
+      setState(() {
+        _currentPage = 0;
+        _exams.clear();
+        _students.clear();
+        _teachers.clear();
+      });
+    }
+
+    if (_isLoading) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      print('[DEBUG] _loadTeacherData called for teacherId: $_teacherId, username: \'${widget.username}\'');
+      // If teacherId is not provided, try to get it from the database
+      if (_teacherId == null) {
+        try {
+          print('[DEBUG] Fetching teacher by username: \'${widget.username}\'');
+          final teacher = await AtlasService.findTeacherByUsername(widget.username!);
+          if (teacher != null) {
+            print('[DEBUG] Found teacher: \'${teacher['_id']}\', createdExams: ${teacher['createdExams']}');
+            _teacherId = teacher['_id'].toString();
+          } else {
+            print('[ERROR] Teacher not found for username: ${widget.username}');
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Teacher account not found. Please contact support.'),
+                backgroundColor: Colors.red,
+              ),
+            );
+            return;
+          }
+        } catch (e) {
+          print('[ERROR] Exception finding teacher: $e');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error finding teacher account: $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+      }
+
+      print('[DEBUG] Fetching exams for teacherId: $_teacherId');
+      final teacherExams = await AtlasService.getTeacherExams(
+        teacherId: _teacherId!,
+        page: _currentPage,
+        limit: _pageSize,
+      );
+      print('[DEBUG] Fetched ${teacherExams.length} exams for teacherId: $_teacherId');
+
+      // Load all students for the teacher
+      print('[DEBUG] Fetching all students for teacher dashboard');
+      final students = await AtlasService.findStudents();
+      print('[DEBUG] Fetched ${students.length} students');
+
+      setState(() {
+        _exams.addAll(teacherExams);
+        _students = students;
+        _hasMoreData = teacherExams.length == _pageSize;
+        _currentPage++;
+      });
+    } catch (e, stack) {
+      print('[ERROR] Error loading teacher data: $e');
+      print('[ERROR] Stack trace: $stack');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error loading teacher data: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
   Future<void> _loadMoreData() async {
     if (!_hasMoreData || _isLoading) return;
-    await _loadData();
+    if (widget.userRole == UserRole.teacher) {
+      await _loadTeacherData();
+    } else {
+      await _loadData();
+    }
   }
 
   @override
@@ -333,25 +379,35 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ],
                   ],
                 ),
-          floatingActionButton: FloatingActionButton(
-            onPressed: () => _loadData(refresh: true),
-            child: const Icon(Icons.refresh),
-          ),
-        ),
-        Positioned(
-          left: 16,
-          bottom: 16,
-          child: FloatingActionButton.extended(
-            heroTag: 'helpdesk',
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => const HelpdeskChat(),
-              );
-            },
-            icon: const Icon(Icons.support_agent),
-            label: const Text('Helpdesk'),
-            backgroundColor: Colors.blueAccent,
+          floatingActionButton: Padding(
+            padding: const EdgeInsets.only(left: 48.0, right: 16.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                FloatingActionButton(
+                  onPressed: () {
+                    if (widget.userRole == UserRole.teacher) {
+                      _loadTeacherData(refresh: true);
+                    } else {
+                      _loadData(refresh: true);
+                    }
+                  },
+                  child: const Icon(Icons.refresh),
+                ),
+                FloatingActionButton.extended(
+                  heroTag: 'helpdesk',
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (context) => const HelpdeskChat(),
+                    );
+                  },
+                  icon: const Icon(Icons.support_agent),
+                  label: const Text('Helpdesk'),
+                  backgroundColor: Colors.blueAccent,
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -905,12 +961,28 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               title: const Text('Time'),
               subtitle: Text(selectedTime?.format(context) ?? 'Select time'),
               onTap: () async {
+                TimeOfDay initialTime;
+                try {
+                  if (exam.examTime != null && exam.examTime.contains(':')) {
+                    final parts = exam.examTime.split(':');
+                    if (parts.length == 2) {
+                      initialTime = TimeOfDay(
+                        hour: int.parse(parts[0]),
+                        minute: int.parse(parts[1]),
+                      );
+                    } else {
+                      initialTime = const TimeOfDay(hour: 9, minute: 0);
+                    }
+                  } else {
+                    initialTime = const TimeOfDay(hour: 9, minute: 0);
+                  }
+                } catch (e) {
+                  initialTime = const TimeOfDay(hour: 9, minute: 0);
+                }
+
                 final time = await showTimePicker(
                   context: context,
-                  initialTime: TimeOfDay(
-                    hour: int.parse(exam.examTime.split(':')[0]),
-                    minute: int.parse(exam.examTime.split(':')[1]),
-                  ),
+                  initialTime: initialTime,
                 );
                 if (time != null) {
                   selectedTime = time;

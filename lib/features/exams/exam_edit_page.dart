@@ -69,6 +69,12 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
       );
       _duration = widget.exam!.duration;
       _maxStudents = widget.exam!.maxStudents;
+    } else {
+      // Initialize with default values for new exam
+      _examDate = DateTime.now().add(const Duration(days: 1)); // Default to tomorrow
+      _examTime = const TimeOfDay(hour: 9, minute: 0); // Default to 9:00 AM
+      _duration = 60;
+      _maxStudents = 30;
     }
     _loadQuestions();
   }
@@ -82,7 +88,7 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
         if (widget.exam != null) {
           // Load selected questions for existing exam
           _selectedQuestions = questions.where((q) => 
-            widget.exam!.questions.contains(q?.id)).toList();
+            widget.exam!.questions.contains(q.id)).toList();
         }
       });
     } catch (e) {

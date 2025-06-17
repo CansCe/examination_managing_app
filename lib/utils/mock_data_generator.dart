@@ -71,6 +71,7 @@ class MockDataGenerator {
         'department': _departments[departmentIndex],
         'subjects': _departmentSubjects[departmentIndex % _departmentSubjects.length],
         'createdExams': <ObjectId>[],
+        'role': 'teacher',
       };
       teachers.add(teacher);
     }
@@ -108,7 +109,8 @@ class MockDataGenerator {
         'password': '12345678',
         'class': classes[i % classes.length],
         'subjects': ['Mathematics', 'Physics', 'Chemistry'],
-        'assignedExams': assignedExams, // Populate with actual exam ObjectIds
+        'assignedExams': assignedExams,
+        'role': 'student',
       };
       students.add(student);
     }
@@ -305,6 +307,25 @@ class MockDataGenerator {
         exams.add(exam);
       }
     }
+
+    // After all exams are created, update teachers' createdExams lists
+    for (final exam in exams) {
+      final createdBy = exam['createdBy'] as ObjectId;
+      final examId = exam['_id'] as ObjectId;
+      
+      // Find the teacher who created this exam
+      final teacher = teachers.firstWhere(
+        (t) => t['_id'] == createdBy,
+        orElse: () => throw Exception('Teacher not found for exam ${exam['title']}'),
+      );
+      
+      // Add the exam ID to the teacher's createdExams list
+      if (teacher['createdExams'] == null) {
+        teacher['createdExams'] = <ObjectId>[];
+      }
+      (teacher['createdExams'] as List<ObjectId>).add(examId);
+    }
+
     return {
       'exams': exams,
       'questions': questions,
@@ -559,7 +580,8 @@ class MockDataGenerator {
         'semester2': _random.nextInt(41) + 60,
         'semester3': _random.nextInt(41) + 60,
         'semester4': _random.nextInt(41) + 60
-      }
+      },
+      'role': 'student',
     };
   }
 
@@ -618,7 +640,8 @@ class MockDataGenerator {
           'Excellence in Teaching',
           'Innovation Award'
         ][_random.nextInt(4)]
-      ).toSet().toList()
+      ).toSet().toList(),
+      'role': 'teacher',
     };
   }
 
@@ -642,6 +665,7 @@ class MockDataGenerator {
         'phoneNumber': '09${_random.nextInt(100000000).toString().padLeft(8, '0')}',
         'address': 'Address ${index + 1}',
         'password': '12345678', // Default password
+        'role': 'student',
       };
     });
   }
@@ -680,6 +704,7 @@ class MockDataGenerator {
         'department': departments[departmentIndex],
         'subjects': subjects[departmentIndex],
         'createdExams': <ObjectId>[],
+        'role': 'teacher',
       };
       teachers.add(teacher);
     }
@@ -713,6 +738,7 @@ class MockDataGenerator {
         'department': departments[departmentIndex],
         'subjects': subjects[departmentIndex],
         'createdExams': <ObjectId>[],
+        'role': 'teacher',
       };
     });
 
@@ -742,6 +768,7 @@ class MockDataGenerator {
           'questions': <ObjectId>[],
           'createdAt': DateTime.now(),
           'updatedAt': DateTime.now(),
+          'role': 'teacher',
         };
         exams.add(exam);
       }
@@ -789,6 +816,7 @@ class MockDataGenerator {
                   : 'Sample answer',
           'createdAt': DateTime.now(),
           'updatedAt': DateTime.now(),
+          'role': 'teacher',
         };
         questions.add(question);
       }

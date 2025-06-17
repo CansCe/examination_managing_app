@@ -57,8 +57,9 @@ class _LoginPageState extends State<LoginPage> {
             builder: (context) => HomeScreen(
               username: user.fullName,
               userRole: user.role,
-              studentId: user.role == UserRole.student ? user.username : null,
+              studentId: user.role == UserRole.student ? user.id : null,
               className: user.role == UserRole.student ? 'Class A' : null, // TODO: Get actual class from user data
+              teacherId: user.role == UserRole.teacher ? user.id : null, // Pass teacherId for teachers
             ),
           ),
         );

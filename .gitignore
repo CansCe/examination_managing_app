@@ -47,4 +47,6 @@ app.*.map.json
 
 # database credential
 /lib/config/database_config.dart
+# ignoring mock database 
+/lib/database/mock_data/
 
