@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../config/routes.dart'; // For AppRoutes.login
 import '../models/index.dart';
 import '../models/question.dart';
-import '../services/index.dart';
 //import 'exam_details_page.dart';
 import '../features/shared/helpdesk_chat.dart';
 import '../services/atlas_service.dart';
@@ -125,6 +124,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Future<void> _loadData({bool refresh = false}) async {
+    if (_isLoading) return;
+
     if (refresh) {
       setState(() {
         _currentPage = 0;
@@ -134,143 +135,121 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       });
     }
 
-    if (_isLoading) return;
-
     setState(() {
       _isLoading = true;
     });
 
     try {
-      if (widget.userRole == UserRole.student) {
-        // For students, only load their assigned exams
-        if (widget.studentId != null) {
-          final studentExams = await AtlasService.getStudentExams(
-            studentId: widget.studentId!,
-            page: _currentPage,
-            limit: _pageSize,
-          );
-
-          setState(() {
-            _exams.addAll(studentExams);
-            _hasMoreData = studentExams.length == _pageSize;
-            _currentPage++;
-          });
-        } else {
-          // If no studentId is provided, show an error
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Student ID is required'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
+      if (widget.userRole == UserRole.teacher) {
+        await _loadTeacherData();
       } else {
-        // For teachers, use the separate teacher data loading function
-        await _loadTeacherData(refresh: refresh);
+        // For students, load their exams
+        final studentExams = await AtlasService.getStudentExams(
+          studentId: widget.username!,
+          page: _currentPage,
+          limit: _pageSize,
+        );
+
+        if (!mounted) return;
+
+        setState(() {
+          _exams.addAll(studentExams);
+          _hasMoreData = studentExams.length == _pageSize;
+          _currentPage++;
+        });
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error loading data: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      print('Error loading data: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading data: $e')),
+        );
+      }
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
-  Future<void> _loadTeacherData({bool refresh = false}) async {
-    if (refresh) {
-      setState(() {
-        _currentPage = 0;
-        _exams.clear();
-        _students.clear();
-        _teachers.clear();
-      });
-    }
-
-    if (_isLoading) return;
-
+  Future<void> _loadTeacherData() async {
+    if (!mounted || _isLoading) return;
     setState(() {
       _isLoading = true;
     });
-
     try {
-      print('[DEBUG] _loadTeacherData called for teacherId: $_teacherId, username: \'${widget.username}\'');
-      // If teacherId is not provided, try to get it from the database
-      if (_teacherId == null) {
-        try {
-          print('[DEBUG] Fetching teacher by username: \'${widget.username}\'');
-          final teacher = await AtlasService.findTeacherByUsername(widget.username!);
-          if (teacher != null) {
-            print('[DEBUG] Found teacher: \'${teacher['_id']}\', createdExams: ${teacher['createdExams']}');
-            _teacherId = teacher['_id'].toString();
-          } else {
-            print('[ERROR] Teacher not found for username: ${widget.username}');
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Teacher account not found. Please contact support.'),
-                backgroundColor: Colors.red,
-              ),
-            );
-            return;
-          }
-        } catch (e) {
-          print('[ERROR] Exception finding teacher: $e');
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error finding teacher account: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-          return;
-        }
+      print('_loadTeacherData called for username: ${widget.username}');
+      // First get the teacher's ID from their username
+      final teacher = await AtlasService.findTeacherByUsername(widget.username!);
+      if (teacher == null) {
+        print('Teacher not found for username: ${widget.username}');
+        setState(() {
+          _isLoading = false;
+        });
+        return;
       }
-
-      print('[DEBUG] Fetching exams for teacherId: $_teacherId');
-      final teacherExams = await AtlasService.getTeacherExams(
-        teacherId: _teacherId!,
+      // Get the teacher's ID and ensure it's a string
+      final teacherId = teacher['_id'].toHexString();
+      print('Found teacher ID: $teacherId');
+      // Get teacher's exams using their ID
+      final exams = await AtlasService.getTeacherExams(
+        teacherId: teacherId,
         page: _currentPage,
         limit: _pageSize,
       );
-      print('[DEBUG] Fetched ${teacherExams.length} exams for teacherId: $_teacherId');
-
-      // Load all students for the teacher
-      print('[DEBUG] Fetching all students for teacher dashboard');
-      final students = await AtlasService.findStudents();
-      print('[DEBUG] Fetched ${students.length} students');
-
+      if (!mounted) return;
       setState(() {
-        _exams.addAll(teacherExams);
-        _students = students;
-        _hasMoreData = teacherExams.length == _pageSize;
-        _currentPage++;
-      });
-    } catch (e, stack) {
-      print('[ERROR] Error loading teacher data: $e');
-      print('[ERROR] Stack trace: $stack');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error loading teacher data: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      setState(() {
+        if (_currentPage == 0) {
+          _exams = exams;
+        } else {
+          _exams.addAll(exams);
+        }
+        _hasMoreData = exams.length == _pageSize;
+        if (_hasMoreData) _currentPage++;
         _isLoading = false;
       });
+    } catch (e) {
+      print('Error loading teacher data: $e');
+      print('Stack trace: ${StackTrace.current}');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading teacher data: $e')),
+        );
+      }
     }
   }
 
   Future<void> _loadMoreData() async {
-    if (!_hasMoreData || _isLoading) return;
-    if (widget.userRole == UserRole.teacher) {
-      await _loadTeacherData();
-    } else {
-      await _loadData();
+    if (_isLoading || !_hasMoreData) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      if (widget.userRole == UserRole.teacher) {
+        await _loadTeacherData();
+      } else {
+        await _loadData();
+      }
+    } catch (e) {
+      print('Error loading more data: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading more data: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -320,6 +299,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   tooltip: 'Create Exam',
                   onPressed: _createNewExam,
                 ),
+              IconButton(
+                icon: const Icon(Icons.support_agent),
+                tooltip: 'Helpdesk',
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => const HelpdeskChat(),
+                  );
+                },
+              ),
               IconButton(
                 icon: const Icon(Icons.settings),
                 tooltip: 'Settings',
@@ -379,35 +368,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ],
                   ],
                 ),
-          floatingActionButton: Padding(
-            padding: const EdgeInsets.only(left: 48.0, right: 16.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                FloatingActionButton(
-                  onPressed: () {
-                    if (widget.userRole == UserRole.teacher) {
-                      _loadTeacherData(refresh: true);
-                    } else {
-                      _loadData(refresh: true);
-                    }
-                  },
-                  child: const Icon(Icons.refresh),
-                ),
-                FloatingActionButton.extended(
-                  heroTag: 'helpdesk',
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) => const HelpdeskChat(),
-                    );
-                  },
-                  icon: const Icon(Icons.support_agent),
-                  label: const Text('Helpdesk'),
-                  backgroundColor: Colors.blueAccent,
-                ),
-              ],
-            ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: () {
+              if (widget.userRole == UserRole.teacher) {
+                _loadTeacherData();
+              } else {
+                _loadData(refresh: true);
+              }
+            },
+            child: const Icon(Icons.refresh),
           ),
         ),
       ],
@@ -496,7 +465,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               },
             )
           : GridView.builder(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.only(bottom: 80, top: 16, left: 16, right: 16),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
                 childAspectRatio: 1.5,
@@ -638,7 +607,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               },
             )
           : GridView.builder(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.only(bottom: 80, top: 16, left: 16, right: 16),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
                 childAspectRatio: 1.5,
@@ -742,7 +711,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               },
             )
           : GridView.builder(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.only(bottom: 80, top: 16, left: 16, right: 16),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
                 childAspectRatio: 1.5,
@@ -963,7 +932,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               onTap: () async {
                 TimeOfDay initialTime;
                 try {
-                  if (exam.examTime != null && exam.examTime.contains(':')) {
+                  if (exam.examTime.contains(':')) {
                     final parts = exam.examTime.split(':');
                     if (parts.length == 2) {
                       initialTime = TimeOfDay(

@@ -42,7 +42,7 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
   late TextEditingController _maxStudentsController;
   late DateTime _examDate;
   late TimeOfDay _examTime;
-  String _selectedSubject = '';
+  late String _selectedSubject;
   String _selectedDifficulty = 'medium';
   List<Question> _selectedQuestions = [];
   List<Question> _availableQuestions = [];
@@ -71,6 +71,7 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
       _maxStudents = widget.exam!.maxStudents;
     } else {
       // Initialize with default values for new exam
+      _selectedSubject = '';
       _examDate = DateTime.now().add(const Duration(days: 1)); // Default to tomorrow
       _examTime = const TimeOfDay(hour: 9, minute: 0); // Default to 9:00 AM
       _duration = 60;
@@ -82,7 +83,7 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
   Future<void> _loadQuestions() async {
     setState(() => _isLoading = true);
     try {
-      final questions = await MongoDBService.getQuestionsBySubject(_selectedSubject);
+      final questions = await MongoDBService.getQuestionsBySubject(_selectedSubject!);
       setState(() {
         _availableQuestions = questions;
         if (widget.exam != null) {
@@ -193,22 +194,24 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
                       labelText: 'Subject',
                       border: OutlineInputBorder(),
                     ),
-                    items: ['Mathematics', 'Physics', 'Chemistry', 'Biology']
-                        .map((subject) => DropdownMenuItem(
-                              value: subject,
-                              child: Text(subject),
-                            ))
-                        .toList(),
+                    items: [
+                      const DropdownMenuItem<String>(
+                        value: null,
+                        child: Text('Select a subject'),
+                      ),
+                      ...['Mathematics', 'Physics', 'Chemistry', 'Biology']
+                          .map((subject) => DropdownMenuItem(
+                                value: subject,
+                                child: Text(subject),
+                              ))
+                    ],
                     onChanged: (value) {
-                      if (value != null) {
-                        setState(() {
-                          _selectedSubject = value;
-                          _loadQuestions();
-                        });
-                      }
+                      setState(() {
+                        _selectedSubject = value!;
+                        _loadQuestions();
+                      });
                     },
-                    validator: (value) =>
-                        value?.isEmpty ?? true ? 'Please select a subject' : null,
+                    validator: (value) => value == null || value.isEmpty ? 'Please select a subject' : null,
                   ),
                   const SizedBox(height: 16),
                   Row(

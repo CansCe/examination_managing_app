@@ -336,14 +336,35 @@ class AtlasService {
   }
 
   // Find teacher by username
-  static Future<Map<String, dynamic>?> findTeacherByUsername(String username) async {
+  static Future<Map<String, dynamic>?> findTeacherByUsername(String fullName) async {
     await _ensureConnection();
     try {
+      // Split the full name into first and last name
+      final nameParts = fullName.split(' ');
+      if (nameParts.length < 2) {
+        print('Invalid name format: $fullName');
+        return null;
+      }
+      
+      final firstName = nameParts[0];
+      final lastName = nameParts[1];
+      
+      print('Searching for teacher with firstName: $firstName, lastName: $lastName');
+      
       final teacher = await _db!.collection(DatabaseConfig.teachersCollection)
-          .findOne(where.eq('username', username));
+          .findOne(where
+            .eq('firstName', firstName)
+            .eq('lastName', lastName));
+            
+      if (teacher == null) {
+        print('Teacher not found with name: $fullName');
+      } else {
+        print('Found teacher: ${teacher['_id']}');
+      }
+      
       return teacher;
     } catch (e) {
-      print('Error finding teacher by username: $e');
+      print('Error finding teacher by name: $e');
       rethrow;
     }
   }
@@ -356,9 +377,14 @@ class AtlasService {
   }) async {
     await _ensureConnection();
     try {
+      // Convert teacherId to ObjectId if it's a string
+      final ObjectId teacherObjectId = teacherId is String 
+          ? ObjectId.parse(teacherId)
+          : teacherId as ObjectId;
+
       // Find the teacher by 'teacherId' (which is the _id as string)
       final teacher = await _db!.collection(DatabaseConfig.teachersCollection)
-          .findOne(where.eq('_id', ObjectId.parse(teacherId)));
+          .findOne(where.eq('_id', teacherObjectId));
       
       if (teacher == null) {
         print('Teacher not found with ID: $teacherId');
