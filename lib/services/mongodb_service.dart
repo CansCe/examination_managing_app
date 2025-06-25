@@ -4,7 +4,6 @@ import '../models/question.dart';
 import '../utils/mock_data_export.dart';
 import '../utils/mock_data_generator.dart';
 import '../config/database_config.dart';
-import '../services/atlas_service.dart';
 
 class MongoDBService {
   static Db? _db;
@@ -406,7 +405,7 @@ class MongoDBService {
       final db = await getDatabase();
       final examsCollection = db.collection('exams');
 
-      final cursor = await examsCollection.find();
+      final cursor = examsCollection.find();
       final exams = await cursor
           .skip(page * limit)
           .take(limit)
@@ -427,7 +426,7 @@ class MongoDBService {
       final db = await getDatabase();
       final studentsCollection = db.collection('students');
 
-      final cursor = await studentsCollection.find();
+      final cursor = studentsCollection.find();
       final students = await cursor
           .skip(page * limit)
           .take(limit)
@@ -448,7 +447,7 @@ class MongoDBService {
       final db = await getDatabase();
       final teachersCollection = db.collection('teachers');
 
-      final cursor = await teachersCollection.find();
+      final cursor = teachersCollection.find();
       final teachers = await cursor
           .skip(page * limit)
           .take(limit)
@@ -492,7 +491,7 @@ class MongoDBService {
           .eq('createdBy', teacherId)
           .sortBy('date', descending: true);
 
-      final cursor = await examsCollection.find(query);
+      final cursor = examsCollection.find(query);
       final exams = await cursor
           .skip(page * limit)
           .take(limit)

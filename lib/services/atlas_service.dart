@@ -378,9 +378,7 @@ class AtlasService {
     await _ensureConnection();
     try {
       // Convert teacherId to ObjectId if it's a string
-      final ObjectId teacherObjectId = teacherId is String 
-          ? ObjectId.parse(teacherId)
-          : teacherId as ObjectId;
+      final ObjectId teacherObjectId = teacherId as ObjectId;
 
       // Find the teacher by 'teacherId' (which is the _id as string)
       final teacher = await _db!.collection(DatabaseConfig.teachersCollection)
@@ -443,11 +441,14 @@ class AtlasService {
   }) async {
     await _ensureConnection();
     try {
-      // First get the student's assigned exams
+      // First get the student's assigned exams using _id (ObjectId)
+      final studentObjectId = ObjectId.fromHexString(studentId);
+      
       final student = await _db!.collection(DatabaseConfig.studentsCollection)
-          .findOne(where.eq('studentId', studentId));
+          .findOne(where.id(studentObjectId));
       
       if (student == null) {
+        print('Student not found with ID: $studentId');
         return [];
       }
 
@@ -470,6 +471,7 @@ class AtlasService {
       }
 
       if (assignedExamIds.isEmpty) {
+        print('No assigned exams found for student: $studentId');
         return [];
       }
 

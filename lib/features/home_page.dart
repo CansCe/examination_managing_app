@@ -1,11 +1,14 @@
 // lib/features/home_screen.dart
 import 'package:flutter/material.dart';
+import 'package:mongo_dart/mongo_dart.dart' hide State,Center;
 import '../config/routes.dart'; // For AppRoutes.login
 import '../models/index.dart';
 import '../models/question.dart';
 //import 'exam_details_page.dart';
 import '../features/shared/helpdesk_chat.dart';
 import '../services/atlas_service.dart';
+
+final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 
 class HomeScreen extends StatefulWidget {
   final String? username;
@@ -27,7 +30,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin, RouteAware {
   late TabController _tabController;
   late List<Exam> _exams = [];
   late List<Student> _students = [];
@@ -56,6 +59,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    routeObserver.subscribe(this, ModalRoute.of(context)! as PageRoute);
     if (!_isInitialized) {
       // Get student info from arguments if available
       final args = ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
@@ -68,6 +72,23 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       }
       _isInitialized = true;
       _loadData();
+    }
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didPopNext() {
+    // Called when coming back to this page
+    if (widget.userRole == UserRole.teacher) {
+      _loadTeacherData();
+    } else {
+      _loadData(refresh: true);
     }
   }
 
@@ -143,9 +164,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       if (widget.userRole == UserRole.teacher) {
         await _loadTeacherData();
       } else {
-        // For students, load their exams
+        // For students, load their exams using studentId if available, else fallback to username
+        final studentId = widget.studentId ?? widget.username;
+        if (studentId == null) {
+          setState(() {
+            _exams = [];
+            _isLoading = false;
+          });
+          return;
+        }
         final studentExams = await AtlasService.getStudentExams(
-          studentId: widget.username!,
+          studentId: studentId,
           page: _currentPage,
           limit: _pageSize,
         );
@@ -153,7 +182,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         if (!mounted) return;
 
         setState(() {
-          _exams.addAll(studentExams);
+          if (refresh || _currentPage == 0) {
+            // Replace data on refresh or first load
+            _exams = studentExams;
+          } else {
+            // Add data for pagination
+            _exams.addAll(studentExams);
+          }
           _hasMoreData = studentExams.length == _pageSize;
           _currentPage++;
         });
@@ -254,12 +289,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     if (_isLoading) {
       return const Scaffold(
@@ -298,6 +327,36 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   icon: const Icon(Icons.add_circle_outline),
                   tooltip: 'Create Exam',
                   onPressed: _createNewExam,
+                ),
+              if (widget.userRole == UserRole.teacher)
+                PopupMenuButton<String>(
+                  onSelected: (value) {
+                    switch (value) {
+                      case 'import':
+                        _importQuestionBank();
+                        break;
+                      case 'new':
+                        _createNewQuestion();
+                        break;
+                      case 'edit':
+                        _editQuestion();
+                        break;
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'import',
+                      child: Text('Import Question Bank'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'new',
+                      child: Text('New Question'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'edit',
+                      child: Text('Edit Question'),
+                    ),
+                  ],
                 ),
               IconButton(
                 icon: const Icon(Icons.support_agent),
@@ -876,14 +935,34 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _editExam(Exam exam) {
-    Navigator.pushNamed(
-      context,
-      AppRoutes.examEdit,
-      arguments: {
-        'exam': exam,
-        'teacherId': _teacherId,
-      },
-    ).then((_) => _loadData(refresh: true));
+    String? examId;
+    try {
+      examId = exam.id.toHexString();
+    } catch (_) {
+      examId = null;
+    }
+    if (examId == null) {
+      // If exam id is null, create a temp one and navigate to create exam
+      final tempId = ObjectId().toHexString();
+      Navigator.pushNamed(
+        context,
+        AppRoutes.examEdit,
+        arguments: {
+          'examId': tempId,
+          'teacherId': _teacherId,
+        },
+      ).then((_) => _loadData(refresh: true));
+    } else {
+      // Edit existing exam
+      Navigator.pushNamed(
+        context,
+        AppRoutes.examEdit,
+        arguments: {
+          'examId': examId,
+          'teacherId': _teacherId,
+        },
+      ).then((_) => _loadData(refresh: true));
+    }
   }
 
   void _createNewExam() {
@@ -1051,6 +1130,24 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           ),
         ],
       ),
+    );
+  }
+
+  void _importQuestionBank() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Import Question Bank clicked')),
+    );
+  }
+
+  void _createNewQuestion() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('New Question clicked')),
+    );
+  }
+
+  void _editQuestion() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Edit Question clicked')),
     );
   }
 }

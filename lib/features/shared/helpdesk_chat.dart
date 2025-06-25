@@ -70,16 +70,24 @@ class _HelpdeskChatState extends State<HelpdeskChat> {
                 color: Colors.blue,
               ),
               child: Row(
-                children: const [
-                  Icon(Icons.support_agent, color: Colors.white),
-                  SizedBox(width: 8),
-                  Text(
+                children: [
+                  const Icon(Icons.support_agent, color: Colors.white),
+                  const SizedBox(width: 8),
+                  const Text(
                     'Helpdesk Chat',
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
                       fontSize: 18,
                     ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    tooltip: 'Exit',
+                    onPressed: () {
+                      Navigator.of(context).maybePop();
+                    },
                   ),
                 ],
               ),

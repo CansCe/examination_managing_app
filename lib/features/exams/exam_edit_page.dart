@@ -1,18 +1,18 @@
-import 'package:flutter/material.dart' hide State;
+import 'package:flutter/material.dart' ;
 import 'package:flutter/material.dart' as material;
-import 'package:mongo_dart/mongo_dart.dart' hide Center;
+import 'package:mongo_dart/mongo_dart.dart'  hide Center;
 //import '../../models/teacher.dart' hide Question;
 import '../../models/exam.dart';
 import '../../models/question.dart';
 import '../../services/mongodb_service.dart';
 
 class ExamEditPage extends StatefulWidget {
-  final Exam? exam; // If null, we're creating a new exam
+  final String? examId; // If null, we're creating a new exam
   final String teacherId;
 
   const ExamEditPage({
     Key? key,
-    this.exam,
+    this.examId,
     required this.teacherId,
   }) : super(key: key);
 
@@ -42,42 +42,78 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
   late TextEditingController _maxStudentsController;
   late DateTime _examDate;
   late TimeOfDay _examTime;
-  late String _selectedSubject;
+  late String? _selectedSubject;
   String _selectedDifficulty = 'medium';
   List<Question> _selectedQuestions = [];
   List<Question> _availableQuestions = [];
   bool _isLoading = false;
   late int _duration;
   late int _maxStudents;
+  Exam? _exam; // Store loaded exam if editing
 
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController(text: widget.exam?.title ?? '');
-    _descriptionController = TextEditingController(text: widget.exam?.description ?? '');
-    _durationController = TextEditingController(text: widget.exam?.duration.toString() ?? '60');
-    _maxStudentsController = TextEditingController(text: widget.exam?.maxStudents.toString() ?? '30');
-    if (widget.exam != null) {
-      _titleController.text = widget.exam!.title;
-      _descriptionController.text = widget.exam!.description;
-      _selectedSubject = widget.exam!.subject;
-      _selectedDifficulty = widget.exam!.difficulty;
-      _examDate = widget.exam!.examDate;
-      _examTime = TimeOfDay(
-        hour: int.parse(widget.exam!.examTime.split(':')[0]),
-        minute: int.parse(widget.exam!.examTime.split(':')[1]),
-      );
-      _duration = widget.exam!.duration;
-      _maxStudents = widget.exam!.maxStudents;
+    _titleController = TextEditingController();
+    _descriptionController = TextEditingController();
+    _durationController = TextEditingController();
+    _maxStudentsController = TextEditingController();
+    if (widget.examId != null) {
+      _fetchExamAndInit();
     } else {
-      // Initialize with default values for new exam
-      _selectedSubject = '';
-      _examDate = DateTime.now().add(const Duration(days: 1)); // Default to tomorrow
-      _examTime = const TimeOfDay(hour: 9, minute: 0); // Default to 9:00 AM
-      _duration = 60;
-      _maxStudents = 30;
+      _initForNewExam();
+      _loadQuestions();
     }
-    _loadQuestions();
+  }
+
+  Future<void> _fetchExamAndInit() async {
+    setState(() => _isLoading = true);
+    try {
+      final exam = await MongoDBService.getExamById(ObjectId.fromHexString(widget.examId!));
+      if (exam != null) {
+        _exam = exam;
+        _titleController.text = exam.title;
+        _descriptionController.text = exam.description;
+        _durationController.text = exam.duration.toString();
+        _maxStudentsController.text = exam.maxStudents.toString();
+        _selectedSubject = exam.subject;
+        _selectedDifficulty = exam.difficulty;
+        _examDate = exam.examDate;
+        _examTime = TimeOfDay(
+          hour: int.parse(exam.examTime.split(':')[0]),
+          minute: int.parse(exam.examTime.split(':')[1]),
+        );
+        _duration = exam.duration;
+        _maxStudents = exam.maxStudents;
+      } else {
+        _initForNewExam();
+      }
+      await _loadQuestions();
+    } catch (e) {
+      _initForNewExam();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error loading exam: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  void _initForNewExam() {
+    _exam = null;
+    _titleController.text = '';
+    _descriptionController.text = '';
+    _durationController.text = '60';
+    _maxStudentsController.text = '30';
+    _selectedSubject = null;
+    _selectedDifficulty = 'medium';
+    _examDate = DateTime.now().add(const Duration(days: 1));
+    _examTime = const TimeOfDay(hour: 9, minute: 0);
+    _duration = 60;
+    _maxStudents = 30;
+    _selectedQuestions = [];
   }
 
   Future<void> _loadQuestions() async {
@@ -86,10 +122,8 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
       final questions = await MongoDBService.getQuestionsBySubject(_selectedSubject!);
       setState(() {
         _availableQuestions = questions;
-        if (widget.exam != null) {
-          // Load selected questions for existing exam
-          _selectedQuestions = questions.where((q) => 
-            widget.exam!.questions.contains(q.id)).toList();
+        if (_exam != null) {
+          _selectedQuestions = questions.where((q) => _exam!.questions.contains(q.id)).toList();
         }
       });
     } catch (e) {
@@ -109,22 +143,22 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
     setState(() => _isLoading = true);
     try {
       final exam = Exam(
-        id: widget.exam?.id ?? ObjectId(),
+        id: _exam?.id ?? ObjectId(),
         title: _titleController.text,
         description: _descriptionController.text,
-        subject: _selectedSubject,
+        subject: _selectedSubject!,
         difficulty: _selectedDifficulty,
         examDate: _examDate,
         examTime: '${_examTime.hour.toString().padLeft(2, '0')}:${_examTime.minute.toString().padLeft(2, '0')}',
-        duration: _duration,
-        maxStudents: _maxStudents,
+        duration: int.tryParse(_durationController.text) ?? 60,
+        maxStudents: int.tryParse(_maxStudentsController.text) ?? 30,
         questions: _selectedQuestions.map((q) => q.id).toList(),
-        createdBy: widget.exam?.createdBy ?? ObjectId(),
-        createdAt: widget.exam?.createdAt ?? DateTime.now(),
+        createdBy: _exam?.createdBy ?? ObjectId.fromHexString(widget.teacherId),
+        createdAt: _exam?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
       );
 
-      final Object success = widget.exam == null
+      final Object success = _exam == null
           ? await MongoDBService.createExam(exam)
           : await MongoDBService.updateExam(exam);
 
@@ -154,11 +188,40 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.exam == null ? 'Create New Exam' : 'Edit Exam'),
+        title: Text(_exam == null ? 'Create New Exam' : 'Edit Exam'),
         actions: [
           IconButton(
             icon: const Icon(Icons.save),
             onPressed: _isLoading ? null : _saveExam,
+          ),
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              switch (value) {
+                case 'import':
+                  _importQuestionBank();
+                  break;
+                case 'new':
+                  _createNewQuestion();
+                  break;
+                case 'edit':
+                  _editQuestion();
+                  break;
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'import',
+                child: Text('Import Question Bank'),
+              ),
+              const PopupMenuItem(
+                value: 'new',
+                child: Text('New Question'),
+              ),
+              const PopupMenuItem(
+                value: 'edit',
+                child: Text('Edit Question'),
+              ),
+            ],
           ),
         ],
       ),
@@ -207,7 +270,7 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
                     ],
                     onChanged: (value) {
                       setState(() {
-                        _selectedSubject = value!;
+                        _selectedSubject = value;
                         _loadQuestions();
                       });
                     },
@@ -353,5 +416,27 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
     _durationController.dispose();
     _maxStudentsController.dispose();
     super.dispose();
+  }
+
+  // --- Question Management Stubs ---
+  void _importQuestionBank() {
+    // TODO: Implement import logic (e.g., open file picker or dialog)
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Import Question Bank clicked')),
+    );
+  }
+
+  void _createNewQuestion() {
+    // TODO: Implement new question logic (e.g., navigate to question creation page)
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('New Question clicked')),
+    );
+  }
+
+  void _editQuestion() {
+    // TODO: Implement edit question logic (e.g., navigate to question edit page)
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Edit Question clicked')),
+    );
   }
 } 

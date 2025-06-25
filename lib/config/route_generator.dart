@@ -36,11 +36,11 @@ class RouteGenerator {
 
       case AppRoutes.examEdit:
         if (args is Map<String, dynamic>) {
-          final Exam? exam = args['exam'] as Exam?;
+          final String? examId = args['examId'] as String?;
           final String teacherId = args['teacherId'] as String;
           return MaterialPageRoute(
             builder: (_) => ExamEditPage(
-              exam: exam,
+              examId: examId,
               teacherId: teacherId,
             ),
           );

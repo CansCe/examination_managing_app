@@ -21,22 +21,20 @@ class AuthService {
       });
 
       // If not found, try to find teacher
-      if (user == null) {
-        user = await db.collection(DatabaseConfig.teachersCollection).findOne({
+      user ??= await db.collection(DatabaseConfig.teachersCollection).findOne({
           '\$or': [
             {'username': username},
             {'email': username},
           ],
           'password': password,
         });
-      }
 
       if (user != null) {
         // Determine if it's a teacher or student based on the collection
         final isTeacher = user.containsKey('department');
         
         return User(
-          id: user['_id'].toString(),
+          id: user['_id'].toHexString(),
           username: user['username'] ?? user['studentId'] ?? user['email'],
           role: isTeacher ? UserRole.teacher : UserRole.student,
           fullName: '${user['firstName']} ${user['lastName']}',
@@ -96,17 +94,15 @@ class AuthService {
       );
 
       // If not found, try teachers collection
-      if (user == null) {
-        user = await db.collection(DatabaseConfig.teachersCollection).findOne(
+      user ??= await db.collection(DatabaseConfig.teachersCollection).findOne(
           where.id(ObjectId.fromHexString(userId)),
         );
-      }
 
       if (user != null) {
         final isTeacher = user.containsKey('department');
         
         return User(
-          id: user['_id'].toString(),
+          id: user['_id'].toHexString(),
           username: user['username'] ?? user['studentId'] ?? user['email'],
           role: isTeacher ? UserRole.teacher : UserRole.student,
           fullName: '${user['firstName']} ${user['lastName']}',

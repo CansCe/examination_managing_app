@@ -290,8 +290,8 @@ class MockDataGenerator {
         // Create the exam map and include the generated question ObjectIds
         final exam = {
           '_id': examId,
-          'title': '${subject} ${examType} ${i + 1}',
-          'description': 'This is an ${difficulty} ${examType} exam for ${subject}',
+          'title': '$subject $examType ${i + 1}',
+          'description': 'This is an $difficulty $examType exam for $subject',
           'subject': subject,
           'difficulty': difficulty,
           'examDate': DateTime.now().add(Duration(days: _random.nextInt(30))),

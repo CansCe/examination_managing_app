@@ -19,7 +19,7 @@ class ExaminationPage extends StatefulWidget {
 
 class _ExaminationPageState extends State<ExaminationPage> {
   int _currentQuestionIndex = 0;
-  Map<int, String> _answers = {};
+  final Map<int, String> _answers = {};
   late Timer _timer;
   late Duration _remainingTime;
   bool _isExamSubmitted = false;
