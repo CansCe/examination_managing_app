@@ -7,8 +7,13 @@ import '../services/atlas_service.dart';
 
 class ExamDetailsPage extends StatefulWidget {
   final Exam exam;
+  final String? studentId; // Student ID for submitting exam
 
-  const ExamDetailsPage({Key? key, required this.exam}) : super(key: key);
+  const ExamDetailsPage({
+    Key? key,
+    required this.exam,
+    this.studentId,
+  }) : super(key: key);
 
   @override
   State<ExamDetailsPage> createState() => _ExamDetailsPageState();
@@ -27,6 +32,7 @@ class _ExamDetailsPageState extends State<ExamDetailsPage> {
 
   Future<void> _loadQuestions() async {
     try {
+      
       setState(() {
         _isLoading = true;
         _error = null;
@@ -43,7 +49,7 @@ class _ExamDetailsPageState extends State<ExamDetailsPage> {
         _error = 'Error loading questions: $e';
         _isLoading = false;
       });
-      print('Error loading questions: $e');
+      //print('Error loading questions: $e');
     }
   }
 
@@ -54,6 +60,7 @@ class _ExamDetailsPageState extends State<ExamDetailsPage> {
       arguments: {
         'exam': widget.exam,
         'questions': _questions,
+        'studentId': widget.studentId,
       },
     );
   }

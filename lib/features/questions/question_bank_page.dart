@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mongo_dart/mongo_dart.dart' hide State, Center;
 import '../../models/question.dart';
 import '../../services/mongodb_service.dart';
+import '../../utils/dialog_helper.dart';
 
 class QuestionBankPage extends StatefulWidget {
   final String teacherId;
@@ -38,8 +39,10 @@ class _QuestionBankPageState extends State<QuestionBankPage> {
         }
       });
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading questions: $e')),
+      DialogHelper.showErrorDialog(
+        context: context,
+        title: 'Error Loading Questions',
+        message: 'An error occurred while loading questions: $e',
       );
     } finally {
       setState(() => _isLoading = false);

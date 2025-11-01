@@ -692,6 +692,111 @@ class AtlasService {
     }
   }
 
+  // Submit exam answers with auto-grading
+  static Future<Map<String, dynamic>> submitExamAnswers({
+    required String examId,
+    required String studentId,
+    required Map<int, String> answers, // Map of question index to answer
+    required DateTime submittedAt,
+    bool isTimeUp = false,
+    required List<Question> questions, // Questions to compare answers against
+  }) async {
+    await _ensureConnection();
+    try {
+      final examObjectId = ObjectId.fromHexString(examId);
+      final studentObjectId = ObjectId.fromHexString(studentId);
+      
+      // Convert answers map to a format suitable for database storage
+      final Map<String, String> answersMap = {};
+      answers.forEach((questionIndex, answer) {
+        answersMap[questionIndex.toString()] = answer;
+      });
+      
+      // Auto-grade the exam
+      int totalQuestions = questions.length;
+      int correctAnswers = 0;
+      int totalPoints = 0;
+      int earnedPoints = 0;
+      Map<int, bool> questionResults = {};
+      
+      for (int i = 0; i < questions.length; i++) {
+        final question = questions[i];
+        final studentAnswer = answers[i];
+        
+        totalPoints += question.points;
+        
+        // Check if the answer is correct
+        bool isCorrect = false;
+        if (studentAnswer != null && studentAnswer == question.correctAnswer) {
+          isCorrect = true;
+          correctAnswers++;
+          earnedPoints += question.points;
+        }
+        
+        questionResults[i] = isCorrect;
+      }
+      
+      // Calculate percentage score
+      double percentageScore = totalQuestions > 0 
+          ? (correctAnswers / totalQuestions) * 100 
+          : 0.0;
+      
+      final examResult = {
+        '_id': ObjectId(),
+        'examId': examObjectId,
+        'studentId': studentObjectId,
+        'answers': answersMap,
+        'submittedAt': submittedAt.toIso8601String(),
+        'isTimeUp': isTimeUp,
+        'createdAt': DateTime.now().toIso8601String(),
+        'status': 'graded',
+        'totalQuestions': totalQuestions,
+        'correctAnswers': correctAnswers,
+        'earnedPoints': earnedPoints,
+        'totalPoints': totalPoints,
+        'percentageScore': percentageScore,
+        'gradedAt': DateTime.now().toIso8601String(),
+      };
+      
+      await _db!.collection(DatabaseConfig.examResultsCollection).insert(examResult);
+      print('Exam answers submitted and auto-graded successfully: $correctAnswers/$totalQuestions correct');
+      
+      // Return grading results
+      return {
+        'totalQuestions': totalQuestions,
+        'correctAnswers': correctAnswers,
+        'earnedPoints': earnedPoints,
+        'totalPoints': totalPoints,
+        'percentageScore': percentageScore,
+      };
+    } catch (e) {
+      print('Error submitting exam answers: $e');
+      rethrow;
+    }
+  }
+
+  // Get exam results for a student
+  static Future<Map<String, dynamic>?> getExamResult({
+    required String examId,
+    required String studentId,
+  }) async {
+    await _ensureConnection();
+    try {
+      final examObjectId = ObjectId.fromHexString(examId);
+      final studentObjectId = ObjectId.fromHexString(studentId);
+      
+      final result = await _db!.collection(DatabaseConfig.examResultsCollection)
+          .findOne(where
+            .eq('examId', examObjectId)
+            .eq('studentId', studentObjectId));
+      
+      return result;
+    } catch (e) {
+      print('Error getting exam result: $e');
+      rethrow;
+    }
+  }
+
   // Generate and insert mock data
   static Future<void> generateAndInsertMockData() async {
     try {

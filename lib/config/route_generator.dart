@@ -52,9 +52,11 @@ class RouteGenerator {
           final Exam exam = args['exam'] as Exam;
           final Function() onExamUpdated = args['onExamUpdated'] as Function();
           final Function() onExamDeleted = args['onExamDeleted'] as Function();
+          final String? studentId = args['studentId'] as String?;
           return MaterialPageRoute(
             builder: (_) => ExamDetailsPage(
               exam: exam,
+              studentId: studentId,
               // onExamUpdated: onExamUpdated,
               // onExamDeleted: onExamDeleted,
             ),
@@ -66,10 +68,12 @@ class RouteGenerator {
         if (args is Map<String, dynamic>) {
           final Exam exam = args['exam'] as Exam;
           final List<Question> questions = args['questions'] as List<Question>;
+          final String? studentId = args['studentId'] as String?;
           return MaterialPageRoute(
             builder: (_) => ExaminationPage(
               exam: exam,
               questions: questions,
+              studentId: studentId,
             ),
           );
         }

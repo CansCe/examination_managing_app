@@ -7,6 +7,7 @@ import '../models/question.dart';
 //import 'exam_details_page.dart';
 import '../features/shared/helpdesk_chat.dart';
 import '../services/atlas_service.dart';
+import '../utils/dialog_helper.dart';
 
 final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 
@@ -128,17 +129,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         _isLoading = false;
       });
     } catch (e) {
-      print('Error loading data: $e');
       setState(() {
         _isLoading = false;
       });
       // Show error message
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error loading data: $e'),
-            backgroundColor: Colors.red,
-          ),
+        DialogHelper.showErrorDialog(
+          context: context,
+          title: 'Error Loading Data',
+          message: 'An error occurred while loading data: $e',
         );
       }
     }
@@ -194,10 +193,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         });
       }
     } catch (e) {
-      print('Error loading data: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading data: $e')),
+        DialogHelper.showErrorDialog(
+          context: context,
+          title: 'Error Loading Data',
+          message: 'An error occurred while loading data: $e',
         );
       }
     } finally {
@@ -246,14 +246,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         _isLoading = false;
       });
     } catch (e) {
-      print('Error loading teacher data: $e');
-      print('Stack trace: ${StackTrace.current}');
       if (mounted) {
         setState(() {
           _isLoading = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading teacher data: $e')),
+        DialogHelper.showErrorDialog(
+          context: context,
+          title: 'Error Loading Teacher Data',
+          message: 'An error occurred while loading teacher data: $e',
         );
       }
     }
@@ -273,10 +273,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         await _loadData();
       }
     } catch (e) {
-      print('Error loading more data: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading more data: $e')),
+        DialogHelper.showErrorDialog(
+          context: context,
+          title: 'Error Loading Data',
+          message: 'An error occurred while loading more data: $e',
         );
       }
     } finally {
@@ -833,6 +834,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       AppRoutes.examDetails,
       arguments: {
         'exam': exam,
+        'studentId': widget.studentId,
         'onExamUpdated': () => _loadData(refresh: true),
         'onExamDeleted': () => _loadData(refresh: true),
       },
@@ -1080,8 +1082,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   throw Exception('Failed to delay exam');
                 }
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error delaying exam: $e')),
+                DialogHelper.showErrorDialog(
+                  context: context,
+                  title: 'Error Delaying Exam',
+                  message: 'An error occurred while delaying the exam: $e',
                 );
               }
             },
@@ -1121,8 +1125,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   throw Exception('Failed to cancel exam');
                 }
               } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error cancelling exam: $e')),
+                DialogHelper.showErrorDialog(
+                  context: context,
+                  title: 'Error Cancelling Exam',
+                  message: 'An error occurred while cancelling the exam: $e',
                 );
               }
             },

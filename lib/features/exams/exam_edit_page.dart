@@ -5,6 +5,7 @@ import 'package:mongo_dart/mongo_dart.dart'  hide Center;
 import '../../models/exam.dart';
 import '../../models/question.dart';
 import '../../services/mongodb_service.dart';
+import '../../utils/dialog_helper.dart';
 
 class ExamEditPage extends StatefulWidget {
   final String? examId; // If null, we're creating a new exam
@@ -92,8 +93,10 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
     } catch (e) {
       _initForNewExam();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading exam: $e')),
+        DialogHelper.showErrorDialog(
+          context: context,
+          title: 'Error Loading Exam',
+          message: 'An error occurred while loading the exam: $e',
         );
       }
     } finally {
@@ -128,8 +131,10 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
       });
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading questions: $e')),
+        DialogHelper.showErrorDialog(
+          context: context,
+          title: 'Error Loading Questions',
+          message: 'An error occurred while loading questions: $e',
         );
       }
     } finally {
@@ -173,8 +178,10 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving exam: $e')),
+        DialogHelper.showErrorDialog(
+          context: context,
+          title: 'Error Saving Exam',
+          message: 'An error occurred while saving the exam: $e',
         );
       }
     } finally {
