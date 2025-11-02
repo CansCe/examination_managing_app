@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mongo_dart/mongo_dart.dart';
 import 'routes.dart';
 import '../models/user.dart';
 import '../models/exam.dart';
@@ -8,6 +9,7 @@ import '../features/home_page.dart';
 import '../features/exams/exam_edit_page.dart';
 import '../features/exam_details_page.dart';
 import '../features/examination_page.dart';
+import '../features/questions/question_edit_page.dart';
 
 class RouteGenerator {
   static Route<dynamic> generateRoute(RouteSettings settings) {
@@ -78,6 +80,21 @@ class RouteGenerator {
           );
         }
         return _errorRoute('Invalid arguments for Examination Page');
+
+      case AppRoutes.questionEdit:
+        if (args is Map<String, dynamic>) {
+          final String? questionId = args['questionId'] as String?;
+          final String teacherId = args['teacherId'] as String;
+          final ObjectId? examId = args['examId'] as ObjectId?;
+          return MaterialPageRoute(
+            builder: (_) => QuestionEditPage(
+              questionId: questionId,
+              teacherId: teacherId,
+              examId: examId,
+            ),
+          );
+        }
+        return _errorRoute('Invalid arguments for Question Edit Page');
 
       default:
         return _errorRoute('Route not found: ${settings.name}');

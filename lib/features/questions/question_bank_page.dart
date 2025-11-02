@@ -3,6 +3,7 @@ import 'package:mongo_dart/mongo_dart.dart' hide State, Center;
 import '../../models/question.dart';
 import '../../services/mongodb_service.dart';
 import '../../utils/dialog_helper.dart';
+import 'question_edit_page.dart';
 
 class QuestionBankPage extends StatefulWidget {
   final String teacherId;
@@ -49,157 +50,22 @@ class _QuestionBankPageState extends State<QuestionBankPage> {
     }
   }
 
-  Future<void> _showAddQuestionDialog() async {
-    final formKey = GlobalKey<FormState>();
-    final questionController = TextEditingController();
-    final optionsControllers = List.generate(4, (_) => TextEditingController());
-    String selectedSubject = _selectedSubject;
-    String selectedDifficulty = 'medium';
-    String selectedTopic = '';
-
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add New Question'),
-        content: SingleChildScrollView(
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                DropdownButtonFormField<String>(
-                  value: selectedSubject,
-                  decoration: const InputDecoration(
-                    labelText: 'Subject',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: ['Mathematics', 'Physics', 'Chemistry', 'Biology']
-                      .map((subject) => DropdownMenuItem(
-                            value: subject,
-                            child: Text(subject),
-                          ))
-                      .toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      selectedSubject = value;
-                    }
-                  },
-                  validator: (value) =>
-                      value?.isEmpty ?? true ? 'Please select a subject' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: TextEditingController(text: selectedTopic),
-                  decoration: const InputDecoration(
-                    labelText: 'Topic',
-                    border: OutlineInputBorder(),
-                  ),
-                  onChanged: (value) => selectedTopic = value,
-                  validator: (value) =>
-                      value?.isEmpty ?? true ? 'Please enter a topic' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: questionController,
-                  decoration: const InputDecoration(
-                    labelText: 'Question',
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 3,
-                  validator: (value) =>
-                      value?.isEmpty ?? true ? 'Please enter a question' : null,
-                ),
-                const SizedBox(height: 16),
-                ...List.generate(4, (index) => Padding(
-                      padding: const EdgeInsets.only(bottom: 8.0),
-                      child: TextFormField(
-                        controller: optionsControllers[index],
-                        decoration: InputDecoration(
-                          labelText: 'Option ${index + 1}',
-                          border: const OutlineInputBorder(),
-                        ),
-                        validator: (value) =>
-                            value?.isEmpty ?? true ? 'Please enter an option' : null,
-                      ),
-                    )),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<String>(
-                  value: selectedDifficulty,
-                  decoration: const InputDecoration(
-                    labelText: 'Difficulty',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: ['easy', 'medium', 'hard']
-                      .map((difficulty) => DropdownMenuItem(
-                            value: difficulty,
-                            child: Text(difficulty.toUpperCase()),
-                          ))
-                      .toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      selectedDifficulty = value;
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<int>(
-                  decoration: const InputDecoration(
-                    labelText: 'Correct Option',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: List.generate(4, (index) => DropdownMenuItem(
-                        value: index,
-                        child: Text('Option ${index + 1}'),
-                      )),
-                  onChanged: (value) {
-                    if (value != null) {
-                      // Store the correct option index
-                      selectedDifficulty = value.toString();
-                    }
-                  },
-                ),
-              ],
-            ),
-          ),
+  Future<void> _navigateToQuestionEdit({Question? question}) async {
+    final result = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => QuestionEditPage(
+          questionId: question?.id.toHexString(),
+          teacherId: widget.teacherId,
+          examId: question?.examId,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (formKey.currentState!.validate()) {
-                final question = Question(
-                  id: ObjectId(),
-                  text: questionController.text,
-                  questionText: questionController.text,
-                  type: 'multiple_choice',
-                  options: optionsControllers.map((c) => c.text).toList(),
-                  correctOptionIndex: int.parse(selectedDifficulty),
-                  subject: selectedSubject,
-                  topic: selectedTopic,
-                  difficulty: selectedDifficulty,
-                  points: 1,
-                  examId: ObjectId(),
-                  createdBy: ObjectId.fromHexString(widget.teacherId),
-                  correctAnswer: optionsControllers[int.parse(selectedDifficulty)].text,
-                  createdAt: DateTime.now(),
-                  updatedAt: DateTime.now(),
-                );
-
-                final success = await MongoDBService.createQuestion(question);
-                if (success && mounted) {
-                  Navigator.pop(context);
-                  _loadQuestions();
-                }
-              }
-            },
-            child: const Text('Add'),
-          ),
-        ],
       ),
     );
+
+    // Reload questions if the result indicates success
+    if (result == true && mounted) {
+      _loadQuestions();
+    }
   }
 
   @override
@@ -210,7 +76,8 @@ class _QuestionBankPageState extends State<QuestionBankPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.add),
-            onPressed: _showAddQuestionDialog,
+            onPressed: () => _navigateToQuestionEdit(),
+            tooltip: 'Add New Question',
           ),
         ],
       ),
@@ -318,7 +185,9 @@ class _QuestionBankPageState extends State<QuestionBankPage> {
                               ),
                             ],
                             onSelected: (value) async {
-                              if (value == 'delete') {
+                              if (value == 'edit') {
+                                _navigateToQuestionEdit(question: question);
+                              } else if (value == 'delete') {
                                 final confirmed = await showDialog<bool>(
                                   context: context,
                                   builder: (context) => AlertDialog(
@@ -348,7 +217,6 @@ class _QuestionBankPageState extends State<QuestionBankPage> {
                                   }
                                 }
                               }
-                              // TODO: Implement edit functionality
                             },
                           ),
                         ),

@@ -839,6 +839,24 @@ class MongoDBService {
     }
   }
 
+  static Future<Question?> getQuestionById(ObjectId questionId) async {
+    try {
+      final db = await getDatabase();
+      final questions = db.collection('questions');
+      
+      final questionDoc = await questions.findOne(where.id(questionId));
+      
+      if (questionDoc == null) {
+        return null;
+      }
+      
+      return Question.fromMap(questionDoc);
+    } catch (e) {
+      print('Error getting question by ID: $e');
+      return null;
+    }
+  }
+
   static Future<bool> deleteQuestion(ObjectId questionId) async {
     try {
       final db = await getDatabase();
