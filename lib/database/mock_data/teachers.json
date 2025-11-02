@@ -1,6 +1,6 @@
 [
   {
-    "_id": "684ebdcfea65aae60fcac86d",
+    "_id": "6907ed807e6823764527fea4",
     "firstName": "Teacher1",
     "lastName": "Last1",
     "email": "teacher1@school.com",
@@ -11,10 +11,15 @@
       "Physics",
       "Chemistry"
     ],
-    "createdExams": []
+    "createdExams": [
+      "6907ed807e6823764527fea9",
+      "6907ed807e6823764527feaf",
+      "6907ed807e6823764527feb5"
+    ],
+    "role": "teacher"
   },
   {
-    "_id": "684ebdcfea65aae60fcac86e",
+    "_id": "6907ed807e6823764527fea5",
     "firstName": "Teacher2",
     "lastName": "Last2",
     "email": "teacher2@school.com",
@@ -25,10 +30,15 @@
       "Algebra",
       "Calculus"
     ],
-    "createdExams": []
+    "createdExams": [
+      "6907ed807e6823764527febb",
+      "6907ed807e6823764527fec1",
+      "6907ed807e6823764527fec7"
+    ],
+    "role": "teacher"
   },
   {
-    "_id": "684ebdcfea65aae60fcac86f",
+    "_id": "6907ed807e6823764527fea6",
     "firstName": "Teacher3",
     "lastName": "Last3",
     "email": "teacher3@school.com",
@@ -39,10 +49,15 @@
       "Programming",
       "Database"
     ],
-    "createdExams": []
+    "createdExams": [
+      "6907ed807e6823764527fecd",
+      "6907ed807e6823764527fed3",
+      "6907ed807e6823764527fed9"
+    ],
+    "role": "teacher"
   },
   {
-    "_id": "684ebdcfea65aae60fcac870",
+    "_id": "6907ed807e6823764527fea7",
     "firstName": "Teacher4",
     "lastName": "Last4",
     "email": "teacher4@school.com",
@@ -53,10 +68,15 @@
       "Physics",
       "Chemistry"
     ],
-    "createdExams": []
+    "createdExams": [
+      "6907ed807e6823764527fedf",
+      "6907ed807e6823764527fee5",
+      "6907ed807e6823764527feeb"
+    ],
+    "role": "teacher"
   },
   {
-    "_id": "684ebdcfea65aae60fcac871",
+    "_id": "6907ed807e6823764527fea8",
     "firstName": "Teacher5",
     "lastName": "Last5",
     "email": "teacher5@school.com",
@@ -67,6 +87,11 @@
       "Algebra",
       "Calculus"
     ],
-    "createdExams": []
+    "createdExams": [
+      "6907ed807e6823764527fef1",
+      "6907ed807e6823764527fef7",
+      "6907ed807e6823764527fefd"
+    ],
+    "role": "teacher"
   }
 ]

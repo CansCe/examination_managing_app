@@ -10,8 +10,8 @@ Future<void> main() async {
     await MongoDBService.init();
     print('Database connection established');
 
-    // Generate mock data
-    final mockData = await MockDataGenerator.generateBatch();
+    // Generate mock data (skip automatic upload since we handle insertion manually here)
+    final mockData = await MockDataGenerator.generateBatch(uploadToMongoDB: false);
     print('\nGenerated mock data:');
     print('Teachers: ${mockData['teachers']?.length ?? 0}');
     print('Students: ${mockData['students']?.length ?? 0}');

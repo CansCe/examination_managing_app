@@ -129,8 +129,8 @@ class MockDataExport {
       // Clear existing files
       await clearMockDataFiles();
 
-      // Generate mock data
-      final mockData = await MockDataGenerator.generateBatch();
+      // Generate mock data (skip MongoDB upload since we're just exporting to files)
+      final mockData = await MockDataGenerator.generateBatch(uploadToMongoDB: false);
 
       // Convert ObjectIds to strings before exporting
       final teachers = mockData['teachers']!.map((t) => _convertObjectIdToString(t)).toList();

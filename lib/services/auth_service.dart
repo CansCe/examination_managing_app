@@ -29,15 +29,32 @@ class AuthService {
           'password': password,
         });
 
+      // If not found, try to find admin in users collection
+      user ??= await db.collection(DatabaseConfig.usersCollection).findOne({
+          '\$or': [
+            {'username': username},
+            {'email': username},
+          ],
+          'password': password,
+          'role': 'admin',
+        });
+
       if (user != null) {
-        // Determine if it's a teacher or student based on the collection
-        final isTeacher = user.containsKey('department');
+        // Determine role based on collection and fields
+        UserRole role;
+        if (user.containsKey('role') && user['role'] == 'admin') {
+          role = UserRole.admin;
+        } else if (user.containsKey('department')) {
+          role = UserRole.teacher;
+        } else {
+          role = UserRole.student;
+        }
         
         return User(
           id: user['_id'].toHexString(),
           username: user['username'] ?? user['studentId'] ?? user['email'],
-          role: isTeacher ? UserRole.teacher : UserRole.student,
-          fullName: '${user['firstName']} ${user['lastName']}',
+          role: role,
+          fullName: user['fullName'] ?? '${user['firstName']} ${user['lastName']}',
         );
       }
       return null;
@@ -98,14 +115,27 @@ class AuthService {
           where.id(ObjectId.fromHexString(userId)),
         );
 
+      // If not found, try users collection (for admins)
+      user ??= await db.collection(DatabaseConfig.usersCollection).findOne(
+          where.id(ObjectId.fromHexString(userId)),
+        );
+
       if (user != null) {
-        final isTeacher = user.containsKey('department');
+        // Determine role based on collection and fields
+        UserRole role;
+        if (user.containsKey('role') && user['role'] == 'admin') {
+          role = UserRole.admin;
+        } else if (user.containsKey('department')) {
+          role = UserRole.teacher;
+        } else {
+          role = UserRole.student;
+        }
         
         return User(
           id: user['_id'].toHexString(),
           username: user['username'] ?? user['studentId'] ?? user['email'],
-          role: isTeacher ? UserRole.teacher : UserRole.student,
-          fullName: '${user['firstName']} ${user['lastName']}',
+          role: role,
+          fullName: user['fullName'] ?? '${user['firstName']} ${user['lastName']}',
         );
       }
 

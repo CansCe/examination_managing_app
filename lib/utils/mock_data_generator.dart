@@ -1,6 +1,8 @@
 import 'dart:math';
 import 'package:mongo_dart/mongo_dart.dart';
 import '../services/mongodb_service.dart';
+import '../services/atlas_service.dart';
+import '../config/database_config.dart';
 
 class MockDataGenerator {
   static final _random = Random();
@@ -34,7 +36,7 @@ class MockDataGenerator {
   static const List<String> _questionTypes = ['multiple_choice', 'true_false', 'short_answer'];
 
   // Generate a complete batch of mock data
-  static Future<Map<String, List<Map<String, dynamic>>>> generateBatch() async {
+  static Future<Map<String, List<Map<String, dynamic>>>> generateBatch({bool uploadToMongoDB = true}) async {
     // Generate teachers first
     final teachers = _generateTeachers();
     
@@ -45,13 +47,64 @@ class MockDataGenerator {
     
     // Generate students, assigning them to generated exams
     final students = _generateStudents(exams);
+    
+    // Generate admin users
+    final admins = _generateAdmins();
 
-    return {
+    final mockData = {
       'teachers': teachers,
       'students': students,
       'exams': exams,
       'questions': questions,
+      'admins': admins,
     };
+
+    // Upload to MongoDB if requested
+    if (uploadToMongoDB) {
+      try {
+        // Ensure AtlasService is initialized
+        await AtlasService.init();
+        
+        print('Uploading generated mock data to MongoDB...');
+        
+        // Upload teachers
+        if (teachers.isNotEmpty) {
+          await AtlasService.uploadMany(DatabaseConfig.teachersCollection, teachers);
+          print('✓ Uploaded ${teachers.length} teachers');
+        }
+        
+        // Upload students
+        if (students.isNotEmpty) {
+          await AtlasService.uploadMany(DatabaseConfig.studentsCollection, students);
+          print('✓ Uploaded ${students.length} students');
+        }
+        
+        // Upload exams
+        if (exams.isNotEmpty) {
+          await AtlasService.uploadMany(DatabaseConfig.examsCollection, exams);
+          print('✓ Uploaded ${exams.length} exams');
+        }
+        
+        // Upload questions
+        if (questions.isNotEmpty) {
+          await AtlasService.uploadMany(DatabaseConfig.questionsCollection, questions);
+          print('✓ Uploaded ${questions.length} questions');
+        }
+        
+        // Upload admins to users collection
+        if (admins.isNotEmpty) {
+          await AtlasService.uploadMany(DatabaseConfig.usersCollection, admins);
+          print('✓ Uploaded ${admins.length} admin users');
+        }
+        
+        print('✓ All mock data uploaded to MongoDB successfully!');
+      } catch (e) {
+        print('⚠ Warning: Failed to upload mock data to MongoDB: $e');
+        print('  Mock data was generated but not uploaded. You can upload it manually later.');
+      }
+    }
+
+    return mockData;
   }
 
   // Generate teachers
@@ -116,6 +169,32 @@ class MockDataGenerator {
     }
 
     return students;
+  }
+
+  // Generate admin users
+  static List<Map<String, dynamic>> _generateAdmins() {
+    final List<Map<String, dynamic>> admins = [];
+    
+    // Create 2 admin users
+    for (int i = 1; i <= 2; i++) {
+      final adminId = ObjectId();
+      final admin = {
+        '_id': adminId,
+        'firstName': 'Admin${i}',
+        'lastName': 'Support',
+        'email': 'admin${i}@school.com',
+        'username': 'admin${i}',
+        'password': '12345678', // Default password
+        'fullName': 'Admin${i} Support',
+        'role': 'admin',
+        'isActive': true,
+        'createdAt': DateTime.now(),
+        'updatedAt': DateTime.now(),
+      };
+      admins.add(admin);
+    }
+    
+    return admins;
   }
 
   static List<Map<String, dynamic>> _generateQuestions(List<Map<String, dynamic>> exams) {
@@ -294,8 +373,9 @@ class MockDataGenerator {
           'description': 'This is an $difficulty $examType exam for $subject',
           'subject': subject,
           'difficulty': difficulty,
-          'examDate': DateTime.now().add(Duration(days: _random.nextInt(30))),
-          'examTime': '${_random.nextInt(24).toString().padLeft(2, '0')}:${_random.nextInt(60).toString().padLeft(2, '0')}',
+          // Generate random start time: date within 1 month (0-30 days), random time
+          'examDate': DateTime.now().add(Duration(days: _random.nextInt(31))), // 0-30 days (about 1 month)
+          'examTime': '${_random.nextInt(24).toString().padLeft(2, '0')}:${_random.nextInt(60).toString().padLeft(2, '0')}', // Random time
           'duration': _random.nextInt(60) + 30, // 30-90 minutes
           'maxStudents': _random.nextInt(50) + 20, // 20-70 students
           'questions': questionIdsForThisExam, // Assign the list of question ObjectIds
@@ -525,7 +605,8 @@ class MockDataGenerator {
       'title': '$subject $examType',
       'description': 'This is a $difficulty $examType for $subject',
       'subject': subject,
-      'date': DateTime.now().add(Duration(days: _random.nextInt(30))).toIso8601String(),
+      // Random start date within 1 month (0-30 days)
+      'date': DateTime.now().add(Duration(days: _random.nextInt(31))).toIso8601String(), // 0-30 days (about 1 month)
       'duration': 60 + _random.nextInt(60), // 60-120 minutes
       'maxStudents': 30 + _random.nextInt(20), // 30-50 students
       'difficulty': difficulty,
@@ -759,7 +840,8 @@ class MockDataGenerator {
           'title': '$subject $examType ${i + 1}',
           'description': 'This is a $difficulty $examType exam for $subject',
           'subject': subject,
-          'date': DateTime.now().add(Duration(days: _random.nextInt(30))),
+          // Random start date within 1 month (0-30 days)
+          'date': DateTime.now().add(Duration(days: _random.nextInt(31))), // 0-30 days (about 1 month)
           'duration': 60 + _random.nextInt(60), // 60-120 minutes
           'maxStudents': 30 + _random.nextInt(20), // 30-50 students
           'difficulty': difficulty,

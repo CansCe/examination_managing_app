@@ -683,6 +683,7 @@ class AtlasService {
       // Drop and recreate questions collection
       await _db!.collection(DatabaseConfig.questionsCollection).drop();
       await _db!.createCollection(DatabaseConfig.questionsCollection);
+      await _db!.createCollection(DatabaseConfig.chatMessagesCollection);
       print('Questions collection cleared');
       
       print('All collections cleared successfully');
@@ -804,7 +805,8 @@ class AtlasService {
       await clearAllCollections();
       
       print('Generating mock data...');
-      final mockData = await MockDataGenerator.generateBatch();
+      // Skip automatic upload since we handle insertion manually here
+      final mockData = await MockDataGenerator.generateBatch(uploadToMongoDB: false);
       
       print('Inserting teachers...');
       await _db!.collection(DatabaseConfig.teachersCollection).insertAll(mockData['teachers']!);

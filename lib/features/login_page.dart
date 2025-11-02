@@ -64,6 +64,7 @@ class _LoginPageState extends State<LoginPage> {
               studentId: user.role == UserRole.student ? user.id : null,
               className: user.role == UserRole.student ? 'Class A' : null, // TODO: Get actual class from user data
               teacherId: user.role == UserRole.teacher ? user.id : null, // Pass teacherId for teachers
+              adminId: user.role == UserRole.admin ? user.id : null, // Pass adminId for admins
             ),
           ),
         );

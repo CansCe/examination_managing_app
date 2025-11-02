@@ -1,6 +1,6 @@
 [
   {
-    "_id": "684ebdcfea65aae60fcac8cc",
+    "_id": "6907ed807e6823764527ff03",
     "studentId": "20240001",
     "firstName": "Student1",
     "lastName": "Last1",
@@ -13,13 +13,13 @@
       "Chemistry"
     ],
     "assignedExams": [
-      "684ebdcfea65aae60fcac878",
-      "684ebdcfea65aae60fcac890",
-      "684ebdcfea65aae60fcac8a2"
-    ]
+      "6907ed807e6823764527fefd",
+      "6907ed807e6823764527fefd"
+    ],
+    "role": "student"
   },
   {
-    "_id": "684ebdcfea65aae60fcac8cd",
+    "_id": "6907ed807e6823764527ff04",
     "studentId": "20240002",
     "firstName": "Student2",
     "lastName": "Last2",
@@ -32,11 +32,12 @@
       "Chemistry"
     ],
     "assignedExams": [
-      "684ebdcfea65aae60fcac884"
-    ]
+      "6907ed807e6823764527fec7"
+    ],
+    "role": "student"
   },
   {
-    "_id": "684ebdcfea65aae60fcac8ce",
+    "_id": "6907ed807e6823764527ff05",
     "studentId": "20240003",
     "firstName": "Student3",
     "lastName": "Last3",
@@ -49,13 +50,13 @@
       "Chemistry"
     ],
     "assignedExams": [
-      "684ebdcfea65aae60fcac8c6",
-      "684ebdcfea65aae60fcac8a2",
-      "684ebdcfea65aae60fcac872"
-    ]
+      "6907ed807e6823764527fedf",
+      "6907ed807e6823764527fecd"
+    ],
+    "role": "student"
   },
   {
-    "_id": "684ebdcfea65aae60fcac8cf",
+    "_id": "6907ed807e6823764527ff06",
     "studentId": "20240004",
     "firstName": "Student4",
     "lastName": "Last4",
@@ -68,12 +69,14 @@
       "Chemistry"
     ],
     "assignedExams": [
-      "684ebdcfea65aae60fcac884",
-      "684ebdcfea65aae60fcac884"
-    ]
+      "6907ed807e6823764527feb5",
+      "6907ed807e6823764527fef7",
+      "6907ed807e6823764527fef1"
+    ],
+    "role": "student"
   },
   {
-    "_id": "684ebdcfea65aae60fcac8d0",
+    "_id": "6907ed807e6823764527ff07",
     "studentId": "20240005",
     "firstName": "Student5",
     "lastName": "Last5",
@@ -86,13 +89,14 @@
       "Chemistry"
     ],
     "assignedExams": [
-      "684ebdcfea65aae60fcac8ba",
-      "684ebdcfea65aae60fcac8a8",
-      "684ebdcfea65aae60fcac8c0"
-    ]
+      "6907ed807e6823764527febb",
+      "6907ed807e6823764527fef7",
+      "6907ed807e6823764527fec1"
+    ],
+    "role": "student"
   },
   {
-    "_id": "684ebdcfea65aae60fcac8d1",
+    "_id": "6907ed807e6823764527ff08",
     "studentId": "20240006",
     "firstName": "Student6",
     "lastName": "Last6",
@@ -105,13 +109,14 @@
       "Chemistry"
     ],
     "assignedExams": [
-      "684ebdcfea65aae60fcac8a2",
-      "684ebdcfea65aae60fcac8a2",
-      "684ebdcfea65aae60fcac89c"
-    ]
+      "6907ed807e6823764527fef7",
+      "6907ed807e6823764527fefd",
+      "6907ed807e6823764527fecd"
+    ],
+    "role": "student"
   },
   {
-    "_id": "684ebdcfea65aae60fcac8d2",
+    "_id": "6907ed807e6823764527ff09",
     "studentId": "20240007",
     "firstName": "Student7",
     "lastName": "Last7",
@@ -124,11 +129,12 @@
       "Chemistry"
     ],
     "assignedExams": [
-      "684ebdcfea65aae60fcac8ba"
-    ]
+      "6907ed807e6823764527fef1"
+    ],
+    "role": "student"
   },
   {
-    "_id": "684ebdcfea65aae60fcac8d3",
+    "_id": "6907ed807e6823764527ff0a",
     "studentId": "20240008",
     "firstName": "Student8",
     "lastName": "Last8",
@@ -141,11 +147,13 @@
       "Chemistry"
     ],
     "assignedExams": [
-      "684ebdcfea65aae60fcac8a8"
-    ]
+      "6907ed807e6823764527fef7",
+      "6907ed807e6823764527fedf"
+    ],
+    "role": "student"
   },
   {
-    "_id": "684ebdcfea65aae60fcac8d4",
+    "_id": "6907ed807e6823764527ff0b",
     "studentId": "20240009",
     "firstName": "Student9",
     "lastName": "Last9",
@@ -158,11 +166,13 @@
       "Chemistry"
     ],
     "assignedExams": [
-      "684ebdcfea65aae60fcac8a2"
-    ]
+      "6907ed807e6823764527fecd",
+      "6907ed807e6823764527fefd"
+    ],
+    "role": "student"
   },
   {
-    "_id": "684ebdcfea65aae60fcac8d5",
+    "_id": "6907ed807e6823764527ff0c",
     "studentId": "20240010",
     "firstName": "Student10",
     "lastName": "Last10",
@@ -175,11 +185,12 @@
       "Chemistry"
     ],
     "assignedExams": [
-      "684ebdcfea65aae60fcac896"
-    ]
+      "6907ed807e6823764527fed9"
+    ],
+    "role": "student"
   },
   {
-    "_id": "684ebdcfea65aae60fcac8d6",
+    "_id": "6907ed807e6823764527ff0d",
     "studentId": "20240011",
     "firstName": "Student11",
     "lastName": "Last11",
@@ -192,12 +203,12 @@
       "Chemistry"
     ],
     "assignedExams": [
-      "684ebdcfea65aae60fcac884",
-      "684ebdcfea65aae60fcac8a8"
-    ]
+      "6907ed807e6823764527fec1"
+    ],
+    "role": "student"
   },
   {
-    "_id": "684ebdcfea65aae60fcac8d7",
+    "_id": "6907ed807e6823764527ff0e",
     "studentId": "20240012",
     "firstName": "Student12",
     "lastName": "Last12",
@@ -210,12 +221,12 @@
       "Chemistry"
     ],
     "assignedExams": [
-      "684ebdcfea65aae60fcac896",
-      "684ebdcfea65aae60fcac890"
-    ]
+      "6907ed807e6823764527fed9"
+    ],
+    "role": "student"
   },
   {
-    "_id": "684ebdcfea65aae60fcac8d8",
+    "_id": "6907ed807e6823764527ff0f",
     "studentId": "20240013",
     "firstName": "Student13",
     "lastName": "Last13",
@@ -228,12 +239,12 @@
       "Chemistry"
     ],
     "assignedExams": [
-      "684ebdcfea65aae60fcac89c",
-      "684ebdcfea65aae60fcac8c6"
-    ]
+      "6907ed807e6823764527fed9"
+    ],
+    "role": "student"
   },
   {
-    "_id": "684ebdcfea65aae60fcac8d9",
+    "_id": "6907ed807e6823764527ff10",
     "studentId": "20240014",
     "firstName": "Student14",
     "lastName": "Last14",
@@ -246,12 +257,12 @@
       "Chemistry"
     ],
     "assignedExams": [
-      "684ebdcfea65aae60fcac8ae",
-      "684ebdcfea65aae60fcac8a2"
-    ]
+      "6907ed807e6823764527feaf"
+    ],
+    "role": "student"
   },
   {
-    "_id": "684ebdcfea65aae60fcac8da",
+    "_id": "6907ed807e6823764527ff11",
     "studentId": "20240015",
     "firstName": "Student15",
     "lastName": "Last15",
@@ -264,13 +275,12 @@
       "Chemistry"
     ],
     "assignedExams": [
-      "684ebdcfea65aae60fcac87e",
-      "684ebdcfea65aae60fcac890",
-      "684ebdcfea65aae60fcac878"
-    ]
+      "6907ed807e6823764527fed3"
+    ],
+    "role": "student"
   },
   {
-    "_id": "684ebdcfea65aae60fcac8db",
+    "_id": "6907ed807e6823764527ff12",
     "studentId": "20240016",
     "firstName": "Student16",
     "lastName": "Last16",
@@ -283,12 +293,14 @@
       "Chemistry"
     ],
     "assignedExams": [
-      "684ebdcfea65aae60fcac8c6",
-      "684ebdcfea65aae60fcac8a2"
-    ]
+      "6907ed807e6823764527fedf",
+      "6907ed807e6823764527fed9",
+      "6907ed807e6823764527fedf"
+    ],
+    "role": "student"
   },
   {
-    "_id": "684ebdcfea65aae60fcac8dc",
+    "_id": "6907ed807e6823764527ff13",
     "studentId": "20240017",
     "firstName": "Student17",
     "lastName": "Last17",
@@ -301,13 +313,14 @@
       "Chemistry"
     ],
     "assignedExams": [
-      "684ebdcfea65aae60fcac884",
-      "684ebdcfea65aae60fcac89c",
-      "684ebdcfea65aae60fcac8c6"
-    ]
+      "6907ed807e6823764527fed9",
+      "6907ed807e6823764527fea9",
+      "6907ed807e6823764527fec7"
+    ],
+    "role": "student"
   },
   {
-    "_id": "684ebdcfea65aae60fcac8dd",
+    "_id": "6907ed807e6823764527ff14",
     "studentId": "20240018",
     "firstName": "Student18",
     "lastName": "Last18",
@@ -320,11 +333,14 @@
       "Chemistry"
     ],
     "assignedExams": [
-      "684ebdcfea65aae60fcac89c"
-    ]
+      "6907ed807e6823764527fee5",
+      "6907ed807e6823764527feeb",
+      "6907ed807e6823764527feeb"
+    ],
+    "role": "student"
   },
   {
-    "_id": "684ebdcfea65aae60fcac8de",
+    "_id": "6907ed807e6823764527ff15",
     "studentId": "20240019",
     "firstName": "Student19",
     "lastName": "Last19",
@@ -337,12 +353,14 @@
       "Chemistry"
     ],
     "assignedExams": [
-      "684ebdcfea65aae60fcac872",
-      "684ebdcfea65aae60fcac884"
-    ]
+      "6907ed807e6823764527fed9",
+      "6907ed807e6823764527fed3",
+      "6907ed807e6823764527fedf"
+    ],
+    "role": "student"
   },
   {
-    "_id": "684ebdcfea65aae60fcac8df",
+    "_id": "6907ed807e6823764527ff16",
     "studentId": "20240020",
     "firstName": "Student20",
     "lastName": "Last20",
@@ -355,7 +373,8 @@
       "Chemistry"
     ],
     "assignedExams": [
-      "684ebdcfea65aae60fcac8c6"
-    ]
+      "6907ed807e6823764527fec1"
+    ],
+    "role": "student"
   }
 ]

@@ -31,6 +31,7 @@ class MongoDBService {
       await db.createCollection(DatabaseConfig.teachersCollection);
       await db.createCollection(DatabaseConfig.usersCollection);
       await db.createCollection(DatabaseConfig.questionsCollection);
+      await db.createCollection(DatabaseConfig.chatMessagesCollection);
     } catch (e) {
       print('Error initializing MongoDB: $e');
       rethrow;
@@ -55,8 +56,8 @@ class MongoDBService {
     }
 
     try {
-      // Generate mock data using the new generator
-      final mockData = await MockDataGenerator.generateBatch();
+      // Generate mock data using the new generator (skip automatic upload since we handle insertion manually)
+      final mockData = await MockDataGenerator.generateBatch(uploadToMongoDB: false);
 
       // Get the appropriate data list based on collection
       List<Map<String, dynamic>> documents;

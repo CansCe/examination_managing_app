@@ -1,6 +1,7 @@
 enum UserRole {
   student,
   teacher,
+  admin,
 }
 
 class User {
