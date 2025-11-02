@@ -577,13 +577,19 @@ class MongoDBService {
     }
   }
 
-  // Get questions by subject
+  // Get all questions from the collection
+  static Future<List<Question>> getAllQuestions() async {
+    return getQuestionsBySubject('');
+  }
+
+  // Get questions by subject (if subject is empty, returns all questions)
   static Future<List<Question>> getQuestionsBySubject(String subject) async {
     try {
       final collection = _db!.collection('questions');
-      final questions = await collection
-          .find(where.eq('subject', subject))
-          .toList();
+      final cursor = subject.isEmpty || subject == ''
+          ? collection.find()
+          : collection.find(where.eq('subject', subject));
+      final questions = await cursor.toList();
 
       return questions.map((doc) {
         try {

@@ -38,6 +38,11 @@ class RouteGenerator {
 
       case AppRoutes.examEdit:
         if (args is Map<String, dynamic>) {
+          final UserRole? role = args['userRole'] as UserRole?;
+          // Check if user is a teacher
+          if (role != UserRole.teacher) {
+            return _errorRoute('Access Denied: Only teachers can create or edit exams.');
+          }
           final String? examId = args['examId'] as String?;
           final String teacherId = args['teacherId'] as String;
           return MaterialPageRoute(
@@ -83,6 +88,11 @@ class RouteGenerator {
 
       case AppRoutes.questionEdit:
         if (args is Map<String, dynamic>) {
+          final UserRole? role = args['userRole'] as UserRole?;
+          // Check if user is a teacher
+          if (role != UserRole.teacher) {
+            return _errorRoute('Access Denied: Only teachers can create or edit questions.');
+          }
           final String? questionId = args['questionId'] as String?;
           final String teacherId = args['teacherId'] as String;
           final ObjectId? examId = args['examId'] as ObjectId?;

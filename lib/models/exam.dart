@@ -159,4 +159,70 @@ class Exam {
       populatedQuestions: null, // This field will be populated separately
     );
   }
+
+  // Calculate exam start DateTime
+  DateTime getExamStartDateTime() {
+    try {
+      final timeParts = examTime.split(':');
+      if (timeParts.length == 2) {
+        final hour = int.parse(timeParts[0]);
+        final minute = int.parse(timeParts[1]);
+        return DateTime(
+          examDate.year,
+          examDate.month,
+          examDate.day,
+          hour,
+          minute,
+        );
+      }
+    } catch (e) {
+      // Default to 9:00 AM if parsing fails
+    }
+    return DateTime(
+      examDate.year,
+      examDate.month,
+      examDate.day,
+      9,
+      0,
+    );
+  }
+
+  // Calculate exam end DateTime (start time + duration)
+  DateTime getExamEndDateTime() {
+    final startTime = getExamStartDateTime();
+    return startTime.add(Duration(minutes: duration));
+  }
+
+  // Check if exam has ended
+  bool isExamFinished() {
+    final endTime = getExamEndDateTime();
+    final now = DateTime.now();
+    return now.isAfter(endTime);
+  }
+
+  // Check if exam has started (current time >= start time)
+  bool isExamStarted() {
+    final startTime = getExamStartDateTime();
+    final now = DateTime.now();
+    return now.isAfter(startTime) || now.isAtSameMomentAs(startTime);
+  }
+
+  // Get exam status based on current time
+  String getExamStatus() {
+    if (status != null && (status == 'cancelled' || status == 'delayed')) {
+      return status!;
+    }
+    
+    final now = DateTime.now();
+    final startTime = getExamStartDateTime();
+    final endTime = getExamEndDateTime();
+
+    if (now.isBefore(startTime)) {
+      return 'scheduled';
+    } else if (now.isAfter(endTime)) {
+      return 'finished';
+    } else {
+      return 'ongoing';
+    }
+  }
 } 

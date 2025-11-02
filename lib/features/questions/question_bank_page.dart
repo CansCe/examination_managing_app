@@ -51,6 +51,17 @@ class _QuestionBankPageState extends State<QuestionBankPage> {
   }
 
   Future<void> _navigateToQuestionEdit({Question? question}) async {
+    // Only teachers can navigate to question edit (teacherId is required)
+    if (widget.teacherId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Access Denied: Only teachers can create or edit questions.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     final result = await Navigator.push(
       context,
       MaterialPageRoute(

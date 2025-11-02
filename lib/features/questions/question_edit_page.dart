@@ -193,6 +193,26 @@ class _QuestionEditPageState extends State<QuestionEditPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Guard: Only teachers can access this page (teacherId must be provided)
+    if (widget.teacherId.isEmpty) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Access Denied'),
+          backgroundColor: Colors.red,
+        ),
+        body: const Center(
+          child: Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Text(
+              'Access Denied: Only teachers can create or edit questions.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16, color: Colors.red),
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(_question == null ? 'Create New Question' : 'Edit Question'),

@@ -180,13 +180,22 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
         if (!mounted) return;
 
+        // Filter out finished exams for students
+        final availableExams = studentExams.where((exam) {
+          // For students, hide finished exams
+          if (widget.userRole != UserRole.teacher) {
+            return !exam.isExamFinished();
+          }
+          return true; // Teachers can see all exams
+        }).toList();
+
         setState(() {
           if (refresh || _currentPage == 0) {
             // Replace data on refresh or first load
-            _exams = studentExams;
+            _exams = availableExams;
           } else {
             // Add data for pagination
-            _exams.addAll(studentExams);
+            _exams.addAll(availableExams);
           }
           _hasMoreData = studentExams.length == _pageSize;
           _currentPage++;
@@ -829,6 +838,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _navigateToExamDetails(Exam exam) {
+    // For students, check if exam has finished before navigating
+    if (widget.userRole != UserRole.teacher && exam.isExamFinished()) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('This exam has finished and is no longer available.'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
     Navigator.pushNamed(
       context,
       AppRoutes.examDetails,
@@ -978,6 +999,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _delayExam(Exam exam) {
+    // Only allow teachers to delay exams
+    if (widget.userRole != UserRole.teacher) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Access Denied: Only teachers can delay exams.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     DateTime? selectedDate;
     TimeOfDay? selectedTime;
 
@@ -1097,6 +1129,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _cancelExam(Exam exam) {
+    // Only allow teachers to cancel exams
+    if (widget.userRole != UserRole.teacher) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Access Denied: Only teachers can cancel exams.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1140,20 +1183,79 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _importQuestionBank() {
+    // Only allow teachers to import question bank
+    if (widget.userRole != UserRole.teacher) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Access Denied: Only teachers can import question banks.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Import Question Bank clicked')),
+      const SnackBar(content: Text('Import Question Bank feature coming soon')),
     );
   }
 
   void _createNewQuestion() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('New Question clicked')),
-    );
+    // Only allow teachers to create questions
+    if (widget.userRole != UserRole.teacher) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Access Denied: Only teachers can create questions.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    
+    // Navigate to question edit page
+    if (_teacherId != null && _teacherId!.isNotEmpty) {
+      Navigator.pushNamed(
+        context,
+        AppRoutes.questionEdit,
+        arguments: {
+          'questionId': null,
+          'teacherId': _teacherId!,
+          'userRole': widget.userRole,
+        },
+      ).then((_) => _loadData(refresh: true));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error: Teacher ID not found.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   void _editQuestion() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Edit Question clicked')),
-    );
+    // Only allow teachers to edit questions
+    if (widget.userRole != UserRole.teacher) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Access Denied: Only teachers can edit questions.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+    
+    // Navigate to question bank page where they can select a question to edit
+    if (_teacherId != null && _teacherId!.isNotEmpty) {
+      // You can navigate to question bank page or show a dialog to select question
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please go to Question Bank to edit questions')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Error: Teacher ID not found.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 }
