@@ -5,7 +5,6 @@ import '../../models/exam.dart';
 import '../../models/question.dart';
 import '../../services/mongodb_service.dart';
 import '../../utils/dialog_helper.dart';
-import '../../config/routes.dart';
 import '../questions/question_edit_page.dart';
 
 class ExamEditPage extends StatefulWidget {
@@ -266,7 +265,13 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
                   _createNewQuestion();
                   break;
                 case 'edit':
-                  _editQuestion();
+                  // Show a message to select a question from the list below
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Please select a question from the list below to edit.'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
                   break;
               }
             },
