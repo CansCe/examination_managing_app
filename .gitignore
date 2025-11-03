@@ -44,6 +44,7 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+README.md
 
 # database credential
 /lib/config/database_config.dart
