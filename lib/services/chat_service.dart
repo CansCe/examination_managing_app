@@ -197,5 +197,26 @@ class ChatService {
       print('Error marking messages as read: $e');
     }
   }
+
+  // Get all student IDs that have chat messages (chatted with admin)
+  static Future<List<String>> getStudentsWithChatHistory() async {
+    try {
+      final db = await MongoDBService.getDatabase();
+      final messages = await db.collection(DatabaseConfig.chatMessagesCollection)
+          .find()
+          .toList();
+      
+      // Get unique student IDs
+      final studentIds = messages
+          .map((m) => m['studentId'] as String)
+          .toSet()
+          .toList();
+      
+      return studentIds;
+    } catch (e) {
+      print('Error getting students with chat history: $e');
+      return [];
+    }
+  }
 }
 

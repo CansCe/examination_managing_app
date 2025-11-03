@@ -1,6 +1,5 @@
 import 'package:mongo_dart/mongo_dart.dart';
 import '../models/index.dart';
-import '../models/question.dart';
 import '../utils/mock_data_export.dart';
 import '../utils/mock_data_generator.dart';
 import '../config/database_config.dart';

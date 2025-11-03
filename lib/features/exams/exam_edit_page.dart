@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart' ;
 import 'package:flutter/material.dart' as material;
 import 'package:mongo_dart/mongo_dart.dart'  hide Center;
-import '../../models/exam.dart';
-import '../../models/question.dart';
+import '../../models/index.dart';
 import '../../services/mongodb_service.dart';
 import '../../utils/dialog_helper.dart';
 import '../questions/question_edit_page.dart';
 
 class ExamEditPage extends StatefulWidget {
   final String? examId; // If null, we're creating a new exam
-  final String teacherId;
+  final String? teacherId; // Optional - for teachers
+  final String? adminId; // Optional - for admins
 
   const ExamEditPage({
     Key? key,
     this.examId,
-    required this.teacherId,
+    this.teacherId,
+    this.adminId,
   }) : super(key: key);
 
   @override
@@ -192,7 +193,7 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
         duration: int.tryParse(_durationController.text) ?? 60,
         maxStudents: int.tryParse(_maxStudentsController.text) ?? 30,
         questions: _selectedQuestions.map((q) => q.id).toList(),
-        createdBy: _exam?.createdBy ?? ObjectId.fromHexString(widget.teacherId),
+        createdBy: _exam?.createdBy ?? ObjectId.fromHexString(widget.teacherId ?? widget.adminId ?? ''),
         createdAt: _exam?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
       );
@@ -227,8 +228,9 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
 
   @override
   Widget build(BuildContext context) {
-    // Guard: Only teachers can access this page (teacherId must be provided)
-    if (widget.teacherId.isEmpty) {
+    // Guard: Only teachers or admins can access this page
+    if ((widget.teacherId == null || widget.teacherId!.isEmpty) && 
+        (widget.adminId == null || widget.adminId!.isEmpty)) {
       return Scaffold(
         appBar: AppBar(
           title: const Text('Access Denied'),
@@ -716,11 +718,12 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
   }
 
   Future<void> _createNewQuestion() async {
-    // Only teachers can create questions
-    if (widget.teacherId.isEmpty) {
+    // Only teachers or admins can create questions
+    final userId = widget.teacherId ?? widget.adminId ?? '';
+    if (userId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Access Denied: Only teachers can create questions.'),
+          content: Text('Access Denied: Only teachers or admins can create questions.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -732,7 +735,7 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
       MaterialPageRoute(
         builder: (_) => QuestionEditPage(
           questionId: null,
-          teacherId: widget.teacherId,
+          teacherId: userId,
           examId: _exam?.id,
         ),
       ),
@@ -745,11 +748,12 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
   }
 
   Future<void> _editQuestion(Question question) async {
-    // Only teachers can edit questions
-    if (widget.teacherId.isEmpty) {
+    // Only teachers or admins can edit questions
+    final userId = widget.teacherId ?? widget.adminId ?? '';
+    if (userId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Access Denied: Only teachers can edit questions.'),
+          content: Text('Access Denied: Only teachers or admins can edit questions.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -761,7 +765,7 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
       MaterialPageRoute(
         builder: (_) => QuestionEditPage(
           questionId: question.id.toHexString(),
-          teacherId: widget.teacherId,
+          teacherId: userId,
           examId: _exam?.id,
         ),
       ),

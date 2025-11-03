@@ -1,9 +1,6 @@
 import 'package:mongo_dart/mongo_dart.dart';
 import '../config/database_config.dart';
-import '../models/exam.dart';
-import '../models/student.dart';
-import '../models/teacher.dart';
-import '../models/question.dart';
+import '../models/index.dart';
 import '../utils/mock_data_generator.dart';
 
 class AtlasService {
@@ -654,6 +651,124 @@ class AtlasService {
       return result.isSuccess;
     } catch (e) {
       print("Error updating student: $e");
+      rethrow;
+    }
+  }
+
+  // Assign a student to an exam (add exam to student's assignedExams)
+  static Future<bool> assignStudentToExam({
+    required String studentId,
+    required String examId,
+  }) async {
+    await _ensureConnection();
+    try {
+      final studentObjectId = ObjectId.fromHexString(studentId);
+      final examObjectId = ObjectId.fromHexString(examId);
+
+      // Get current assigned exams
+      final student = await _db!.collection(DatabaseConfig.studentsCollection)
+          .findOne(where.id(studentObjectId));
+
+      if (student == null) {
+        throw Exception('Student not found');
+      }
+
+      final List<ObjectId> currentAssignedExams = [];
+      if (student['assignedExams'] is List) {
+        for (var id in student['assignedExams'] as List) {
+          if (id is String) {
+            currentAssignedExams.add(ObjectId.fromHexString(id));
+          } else if (id is ObjectId) {
+            currentAssignedExams.add(id);
+          }
+        }
+      }
+
+      // Check if already assigned
+      if (currentAssignedExams.any((id) => id.toHexString() == examId)) {
+        return true; // Already assigned
+      }
+
+      // Add the new exam
+      currentAssignedExams.add(examObjectId);
+
+      final result = await _db!.collection(DatabaseConfig.studentsCollection).updateOne(
+        where.id(studentObjectId),
+        modify.set('assignedExams', currentAssignedExams),
+      );
+
+      return result.isSuccess;
+    } catch (e) {
+      print("Error assigning student to exam: $e");
+      rethrow;
+    }
+  }
+
+  // Unassign a student from an exam (remove exam from student's assignedExams)
+  static Future<bool> unassignStudentFromExam({
+    required String studentId,
+    required String examId,
+  }) async {
+    await _ensureConnection();
+    try {
+      final studentObjectId = ObjectId.fromHexString(studentId);
+      final examObjectId = ObjectId.fromHexString(examId);
+
+      // Get current assigned exams
+      final student = await _db!.collection(DatabaseConfig.studentsCollection)
+          .findOne(where.id(studentObjectId));
+
+      if (student == null) {
+        throw Exception('Student not found');
+      }
+
+      final List<ObjectId> currentAssignedExams = [];
+      if (student['assignedExams'] is List) {
+        for (var id in student['assignedExams'] as List) {
+          if (id is String) {
+            currentAssignedExams.add(ObjectId.fromHexString(id));
+          } else if (id is ObjectId) {
+            currentAssignedExams.add(id);
+          }
+        }
+      }
+
+      // Remove the exam
+      currentAssignedExams.removeWhere((id) => id.toHexString() == examId);
+
+      final result = await _db!.collection(DatabaseConfig.studentsCollection).updateOne(
+        where.id(studentObjectId),
+        modify.set('assignedExams', currentAssignedExams),
+      );
+
+      return result.isSuccess;
+    } catch (e) {
+      print("Error unassigning student from exam: $e");
+      rethrow;
+    }
+  }
+
+  // Get students assigned to an exam
+  static Future<List<Student>> getStudentsAssignedToExam({
+    required String examId,
+    int limit = 1000,
+  }) async {
+    await _ensureConnection();
+    try {
+      final examObjectId = ObjectId.fromHexString(examId);
+      
+      final students = await _db!.collection(DatabaseConfig.studentsCollection)
+          .find(where.oneFrom('assignedExams', [examObjectId]))
+          .take(limit)
+          .toList();
+
+      return students.map((doc) {
+        final Map<String, dynamic> studentData = Map<String, dynamic>.from(doc);
+        studentData['id'] = doc['_id'].toString();
+        return Student.fromMap(studentData);
+      }).toList();
+    } catch (e) {
+      print('Error getting students assigned to exam: $e');
       rethrow;
     }
   }

@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import '../config/routes.dart';
-import '../models/exam.dart';
-import '../models/question.dart';
+import '../models/index.dart';
 import '../services/atlas_service.dart';
 
 

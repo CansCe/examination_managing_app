@@ -1,5 +1,5 @@
 import 'package:mongo_dart/mongo_dart.dart';
-import 'package:exam_management_app/models/question.dart';
+import 'question.dart';
 
 class Exam {
   final ObjectId id;

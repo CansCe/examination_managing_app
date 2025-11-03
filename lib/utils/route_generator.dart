@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../features/home_page.dart';
 import '../features/login_page.dart';
-import '../models/user.dart';
+import '../models/index.dart';
 
 class RouteGenerator {
   static Route<dynamic> generateRoute(RouteSettings settings) {

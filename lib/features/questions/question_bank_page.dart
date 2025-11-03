@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../models/question.dart';
+import '../../models/index.dart';
 import '../../services/mongodb_service.dart';
 import '../../utils/dialog_helper.dart';
 import 'question_edit_page.dart';

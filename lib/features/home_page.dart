@@ -3,10 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:mongo_dart/mongo_dart.dart' hide State,Center;
 import '../config/routes.dart'; // For AppRoutes.login
 import '../models/index.dart';
-import '../models/question.dart';
 //import 'exam_details_page.dart';
 import '../features/shared/helpdesk_chat.dart';
 import '../features/admin/admin_chat_page.dart';
+import '../features/admin/admin_student_exam_assignment_page.dart';
+import '../features/exams/exam_edit_page.dart';
 import '../services/atlas_service.dart';
 import '../utils/dialog_helper.dart';
 
@@ -57,7 +58,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: widget.userRole == UserRole.teacher ? 3 : 1,
+      length: widget.userRole == UserRole.teacher
+          ? 3
+          : widget.userRole == UserRole.admin
+              ? 2
+              : 1,
       vsync: this,
     );
     _loadMockData();
@@ -499,7 +504,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ],
                   ),
                 ),
-                if (widget.userRole == UserRole.teacher) ...[
+                if (widget.userRole == UserRole.teacher || widget.userRole == UserRole.admin) ...[
                   Tab(
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -510,16 +515,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       ],
                     ),
                   ),
-                  Tab(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.school),
-                        if (MediaQuery.of(context).size.width >= 600) const SizedBox(width: 8),
-                        if (MediaQuery.of(context).size.width >= 600) const Text('Teachers'),
-                      ],
+                  if (widget.userRole == UserRole.teacher)
+                    Tab(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.school),
+                          if (MediaQuery.of(context).size.width >= 600) const SizedBox(width: 8),
+                          if (MediaQuery.of(context).size.width >= 600) const Text('Teachers'),
+                        ],
+                      ),
                     ),
-                  ),
                 ],
               ],
             ),
@@ -530,9 +536,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   controller: _tabController,
                   children: [
                     _buildExamsList(MediaQuery.of(context).size.width < 600),
-                    if (widget.userRole == UserRole.teacher) ...[
+                    if (widget.userRole == UserRole.teacher || widget.userRole == UserRole.admin) ...[
                       _buildStudentsList(MediaQuery.of(context).size.width < 600),
-                      _buildTeachersList(MediaQuery.of(context).size.width < 600),
+                      if (widget.userRole == UserRole.teacher)
+                        _buildTeachersList(MediaQuery.of(context).size.width < 600),
                     ],
                   ],
                 ),
@@ -601,11 +608,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       overflow: TextOverflow.ellipsis,
                     ),
                     trailing: SizedBox(
-                      width: widget.userRole == UserRole.teacher ? 180 : 80,
+                      width: widget.userRole == UserRole.teacher || widget.userRole == UserRole.admin
+                          ? (widget.userRole == UserRole.admin ? 240 : 180)
+                          : 80,
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          if (widget.userRole == UserRole.teacher) ...[
+                          if (widget.userRole == UserRole.teacher || widget.userRole == UserRole.admin) ...[
                             IconButton(
                               icon: const Icon(Icons.edit, size: 20),
                               onPressed: () => _editExam(exam),
@@ -627,6 +636,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                               padding: EdgeInsets.zero,
                               constraints: const BoxConstraints(),
                             ),
+                            if (widget.userRole == UserRole.admin)
+                              IconButton(
+                                icon: const Icon(Icons.people, size: 20),
+                                onPressed: () => _manageStudentAssignments(exam),
+                                tooltip: 'Manage Students',
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                              ),
                           ],
                           Expanded(
                             child: Chip(
@@ -700,7 +717,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                             ),
                           ),
                           const SizedBox(height: 4),
-                          if (widget.userRole == UserRole.teacher)
+                          if (widget.userRole == UserRole.teacher || widget.userRole == UserRole.admin)
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
@@ -725,6 +742,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                   padding: EdgeInsets.zero,
                                   constraints: const BoxConstraints(),
                                 ),
+                                if (widget.userRole == UserRole.admin)
+                                  IconButton(
+                                    icon: const Icon(Icons.people, size: 18),
+                                    onPressed: () => _manageStudentAssignments(exam),
+                                    tooltip: 'Manage Students',
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                  ),
                               ],
                             ),
                           const SizedBox(height: 2),
@@ -1365,24 +1390,75 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     if (examId == null) {
       // If exam id is null, create a temp one and navigate to create exam
       final tempId = ObjectId().toHexString();
-      Navigator.pushNamed(
-        context,
-        AppRoutes.examEdit,
-        arguments: {
-          'examId': tempId,
-          'teacherId': _teacherId,
-        },
-      ).then((_) => _loadData(refresh: true));
+      if (widget.userRole == UserRole.admin) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ExamEditPage(
+              examId: tempId,
+              adminId: widget.adminId,
+            ),
+          ),
+        ).then((_) => _loadData(refresh: true));
+      } else {
+        Navigator.pushNamed(
+          context,
+          AppRoutes.examEdit,
+          arguments: {
+            'examId': tempId,
+            'teacherId': _teacherId,
+          },
+        ).then((_) => _loadData(refresh: true));
+      }
     } else {
       // Edit existing exam
-      Navigator.pushNamed(
+      if (widget.userRole == UserRole.admin) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ExamEditPage(
+              examId: examId,
+              adminId: widget.adminId,
+            ),
+          ),
+        ).then((_) => _loadData(refresh: true));
+      } else {
+        Navigator.pushNamed(
+          context,
+          AppRoutes.examEdit,
+          arguments: {
+            'examId': examId,
+            'teacherId': _teacherId,
+          },
+        ).then((_) => _loadData(refresh: true));
+      }
+    }
+  }
+
+  void _manageStudentAssignments(Exam exam) {
+    String? examId;
+    try {
+      examId = exam.id.toHexString();
+    } catch (_) {
+      examId = null;
+    }
+    if (examId != null && examId.isNotEmpty) {
+      Navigator.push(
         context,
-        AppRoutes.examEdit,
-        arguments: {
-          'examId': examId,
-          'teacherId': _teacherId,
-        },
+        MaterialPageRoute(
+          builder: (context) => AdminStudentExamAssignmentPage(
+            examId: examId!,
+            exam: exam,
+          ),
+        ),
       ).then((_) => _loadData(refresh: true));
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Invalid exam ID'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 

@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mongo_dart/mongo_dart.dart' hide Center;
 import 'routes.dart';
-import '../models/user.dart';
-import '../models/exam.dart';
-import '../models/question.dart';
+import '../models/index.dart';
 import '../features/login_page.dart';
 import '../features/home_page.dart';
 import '../features/exams/exam_edit_page.dart';
