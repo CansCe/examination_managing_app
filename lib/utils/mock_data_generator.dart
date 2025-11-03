@@ -62,45 +62,96 @@ class MockDataGenerator {
     // Upload to MongoDB if requested
     if (uploadToMongoDB) {
       try {
-        // Ensure AtlasService is initialized
-        await AtlasService.init();
+        print('\n=== Starting MongoDB Upload Process ===');
         
-        print('Uploading generated mock data to MongoDB...');
+        // Ensure AtlasService is initialized
+        print('Initializing MongoDB connection...');
+        await AtlasService.init();
+        print('✓ Connected to MongoDB Atlas');
+        
+        print('\n⚠ DROPPING ENTIRE DATABASE AND REPLACING WITH NEW MOCK DATA...');
+        print('⚠ This will delete ALL existing data in the database!');
+        
+        // Drop the entire database
+        await AtlasService.dropDatabase();
+        print('✓ Database dropped and recreated');
+        
+        print('\nUploading generated mock data to MongoDB...');
+        print('Database: ${DatabaseConfig.databaseName}');
         
         // Upload teachers
         if (teachers.isNotEmpty) {
-          await AtlasService.uploadMany(DatabaseConfig.teachersCollection, teachers);
-          print('✓ Uploaded ${teachers.length} teachers');
+          print('Uploading ${teachers.length} teachers...');
+          final teacherIds = await AtlasService.uploadMany(DatabaseConfig.teachersCollection, teachers);
+          print('✓ Uploaded ${teachers.length} teachers (${teacherIds.length} IDs returned)');
+        } else {
+          print('⚠ No teachers to upload');
         }
         
         // Upload students
         if (students.isNotEmpty) {
-          await AtlasService.uploadMany(DatabaseConfig.studentsCollection, students);
-          print('✓ Uploaded ${students.length} students');
+          print('Uploading ${students.length} students...');
+          final studentIds = await AtlasService.uploadMany(DatabaseConfig.studentsCollection, students);
+          print('✓ Uploaded ${students.length} students (${studentIds.length} IDs returned)');
+        } else {
+          print('⚠ No students to upload');
         }
         
         // Upload exams
         if (exams.isNotEmpty) {
-          await AtlasService.uploadMany(DatabaseConfig.examsCollection, exams);
-          print('✓ Uploaded ${exams.length} exams');
+          print('Uploading ${exams.length} exams...');
+          final examIds = await AtlasService.uploadMany(DatabaseConfig.examsCollection, exams);
+          print('✓ Uploaded ${exams.length} exams (${examIds.length} IDs returned)');
+        } else {
+          print('⚠ No exams to upload');
         }
         
         // Upload questions
         if (questions.isNotEmpty) {
-          await AtlasService.uploadMany(DatabaseConfig.questionsCollection, questions);
-          print('✓ Uploaded ${questions.length} questions');
+          print('Uploading ${questions.length} questions...');
+          final questionIds = await AtlasService.uploadMany(DatabaseConfig.questionsCollection, questions);
+          print('✓ Uploaded ${questions.length} questions (${questionIds.length} IDs returned)');
+        } else {
+          print('⚠ No questions to upload');
         }
         
-        // Upload admins to users collection
+        // Upload admins to users collection (only remove admin users, not all users)
         if (admins.isNotEmpty) {
-          await AtlasService.uploadMany(DatabaseConfig.usersCollection, admins);
-          print('✓ Uploaded ${admins.length} admin users');
+          print('Processing ${admins.length} admin users...');
+          // Delete existing admin users before inserting new ones
+          try {
+            final deletedCount = await AtlasService.deleteDocuments(
+              DatabaseConfig.usersCollection,
+              {'role': 'admin'},
+            );
+            print('✓ Cleared $deletedCount existing admin users');
+          } catch (e) {
+            print('⚠ Warning: Could not clear existing admin users: $e');
+            // Continue anyway
+          }
+          
+          print('Uploading ${admins.length} admin users...');
+          final adminIds = await AtlasService.uploadMany(DatabaseConfig.usersCollection, admins);
+          print('✓ Uploaded ${admins.length} admin users (${adminIds.length} IDs returned)');
+        } else {
+          print('⚠ No admins to upload');
         }
         
-        print('✓ All mock data uploaded to MongoDB successfully!');
-      } catch (e) {
-        print('⚠ Warning: Failed to upload mock data to MongoDB: $e');
-        print('  Mock data was generated but not uploaded. You can upload it manually later.');
+        print('\n=== Upload Summary ===');
+        print('✓ Teachers: ${teachers.length}');
+        print('✓ Students: ${students.length}');
+        print('✓ Exams: ${exams.length}');
+        print('✓ Questions: ${questions.length}');
+        print('✓ Admins: ${admins.length}');
+        print('\n✓ All mock data uploaded to MongoDB successfully!');
+        print('=======================================\n');
+      } catch (e, stackTrace) {
+        print('\n❌ ERROR: Failed to upload mock data to MongoDB!');
+        print('Error: $e');
+        print('Stack trace: $stackTrace');
+        print('\n⚠ Warning: Mock data was generated but not uploaded.');
+        print('You can try uploading it manually later.\n');
+        rethrow; // Re-throw so caller knows upload failed
       }
     }
 

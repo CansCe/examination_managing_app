@@ -102,11 +102,17 @@ class ChatService {
   static Future<List<ChatMessage>> getStudentMessages(String studentId) async {
     try {
       final db = await MongoDBService.getDatabase();
-      final cursor = db.collection(DatabaseConfig.chatMessagesCollection)
+      final messages = await db.collection(DatabaseConfig.chatMessagesCollection)
           .find({'studentId': studentId})
-          .sort({'timestamp': 1});
+          .toList();
       
-      final messages = await cursor.toList();
+      // Sort by timestamp ascending
+      messages.sort((a, b) {
+        final aTime = a['timestamp'] as DateTime;
+        final bTime = b['timestamp'] as DateTime;
+        return aTime.compareTo(bTime);
+      });
+      
       return messages.map((m) => ChatMessage.fromMap(m)).toList();
     } catch (e) {
       print('Error getting student messages: $e');
@@ -118,11 +124,17 @@ class ChatService {
   static Future<List<ChatMessage>> getUnreadMessages() async {
     try {
       final db = await MongoDBService.getDatabase();
-      final cursor = db.collection(DatabaseConfig.chatMessagesCollection)
+      final messages = await db.collection(DatabaseConfig.chatMessagesCollection)
           .find({'sender': 'student', 'isRead': false})
-          .sort({'timestamp': -1});
+          .toList();
       
-      final messages = await cursor.toList();
+      // Sort by timestamp descending (newest first)
+      messages.sort((a, b) {
+        final aTime = a['timestamp'] as DateTime;
+        final bTime = b['timestamp'] as DateTime;
+        return bTime.compareTo(aTime);
+      });
+      
       return messages.map((m) => ChatMessage.fromMap(m)).toList();
     } catch (e) {
       print('Error getting unread messages: $e');
@@ -134,11 +146,17 @@ class ChatService {
   static Future<List<ChatMessage>> getConversation(String studentId) async {
     try {
       final db = await MongoDBService.getDatabase();
-      final cursor = db.collection(DatabaseConfig.chatMessagesCollection)
+      final messages = await db.collection(DatabaseConfig.chatMessagesCollection)
           .find({'studentId': studentId})
-          .sort({'timestamp': 1});
+          .toList();
       
-      final messages = await cursor.toList();
+      // Sort by timestamp ascending
+      messages.sort((a, b) {
+        final aTime = a['timestamp'] as DateTime;
+        final bTime = b['timestamp'] as DateTime;
+        return aTime.compareTo(bTime);
+      });
+      
       return messages.map((m) => ChatMessage.fromMap(m)).toList();
     } catch (e) {
       print('Error getting conversation: $e');

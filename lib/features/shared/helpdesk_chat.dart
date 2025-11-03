@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mongo_dart/mongo_dart.dart';
+import 'package:mongo_dart/mongo_dart.dart' hide State, Center;
 import '../../services/chat_service.dart';
 
 class HelpdeskChat extends StatefulWidget {

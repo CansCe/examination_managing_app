@@ -1,64 +1,95 @@
 import 'dart:io';
-import '../services/mongodb_service.dart';
-import '../utils/mock_data_export.dart';
+import '../services/atlas_service.dart';
+import '../utils/mock_data_generator.dart';
 
-int _parseArg(List<String> args, String name, int defaultValue) {
-  final arg = args.firstWhere(
-    (a) => a.startsWith('--$name='),
-    orElse: () => '',
-  );
-  if (arg.isNotEmpty) {
-    final value = int.tryParse(arg.split('=')[1]);
-    if (value != null && value > 0) return value;
-  }
-  return defaultValue;
-}
-
+/// Standalone script to generate and upload mock data to MongoDB Atlas
+/// 
+/// Usage:
+///   dart run lib/scripts/generate_mock_data.dart
+/// 
+/// This script will:
+///   1. Connect to MongoDB Atlas
+///   2. Drop the entire database
+///   3. Generate fresh mock data
+///   4. Upload all data to the cluster
 Future<void> main(List<String> args) async {
-  if (args.contains('--help')) {
-    print('''\nUsage: dart run lib/scripts/generate_mock_data.dart [--students=N] [--teachers=N] [--exams=N]\n\nAll arguments are optional. Defaults: students=500, teachers=30, exams=100\n''');
+  if (args.contains('--help') || args.contains('-h')) {
+    print('''
+Mock Data Generator Script
+==========================
+
+This script generates mock data and uploads it to MongoDB Atlas.
+
+Usage:
+  dart run lib/scripts/generate_mock_data.dart
+
+The script will:
+  1. Connect to MongoDB Atlas (exam_management database)
+  2. Drop the entire database (WARNING: This deletes ALL existing data!)
+  3. Generate fresh mock data (teachers, students, exams, questions, admins)
+  4. Upload all generated data to the cluster
+
+Options:
+  --help, -h    Show this help message
+
+Note: Make sure your MongoDB connection string in database_config.dart is correct.
+''');
     exit(0);
   }
 
-  final studentCount = _parseArg(args, 'students', 500);
-  final teacherCount = _parseArg(args, 'teachers', 30);
-  final examCount = _parseArg(args, 'exams', 100);
-
   try {
-    print('Starting mock data generation and export...\n');
-    print('Counts: students=\u001b[32m$studentCount\u001b[0m, teachers=\u001b[32m$teacherCount\u001b[0m, exams=\u001b[32m$examCount\u001b[0m');
-
-    // Initialize MongoDB connection
-    print('Connecting to MongoDB...');
-    await MongoDBService.init();
-
-    // Export custom amounts
-    print('\nGenerating and exporting custom mock data...');
-    await MongoDBService.exportCustomMockData(
-      examCount: examCount,
-      studentCount: studentCount,
-      teacherCount: teacherCount,
-    );
-
-    // Load mock data from JSON files and insert into MongoDB
-    print('\nLoading mock data into MongoDB...');
-    final mockData = await MockDataExport.loadMockData();
-    print('DEBUG: Loaded mockData keys: ${mockData.keys}');
-    print('DEBUG: Loaded mockData values types: ${mockData.values.map((v) => v.runtimeType).toList()}');
-    print('DEBUG: Loaded mockData content: $mockData');
-
-    await MongoDBService.insertTeachers(mockData['teachers']!);
-    await MongoDBService.insertStudents(mockData['students']!);
-    await MongoDBService.insertExams(mockData['exams']!);
-    await MongoDBService.insertQuestions(mockData['questions']!);
-
-    // Close MongoDB connection
-    print('\nClosing MongoDB connection...');
-    await MongoDBService.close();
-
-    print('\nMock data generation and export completed successfully!');
-  } catch (e) {
-    print('\nError: $e');
+    print('\n' + '='.padRight(60, '='));
+    print('MOCK DATA GENERATOR - STANDALONE SCRIPT');
+    print('='.padRight(60, '='));
+    print('');
+    
+    print('⚠ WARNING: This will drop and recreate the entire database!');
+    print('⚠ All existing data will be permanently deleted!\n');
+    
+    // Generate and upload mock data
+    // The generateBatch method with uploadToMongoDB: true will:
+    // - Initialize AtlasService
+    // - Drop the entire database
+    // - Generate mock data
+    // - Upload everything to MongoDB
+    print('Starting mock data generation and upload...\n');
+    
+    final mockData = await MockDataGenerator.generateBatch(uploadToMongoDB: true);
+    
+    // Print summary
+    print('\n' + '='.padRight(60, '='));
+    print('GENERATION COMPLETE');
+    print('='.padRight(60, '='));
+    print('\nGenerated Data Summary:');
+    print('  • Teachers: ${mockData['teachers']?.length ?? 0}');
+    print('  • Students: ${mockData['students']?.length ?? 0}');
+    print('  • Exams: ${mockData['exams']?.length ?? 0}');
+    print('  • Questions: ${mockData['questions']?.length ?? 0}');
+    print('  • Admins: ${mockData['admins']?.length ?? 0}');
+    print('\n✓ All data has been uploaded to MongoDB Atlas!');
+    print('='.padRight(60, '=') + '\n');
+    
+    // Close the connection
+    await AtlasService.close();
+    
+    exit(0);
+  } catch (e, stackTrace) {
+    print('\n' + '='.padRight(60, '='));
+    print('ERROR OCCURRED');
+    print('='.padRight(60, '='));
+    print('\n❌ Failed to generate/upload mock data:');
+    print('Error: $e');
+    print('\nStack trace:');
+    print(stackTrace);
+    print('\n='.padRight(60, '=') + '\n');
+    
+    // Make sure to close connection even on error
+    try {
+      await AtlasService.close();
+    } catch (e) {
+      // Ignore errors when closing
+    }
+    
     exit(1);
   }
-} 
+}

@@ -1,12 +1,12 @@
 [
   {
-    "_id": "6907ed807e6823764527feaa",
+    "_id": "6907fac22baa25d38e1c5f38",
     "text": "What is the SI unit of force?",
     "type": "multiple_choice",
     "subject": "Physics",
     "difficulty": "medium",
     "points": 2,
-    "examId": "6907ed807e6823764527fea9",
+    "examId": "6907fac22baa25d38e1c5f37",
     "options": [
       "Newton",
       "Joule",
@@ -15,17 +15,17 @@
     ],
     "correctAnswer": "Newton",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.969223",
-    "updatedAt": "2025-11-03T06:47:12.969223"
+    "createdAt": "2025-11-03T07:43:46.096332",
+    "updatedAt": "2025-11-03T07:43:46.096332"
   },
   {
-    "_id": "6907ed807e6823764527feab",
+    "_id": "6907fac22baa25d38e1c5f39",
     "text": "What is the formula for kinetic energy?",
     "type": "multiple_choice",
     "subject": "Physics",
-    "difficulty": "hard",
+    "difficulty": "medium",
     "points": 1,
-    "examId": "6907ed807e6823764527fea9",
+    "examId": "6907fac22baa25d38e1c5f37",
     "options": [
       "½mv²",
       "mgh",
@@ -34,17 +34,17 @@
     ],
     "correctAnswer": "½mv²",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.969223",
-    "updatedAt": "2025-11-03T06:47:12.969223"
+    "createdAt": "2025-11-03T07:43:46.096332",
+    "updatedAt": "2025-11-03T07:43:46.096332"
   },
   {
-    "_id": "6907ed807e6823764527feac",
+    "_id": "6907fac22baa25d38e1c5f3a",
     "text": "What is the speed of light in vacuum?",
     "type": "multiple_choice",
     "subject": "Physics",
-    "difficulty": "medium",
-    "points": 2,
-    "examId": "6907ed807e6823764527fea9",
+    "difficulty": "easy",
+    "points": 3,
+    "examId": "6907fac22baa25d38e1c5f37",
     "options": [
       "3 × 10⁸ m/s",
       "2 × 10⁸ m/s",
@@ -53,17 +53,17 @@
     ],
     "correctAnswer": "3 × 10⁸ m/s",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.969223",
-    "updatedAt": "2025-11-03T06:47:12.969223"
+    "createdAt": "2025-11-03T07:43:46.096332",
+    "updatedAt": "2025-11-03T07:43:46.096332"
   },
   {
-    "_id": "6907ed807e6823764527fead",
+    "_id": "6907fac22baa25d38e1c5f3b",
     "text": "What is the SI unit of force?",
     "type": "multiple_choice",
     "subject": "Physics",
-    "difficulty": "hard",
-    "points": 1,
-    "examId": "6907ed807e6823764527fea9",
+    "difficulty": "easy",
+    "points": 2,
+    "examId": "6907fac22baa25d38e1c5f37",
     "options": [
       "Newton",
       "Joule",
@@ -72,17 +72,17 @@
     ],
     "correctAnswer": "Newton",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.969223",
-    "updatedAt": "2025-11-03T06:47:12.969223"
+    "createdAt": "2025-11-03T07:43:46.096332",
+    "updatedAt": "2025-11-03T07:43:46.096332"
   },
   {
-    "_id": "6907ed807e6823764527feae",
+    "_id": "6907fac22baa25d38e1c5f3c",
     "text": "What is the formula for kinetic energy?",
     "type": "multiple_choice",
     "subject": "Physics",
     "difficulty": "hard",
-    "points": 2,
-    "examId": "6907ed807e6823764527fea9",
+    "points": 1,
+    "examId": "6907fac22baa25d38e1c5f37",
     "options": [
       "½mv²",
       "mgh",
@@ -91,112 +91,17 @@
     ],
     "correctAnswer": "½mv²",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.969223",
-    "updatedAt": "2025-11-03T06:47:12.969223"
+    "createdAt": "2025-11-03T07:43:46.096332",
+    "updatedAt": "2025-11-03T07:43:46.096332"
   },
   {
-    "_id": "6907ed807e6823764527feb0",
-    "text": "What is the chemical symbol for gold?",
-    "type": "multiple_choice",
-    "subject": "Chemistry",
-    "difficulty": "medium",
-    "points": 3,
-    "examId": "6907ed807e6823764527feaf",
-    "options": [
-      "Au",
-      "Ag",
-      "Fe",
-      "Cu"
-    ],
-    "correctAnswer": "Au",
-    "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.969223",
-    "updatedAt": "2025-11-03T06:47:12.969223"
-  },
-  {
-    "_id": "6907ed807e6823764527feb1",
-    "text": "What is the pH of a neutral solution?",
-    "type": "multiple_choice",
-    "subject": "Chemistry",
-    "difficulty": "hard",
-    "points": 3,
-    "examId": "6907ed807e6823764527feaf",
-    "options": [
-      "7",
-      "0",
-      "14",
-      "1"
-    ],
-    "correctAnswer": "7",
-    "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.969223",
-    "updatedAt": "2025-11-03T06:47:12.969223"
-  },
-  {
-    "_id": "6907ed807e6823764527feb2",
-    "text": "What is the formula for water?",
-    "type": "multiple_choice",
-    "subject": "Chemistry",
-    "difficulty": "hard",
-    "points": 3,
-    "examId": "6907ed807e6823764527feaf",
-    "options": [
-      "H₂O",
-      "CO₂",
-      "O₂",
-      "H₂"
-    ],
-    "correctAnswer": "H₂O",
-    "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.969223",
-    "updatedAt": "2025-11-03T06:47:12.969223"
-  },
-  {
-    "_id": "6907ed807e6823764527feb3",
-    "text": "What is the chemical symbol for gold?",
-    "type": "multiple_choice",
-    "subject": "Chemistry",
-    "difficulty": "hard",
-    "points": 1,
-    "examId": "6907ed807e6823764527feaf",
-    "options": [
-      "Au",
-      "Ag",
-      "Fe",
-      "Cu"
-    ],
-    "correctAnswer": "Au",
-    "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.969223",
-    "updatedAt": "2025-11-03T06:47:12.969223"
-  },
-  {
-    "_id": "6907ed807e6823764527feb4",
-    "text": "What is the pH of a neutral solution?",
-    "type": "multiple_choice",
-    "subject": "Chemistry",
-    "difficulty": "medium",
-    "points": 2,
-    "examId": "6907ed807e6823764527feaf",
-    "options": [
-      "7",
-      "0",
-      "14",
-      "1"
-    ],
-    "correctAnswer": "7",
-    "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.969223",
-    "updatedAt": "2025-11-03T06:47:12.969223"
-  },
-  {
-    "_id": "6907ed807e6823764527feb6",
+    "_id": "6907fac22baa25d38e1c5f3e",
     "text": "What is the SI unit of force?",
     "type": "multiple_choice",
     "subject": "Physics",
-    "difficulty": "medium",
-    "points": 1,
-    "examId": "6907ed807e6823764527feb5",
+    "difficulty": "easy",
+    "points": 2,
+    "examId": "6907fac22baa25d38e1c5f3d",
     "options": [
       "Newton",
       "Joule",
@@ -205,17 +110,17 @@
     ],
     "correctAnswer": "Newton",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.969223",
-    "updatedAt": "2025-11-03T06:47:12.969223"
+    "createdAt": "2025-11-03T07:43:46.097388",
+    "updatedAt": "2025-11-03T07:43:46.097388"
   },
   {
-    "_id": "6907ed807e6823764527feb7",
+    "_id": "6907fac22baa25d38e1c5f3f",
     "text": "What is the formula for kinetic energy?",
     "type": "multiple_choice",
     "subject": "Physics",
     "difficulty": "easy",
     "points": 3,
-    "examId": "6907ed807e6823764527feb5",
+    "examId": "6907fac22baa25d38e1c5f3d",
     "options": [
       "½mv²",
       "mgh",
@@ -224,17 +129,17 @@
     ],
     "correctAnswer": "½mv²",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.969223",
-    "updatedAt": "2025-11-03T06:47:12.969223"
+    "createdAt": "2025-11-03T07:43:46.097388",
+    "updatedAt": "2025-11-03T07:43:46.097388"
   },
   {
-    "_id": "6907ed807e6823764527feb8",
+    "_id": "6907fac22baa25d38e1c5f40",
     "text": "What is the speed of light in vacuum?",
     "type": "multiple_choice",
     "subject": "Physics",
-    "difficulty": "easy",
+    "difficulty": "medium",
     "points": 1,
-    "examId": "6907ed807e6823764527feb5",
+    "examId": "6907fac22baa25d38e1c5f3d",
     "options": [
       "3 × 10⁸ m/s",
       "2 × 10⁸ m/s",
@@ -243,17 +148,17 @@
     ],
     "correctAnswer": "3 × 10⁸ m/s",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.969223",
-    "updatedAt": "2025-11-03T06:47:12.969223"
+    "createdAt": "2025-11-03T07:43:46.097388",
+    "updatedAt": "2025-11-03T07:43:46.097388"
   },
   {
-    "_id": "6907ed807e6823764527feb9",
+    "_id": "6907fac22baa25d38e1c5f41",
     "text": "What is the SI unit of force?",
     "type": "multiple_choice",
     "subject": "Physics",
-    "difficulty": "easy",
+    "difficulty": "medium",
     "points": 1,
-    "examId": "6907ed807e6823764527feb5",
+    "examId": "6907fac22baa25d38e1c5f3d",
     "options": [
       "Newton",
       "Joule",
@@ -262,17 +167,17 @@
     ],
     "correctAnswer": "Newton",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.969223",
-    "updatedAt": "2025-11-03T06:47:12.969223"
+    "createdAt": "2025-11-03T07:43:46.097388",
+    "updatedAt": "2025-11-03T07:43:46.097388"
   },
   {
-    "_id": "6907ed807e6823764527feba",
+    "_id": "6907fac22baa25d38e1c5f42",
     "text": "What is the formula for kinetic energy?",
     "type": "multiple_choice",
     "subject": "Physics",
-    "difficulty": "hard",
-    "points": 1,
-    "examId": "6907ed807e6823764527feb5",
+    "difficulty": "medium",
+    "points": 3,
+    "examId": "6907fac22baa25d38e1c5f3d",
     "options": [
       "½mv²",
       "mgh",
@@ -281,17 +186,112 @@
     ],
     "correctAnswer": "½mv²",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.969223",
-    "updatedAt": "2025-11-03T06:47:12.969223"
+    "createdAt": "2025-11-03T07:43:46.097388",
+    "updatedAt": "2025-11-03T07:43:46.097388"
   },
   {
-    "_id": "6907ed807e6823764527febc",
+    "_id": "6907fac22baa25d38e1c5f44",
+    "text": "What is the SI unit of force?",
+    "type": "multiple_choice",
+    "subject": "Physics",
+    "difficulty": "easy",
+    "points": 2,
+    "examId": "6907fac22baa25d38e1c5f43",
+    "options": [
+      "Newton",
+      "Joule",
+      "Watt",
+      "Pascal"
+    ],
+    "correctAnswer": "Newton",
+    "correctOptionIndex": 0,
+    "createdAt": "2025-11-03T07:43:46.097388",
+    "updatedAt": "2025-11-03T07:43:46.097388"
+  },
+  {
+    "_id": "6907fac22baa25d38e1c5f45",
+    "text": "What is the formula for kinetic energy?",
+    "type": "multiple_choice",
+    "subject": "Physics",
+    "difficulty": "medium",
+    "points": 3,
+    "examId": "6907fac22baa25d38e1c5f43",
+    "options": [
+      "½mv²",
+      "mgh",
+      "Fd",
+      "ma"
+    ],
+    "correctAnswer": "½mv²",
+    "correctOptionIndex": 0,
+    "createdAt": "2025-11-03T07:43:46.097388",
+    "updatedAt": "2025-11-03T07:43:46.097388"
+  },
+  {
+    "_id": "6907fac22baa25d38e1c5f46",
+    "text": "What is the speed of light in vacuum?",
+    "type": "multiple_choice",
+    "subject": "Physics",
+    "difficulty": "medium",
+    "points": 2,
+    "examId": "6907fac22baa25d38e1c5f43",
+    "options": [
+      "3 × 10⁸ m/s",
+      "2 × 10⁸ m/s",
+      "4 × 10⁸ m/s",
+      "1 × 10⁸ m/s"
+    ],
+    "correctAnswer": "3 × 10⁸ m/s",
+    "correctOptionIndex": 0,
+    "createdAt": "2025-11-03T07:43:46.097388",
+    "updatedAt": "2025-11-03T07:43:46.097388"
+  },
+  {
+    "_id": "6907fac22baa25d38e1c5f47",
+    "text": "What is the SI unit of force?",
+    "type": "multiple_choice",
+    "subject": "Physics",
+    "difficulty": "medium",
+    "points": 2,
+    "examId": "6907fac22baa25d38e1c5f43",
+    "options": [
+      "Newton",
+      "Joule",
+      "Watt",
+      "Pascal"
+    ],
+    "correctAnswer": "Newton",
+    "correctOptionIndex": 0,
+    "createdAt": "2025-11-03T07:43:46.097388",
+    "updatedAt": "2025-11-03T07:43:46.097388"
+  },
+  {
+    "_id": "6907fac22baa25d38e1c5f48",
+    "text": "What is the formula for kinetic energy?",
+    "type": "multiple_choice",
+    "subject": "Physics",
+    "difficulty": "hard",
+    "points": 2,
+    "examId": "6907fac22baa25d38e1c5f43",
+    "options": [
+      "½mv²",
+      "mgh",
+      "Fd",
+      "ma"
+    ],
+    "correctAnswer": "½mv²",
+    "correctOptionIndex": 0,
+    "createdAt": "2025-11-03T07:43:46.097388",
+    "updatedAt": "2025-11-03T07:43:46.097388"
+  },
+  {
+    "_id": "6907fac22baa25d38e1c5f4a",
     "text": "What is the derivative of f(x) = x²?",
     "type": "multiple_choice",
-    "subject": "Calculus",
+    "subject": "Algebra",
     "difficulty": "easy",
-    "points": 3,
-    "examId": "6907ed807e6823764527febb",
+    "points": 2,
+    "examId": "6907fac22baa25d38e1c5f49",
     "options": [
       "2x",
       "x²",
@@ -300,17 +300,17 @@
     ],
     "correctAnswer": "2x",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.097388",
+    "updatedAt": "2025-11-03T07:43:46.097388"
   },
   {
-    "_id": "6907ed807e6823764527febd",
+    "_id": "6907fac22baa25d38e1c5f4b",
     "text": "Solve the equation: 2x + 5 = 13",
     "type": "multiple_choice",
-    "subject": "Calculus",
-    "difficulty": "medium",
-    "points": 2,
-    "examId": "6907ed807e6823764527febb",
+    "subject": "Algebra",
+    "difficulty": "easy",
+    "points": 3,
+    "examId": "6907fac22baa25d38e1c5f49",
     "options": [
       "x = 4",
       "x = 3",
@@ -319,17 +319,17 @@
     ],
     "correctAnswer": "x = 4",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.097388",
+    "updatedAt": "2025-11-03T07:43:46.097388"
   },
   {
-    "_id": "6907ed807e6823764527febe",
+    "_id": "6907fac22baa25d38e1c5f4c",
     "text": "What is the value of π (pi) to two decimal places?",
     "type": "multiple_choice",
-    "subject": "Calculus",
-    "difficulty": "hard",
-    "points": 3,
-    "examId": "6907ed807e6823764527febb",
+    "subject": "Algebra",
+    "difficulty": "easy",
+    "points": 1,
+    "examId": "6907fac22baa25d38e1c5f49",
     "options": [
       "3.14",
       "3.16",
@@ -338,17 +338,17 @@
     ],
     "correctAnswer": "3.14",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.097388",
+    "updatedAt": "2025-11-03T07:43:46.097388"
   },
   {
-    "_id": "6907ed807e6823764527febf",
+    "_id": "6907fac22baa25d38e1c5f4d",
     "text": "What is the derivative of f(x) = x²?",
     "type": "multiple_choice",
-    "subject": "Calculus",
-    "difficulty": "medium",
+    "subject": "Algebra",
+    "difficulty": "easy",
     "points": 1,
-    "examId": "6907ed807e6823764527febb",
+    "examId": "6907fac22baa25d38e1c5f49",
     "options": [
       "2x",
       "x²",
@@ -357,17 +357,17 @@
     ],
     "correctAnswer": "2x",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.097388",
+    "updatedAt": "2025-11-03T07:43:46.097388"
   },
   {
-    "_id": "6907ed807e6823764527fec0",
+    "_id": "6907fac22baa25d38e1c5f4e",
     "text": "Solve the equation: 2x + 5 = 13",
     "type": "multiple_choice",
-    "subject": "Calculus",
-    "difficulty": "hard",
-    "points": 3,
-    "examId": "6907ed807e6823764527febb",
+    "subject": "Algebra",
+    "difficulty": "easy",
+    "points": 2,
+    "examId": "6907fac22baa25d38e1c5f49",
     "options": [
       "x = 4",
       "x = 3",
@@ -376,17 +376,17 @@
     ],
     "correctAnswer": "x = 4",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.097388",
+    "updatedAt": "2025-11-03T07:43:46.097388"
   },
   {
-    "_id": "6907ed807e6823764527fec2",
+    "_id": "6907fac22baa25d38e1c5f50",
     "text": "What is the derivative of f(x) = x²?",
     "type": "multiple_choice",
-    "subject": "Calculus",
-    "difficulty": "hard",
+    "subject": "Algebra",
+    "difficulty": "easy",
     "points": 1,
-    "examId": "6907ed807e6823764527fec1",
+    "examId": "6907fac22baa25d38e1c5f4f",
     "options": [
       "2x",
       "x²",
@@ -395,36 +395,36 @@
     ],
     "correctAnswer": "2x",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.097388",
+    "updatedAt": "2025-11-03T07:43:46.097388"
   },
   {
-    "_id": "6907ed807e6823764527fec3",
+    "_id": "6907fac22baa25d38e1c5f51",
     "text": "Solve the equation: 2x + 5 = 13",
     "type": "multiple_choice",
-    "subject": "Calculus",
-    "difficulty": "medium",
-    "points": 1,
-    "examId": "6907ed807e6823764527fec1",
-    "options": [
-      "x = 4",
-      "x = 3",
-      "x = 5",
-      "x = 6"
-    ],
-    "correctAnswer": "x = 4",
-    "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
-  },
-  {
-    "_id": "6907ed807e6823764527fec4",
-    "text": "What is the value of π (pi) to two decimal places?",
-    "type": "multiple_choice",
-    "subject": "Calculus",
+    "subject": "Algebra",
     "difficulty": "easy",
     "points": 3,
-    "examId": "6907ed807e6823764527fec1",
+    "examId": "6907fac22baa25d38e1c5f4f",
+    "options": [
+      "x = 4",
+      "x = 3",
+      "x = 5",
+      "x = 6"
+    ],
+    "correctAnswer": "x = 4",
+    "correctOptionIndex": 0,
+    "createdAt": "2025-11-03T07:43:46.097388",
+    "updatedAt": "2025-11-03T07:43:46.097388"
+  },
+  {
+    "_id": "6907fac22baa25d38e1c5f52",
+    "text": "What is the value of π (pi) to two decimal places?",
+    "type": "multiple_choice",
+    "subject": "Algebra",
+    "difficulty": "easy",
+    "points": 1,
+    "examId": "6907fac22baa25d38e1c5f4f",
     "options": [
       "3.14",
       "3.16",
@@ -433,17 +433,55 @@
     ],
     "correctAnswer": "3.14",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.097388",
+    "updatedAt": "2025-11-03T07:43:46.097388"
   },
   {
-    "_id": "6907ed807e6823764527fec5",
+    "_id": "6907fac22baa25d38e1c5f53",
+    "text": "What is the derivative of f(x) = x²?",
+    "type": "multiple_choice",
+    "subject": "Algebra",
+    "difficulty": "medium",
+    "points": 3,
+    "examId": "6907fac22baa25d38e1c5f4f",
+    "options": [
+      "2x",
+      "x²",
+      "2",
+      "x"
+    ],
+    "correctAnswer": "2x",
+    "correctOptionIndex": 0,
+    "createdAt": "2025-11-03T07:43:46.097388",
+    "updatedAt": "2025-11-03T07:43:46.097388"
+  },
+  {
+    "_id": "6907fac22baa25d38e1c5f54",
+    "text": "Solve the equation: 2x + 5 = 13",
+    "type": "multiple_choice",
+    "subject": "Algebra",
+    "difficulty": "easy",
+    "points": 3,
+    "examId": "6907fac22baa25d38e1c5f4f",
+    "options": [
+      "x = 4",
+      "x = 3",
+      "x = 5",
+      "x = 6"
+    ],
+    "correctAnswer": "x = 4",
+    "correctOptionIndex": 0,
+    "createdAt": "2025-11-03T07:43:46.097388",
+    "updatedAt": "2025-11-03T07:43:46.097388"
+  },
+  {
+    "_id": "6907fac22baa25d38e1c5f56",
     "text": "What is the derivative of f(x) = x²?",
     "type": "multiple_choice",
     "subject": "Calculus",
     "difficulty": "medium",
     "points": 1,
-    "examId": "6907ed807e6823764527fec1",
+    "examId": "6907fac22baa25d38e1c5f55",
     "options": [
       "2x",
       "x²",
@@ -452,17 +490,17 @@
     ],
     "correctAnswer": "2x",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fec6",
+    "_id": "6907fac22baa25d38e1c5f57",
     "text": "Solve the equation: 2x + 5 = 13",
     "type": "multiple_choice",
     "subject": "Calculus",
     "difficulty": "hard",
     "points": 2,
-    "examId": "6907ed807e6823764527fec1",
+    "examId": "6907fac22baa25d38e1c5f55",
     "options": [
       "x = 4",
       "x = 3",
@@ -471,55 +509,17 @@
     ],
     "correctAnswer": "x = 4",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fec8",
-    "text": "What is the derivative of f(x) = x²?",
-    "type": "multiple_choice",
-    "subject": "Calculus",
-    "difficulty": "hard",
-    "points": 3,
-    "examId": "6907ed807e6823764527fec7",
-    "options": [
-      "2x",
-      "x²",
-      "2",
-      "x"
-    ],
-    "correctAnswer": "2x",
-    "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
-  },
-  {
-    "_id": "6907ed807e6823764527fec9",
-    "text": "Solve the equation: 2x + 5 = 13",
-    "type": "multiple_choice",
-    "subject": "Calculus",
-    "difficulty": "hard",
-    "points": 3,
-    "examId": "6907ed807e6823764527fec7",
-    "options": [
-      "x = 4",
-      "x = 3",
-      "x = 5",
-      "x = 6"
-    ],
-    "correctAnswer": "x = 4",
-    "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
-  },
-  {
-    "_id": "6907ed807e6823764527feca",
+    "_id": "6907fac22baa25d38e1c5f58",
     "text": "What is the value of π (pi) to two decimal places?",
     "type": "multiple_choice",
     "subject": "Calculus",
     "difficulty": "easy",
-    "points": 3,
-    "examId": "6907ed807e6823764527fec7",
+    "points": 1,
+    "examId": "6907fac22baa25d38e1c5f55",
     "options": [
       "3.14",
       "3.16",
@@ -528,17 +528,17 @@
     ],
     "correctAnswer": "3.14",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fecb",
+    "_id": "6907fac22baa25d38e1c5f59",
     "text": "What is the derivative of f(x) = x²?",
     "type": "multiple_choice",
     "subject": "Calculus",
     "difficulty": "easy",
-    "points": 1,
-    "examId": "6907ed807e6823764527fec7",
+    "points": 2,
+    "examId": "6907fac22baa25d38e1c5f55",
     "options": [
       "2x",
       "x²",
@@ -547,17 +547,17 @@
     ],
     "correctAnswer": "2x",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fecc",
+    "_id": "6907fac22baa25d38e1c5f5a",
     "text": "Solve the equation: 2x + 5 = 13",
     "type": "multiple_choice",
     "subject": "Calculus",
-    "difficulty": "medium",
+    "difficulty": "easy",
     "points": 2,
-    "examId": "6907ed807e6823764527fec7",
+    "examId": "6907fac22baa25d38e1c5f55",
     "options": [
       "x = 4",
       "x = 3",
@@ -566,17 +566,17 @@
     ],
     "correctAnswer": "x = 4",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fece",
+    "_id": "6907fac22baa25d38e1c5f5c",
     "text": "What is the derivative of f(x) = x²?",
     "type": "multiple_choice",
     "subject": "Database",
-    "difficulty": "medium",
+    "difficulty": "easy",
     "points": 3,
-    "examId": "6907ed807e6823764527fecd",
+    "examId": "6907fac22baa25d38e1c5f5b",
     "options": [
       "2x",
       "x²",
@@ -585,17 +585,17 @@
     ],
     "correctAnswer": "2x",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fecf",
+    "_id": "6907fac22baa25d38e1c5f5d",
     "text": "Solve the equation: 2x + 5 = 13",
     "type": "multiple_choice",
     "subject": "Database",
-    "difficulty": "medium",
-    "points": 1,
-    "examId": "6907ed807e6823764527fecd",
+    "difficulty": "hard",
+    "points": 3,
+    "examId": "6907fac22baa25d38e1c5f5b",
     "options": [
       "x = 4",
       "x = 3",
@@ -604,17 +604,17 @@
     ],
     "correctAnswer": "x = 4",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fed0",
+    "_id": "6907fac22baa25d38e1c5f5e",
     "text": "What is the value of π (pi) to two decimal places?",
     "type": "multiple_choice",
     "subject": "Database",
     "difficulty": "easy",
-    "points": 3,
-    "examId": "6907ed807e6823764527fecd",
+    "points": 2,
+    "examId": "6907fac22baa25d38e1c5f5b",
     "options": [
       "3.14",
       "3.16",
@@ -623,17 +623,17 @@
     ],
     "correctAnswer": "3.14",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fed1",
+    "_id": "6907fac22baa25d38e1c5f5f",
     "text": "What is the derivative of f(x) = x²?",
     "type": "multiple_choice",
     "subject": "Database",
     "difficulty": "hard",
     "points": 1,
-    "examId": "6907ed807e6823764527fecd",
+    "examId": "6907fac22baa25d38e1c5f5b",
     "options": [
       "2x",
       "x²",
@@ -642,17 +642,17 @@
     ],
     "correctAnswer": "2x",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fed2",
+    "_id": "6907fac22baa25d38e1c5f60",
     "text": "Solve the equation: 2x + 5 = 13",
     "type": "multiple_choice",
     "subject": "Database",
     "difficulty": "medium",
-    "points": 1,
-    "examId": "6907ed807e6823764527fecd",
+    "points": 3,
+    "examId": "6907fac22baa25d38e1c5f5b",
     "options": [
       "x = 4",
       "x = 3",
@@ -661,17 +661,17 @@
     ],
     "correctAnswer": "x = 4",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fed4",
+    "_id": "6907fac22baa25d38e1c5f62",
     "text": "What is the derivative of f(x) = x²?",
     "type": "multiple_choice",
-    "subject": "Programming",
-    "difficulty": "medium",
-    "points": 1,
-    "examId": "6907ed807e6823764527fed3",
+    "subject": "Database",
+    "difficulty": "hard",
+    "points": 3,
+    "examId": "6907fac22baa25d38e1c5f61",
     "options": [
       "2x",
       "x²",
@@ -680,17 +680,17 @@
     ],
     "correctAnswer": "2x",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fed5",
+    "_id": "6907fac22baa25d38e1c5f63",
     "text": "Solve the equation: 2x + 5 = 13",
     "type": "multiple_choice",
-    "subject": "Programming",
-    "difficulty": "medium",
+    "subject": "Database",
+    "difficulty": "hard",
     "points": 1,
-    "examId": "6907ed807e6823764527fed3",
+    "examId": "6907fac22baa25d38e1c5f61",
     "options": [
       "x = 4",
       "x = 3",
@@ -699,17 +699,17 @@
     ],
     "correctAnswer": "x = 4",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fed6",
+    "_id": "6907fac22baa25d38e1c5f64",
     "text": "What is the value of π (pi) to two decimal places?",
     "type": "multiple_choice",
-    "subject": "Programming",
-    "difficulty": "hard",
-    "points": 2,
-    "examId": "6907ed807e6823764527fed3",
+    "subject": "Database",
+    "difficulty": "medium",
+    "points": 1,
+    "examId": "6907fac22baa25d38e1c5f61",
     "options": [
       "3.14",
       "3.16",
@@ -718,55 +718,17 @@
     ],
     "correctAnswer": "3.14",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fed7",
-    "text": "What is the derivative of f(x) = x²?",
-    "type": "multiple_choice",
-    "subject": "Programming",
-    "difficulty": "easy",
-    "points": 3,
-    "examId": "6907ed807e6823764527fed3",
-    "options": [
-      "2x",
-      "x²",
-      "2",
-      "x"
-    ],
-    "correctAnswer": "2x",
-    "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
-  },
-  {
-    "_id": "6907ed807e6823764527fed8",
-    "text": "Solve the equation: 2x + 5 = 13",
-    "type": "multiple_choice",
-    "subject": "Programming",
-    "difficulty": "medium",
-    "points": 3,
-    "examId": "6907ed807e6823764527fed3",
-    "options": [
-      "x = 4",
-      "x = 3",
-      "x = 5",
-      "x = 6"
-    ],
-    "correctAnswer": "x = 4",
-    "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
-  },
-  {
-    "_id": "6907ed807e6823764527feda",
+    "_id": "6907fac22baa25d38e1c5f65",
     "text": "What is the derivative of f(x) = x²?",
     "type": "multiple_choice",
     "subject": "Database",
     "difficulty": "hard",
-    "points": 2,
-    "examId": "6907ed807e6823764527fed9",
+    "points": 3,
+    "examId": "6907fac22baa25d38e1c5f61",
     "options": [
       "2x",
       "x²",
@@ -775,17 +737,17 @@
     ],
     "correctAnswer": "2x",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fedb",
+    "_id": "6907fac22baa25d38e1c5f66",
     "text": "Solve the equation: 2x + 5 = 13",
     "type": "multiple_choice",
     "subject": "Database",
-    "difficulty": "easy",
-    "points": 2,
-    "examId": "6907ed807e6823764527fed9",
+    "difficulty": "medium",
+    "points": 3,
+    "examId": "6907fac22baa25d38e1c5f61",
     "options": [
       "x = 4",
       "x = 3",
@@ -794,17 +756,55 @@
     ],
     "correctAnswer": "x = 4",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fedc",
-    "text": "What is the value of π (pi) to two decimal places?",
+    "_id": "6907fac22baa25d38e1c5f68",
+    "text": "What is the derivative of f(x) = x²?",
     "type": "multiple_choice",
     "subject": "Database",
     "difficulty": "medium",
     "points": 1,
-    "examId": "6907ed807e6823764527fed9",
+    "examId": "6907fac22baa25d38e1c5f67",
+    "options": [
+      "2x",
+      "x²",
+      "2",
+      "x"
+    ],
+    "correctAnswer": "2x",
+    "correctOptionIndex": 0,
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
+  },
+  {
+    "_id": "6907fac22baa25d38e1c5f69",
+    "text": "Solve the equation: 2x + 5 = 13",
+    "type": "multiple_choice",
+    "subject": "Database",
+    "difficulty": "hard",
+    "points": 1,
+    "examId": "6907fac22baa25d38e1c5f67",
+    "options": [
+      "x = 4",
+      "x = 3",
+      "x = 5",
+      "x = 6"
+    ],
+    "correctAnswer": "x = 4",
+    "correctOptionIndex": 0,
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
+  },
+  {
+    "_id": "6907fac22baa25d38e1c5f6a",
+    "text": "What is the value of π (pi) to two decimal places?",
+    "type": "multiple_choice",
+    "subject": "Database",
+    "difficulty": "hard",
+    "points": 2,
+    "examId": "6907fac22baa25d38e1c5f67",
     "options": [
       "3.14",
       "3.16",
@@ -813,17 +813,17 @@
     ],
     "correctAnswer": "3.14",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fedd",
+    "_id": "6907fac22baa25d38e1c5f6b",
     "text": "What is the derivative of f(x) = x²?",
     "type": "multiple_choice",
     "subject": "Database",
-    "difficulty": "easy",
+    "difficulty": "hard",
     "points": 2,
-    "examId": "6907ed807e6823764527fed9",
+    "examId": "6907fac22baa25d38e1c5f67",
     "options": [
       "2x",
       "x²",
@@ -832,17 +832,17 @@
     ],
     "correctAnswer": "2x",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fede",
+    "_id": "6907fac22baa25d38e1c5f6c",
     "text": "Solve the equation: 2x + 5 = 13",
     "type": "multiple_choice",
     "subject": "Database",
     "difficulty": "medium",
-    "points": 3,
-    "examId": "6907ed807e6823764527fed9",
+    "points": 1,
+    "examId": "6907fac22baa25d38e1c5f67",
     "options": [
       "x = 4",
       "x = 3",
@@ -851,17 +851,17 @@
     ],
     "correctAnswer": "x = 4",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fee0",
+    "_id": "6907fac22baa25d38e1c5f6e",
     "text": "What is the chemical symbol for gold?",
     "type": "multiple_choice",
     "subject": "Chemistry",
-    "difficulty": "easy",
-    "points": 3,
-    "examId": "6907ed807e6823764527fedf",
+    "difficulty": "hard",
+    "points": 2,
+    "examId": "6907fac22baa25d38e1c5f6d",
     "options": [
       "Au",
       "Ag",
@@ -870,17 +870,17 @@
     ],
     "correctAnswer": "Au",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fee1",
+    "_id": "6907fac22baa25d38e1c5f6f",
     "text": "What is the pH of a neutral solution?",
     "type": "multiple_choice",
     "subject": "Chemistry",
-    "difficulty": "easy",
+    "difficulty": "hard",
     "points": 1,
-    "examId": "6907ed807e6823764527fedf",
+    "examId": "6907fac22baa25d38e1c5f6d",
     "options": [
       "7",
       "0",
@@ -889,17 +889,17 @@
     ],
     "correctAnswer": "7",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fee2",
+    "_id": "6907fac22baa25d38e1c5f70",
     "text": "What is the formula for water?",
     "type": "multiple_choice",
     "subject": "Chemistry",
     "difficulty": "hard",
-    "points": 3,
-    "examId": "6907ed807e6823764527fedf",
+    "points": 2,
+    "examId": "6907fac22baa25d38e1c5f6d",
     "options": [
       "H₂O",
       "CO₂",
@@ -908,17 +908,17 @@
     ],
     "correctAnswer": "H₂O",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fee3",
+    "_id": "6907fac22baa25d38e1c5f71",
     "text": "What is the chemical symbol for gold?",
     "type": "multiple_choice",
     "subject": "Chemistry",
-    "difficulty": "easy",
-    "points": 3,
-    "examId": "6907ed807e6823764527fedf",
+    "difficulty": "medium",
+    "points": 1,
+    "examId": "6907fac22baa25d38e1c5f6d",
     "options": [
       "Au",
       "Ag",
@@ -927,17 +927,17 @@
     ],
     "correctAnswer": "Au",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fee4",
+    "_id": "6907fac22baa25d38e1c5f72",
     "text": "What is the pH of a neutral solution?",
     "type": "multiple_choice",
     "subject": "Chemistry",
     "difficulty": "hard",
-    "points": 1,
-    "examId": "6907ed807e6823764527fedf",
+    "points": 3,
+    "examId": "6907fac22baa25d38e1c5f6d",
     "options": [
       "7",
       "0",
@@ -946,17 +946,17 @@
     ],
     "correctAnswer": "7",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fee6",
+    "_id": "6907fac22baa25d38e1c5f74",
     "text": "What is the chemical symbol for gold?",
     "type": "multiple_choice",
     "subject": "Chemistry",
     "difficulty": "easy",
     "points": 2,
-    "examId": "6907ed807e6823764527fee5",
+    "examId": "6907fac22baa25d38e1c5f73",
     "options": [
       "Au",
       "Ag",
@@ -965,17 +965,17 @@
     ],
     "correctAnswer": "Au",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fee7",
+    "_id": "6907fac22baa25d38e1c5f75",
     "text": "What is the pH of a neutral solution?",
     "type": "multiple_choice",
     "subject": "Chemistry",
-    "difficulty": "easy",
-    "points": 2,
-    "examId": "6907ed807e6823764527fee5",
+    "difficulty": "hard",
+    "points": 3,
+    "examId": "6907fac22baa25d38e1c5f73",
     "options": [
       "7",
       "0",
@@ -984,17 +984,17 @@
     ],
     "correctAnswer": "7",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fee8",
+    "_id": "6907fac22baa25d38e1c5f76",
     "text": "What is the formula for water?",
     "type": "multiple_choice",
     "subject": "Chemistry",
-    "difficulty": "hard",
-    "points": 2,
-    "examId": "6907ed807e6823764527fee5",
+    "difficulty": "easy",
+    "points": 1,
+    "examId": "6907fac22baa25d38e1c5f73",
     "options": [
       "H₂O",
       "CO₂",
@@ -1003,17 +1003,17 @@
     ],
     "correctAnswer": "H₂O",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fee9",
+    "_id": "6907fac22baa25d38e1c5f77",
     "text": "What is the chemical symbol for gold?",
     "type": "multiple_choice",
     "subject": "Chemistry",
-    "difficulty": "hard",
-    "points": 1,
-    "examId": "6907ed807e6823764527fee5",
+    "difficulty": "easy",
+    "points": 3,
+    "examId": "6907fac22baa25d38e1c5f73",
     "options": [
       "Au",
       "Ag",
@@ -1022,55 +1022,17 @@
     ],
     "correctAnswer": "Au",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527feea",
+    "_id": "6907fac22baa25d38e1c5f78",
     "text": "What is the pH of a neutral solution?",
-    "type": "multiple_choice",
-    "subject": "Chemistry",
-    "difficulty": "easy",
-    "points": 2,
-    "examId": "6907ed807e6823764527fee5",
-    "options": [
-      "7",
-      "0",
-      "14",
-      "1"
-    ],
-    "correctAnswer": "7",
-    "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
-  },
-  {
-    "_id": "6907ed807e6823764527feec",
-    "text": "What is the chemical symbol for gold?",
     "type": "multiple_choice",
     "subject": "Chemistry",
     "difficulty": "medium",
-    "points": 2,
-    "examId": "6907ed807e6823764527feeb",
-    "options": [
-      "Au",
-      "Ag",
-      "Fe",
-      "Cu"
-    ],
-    "correctAnswer": "Au",
-    "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.970246",
-    "updatedAt": "2025-11-03T06:47:12.970246"
-  },
-  {
-    "_id": "6907ed807e6823764527feed",
-    "text": "What is the pH of a neutral solution?",
-    "type": "multiple_choice",
-    "subject": "Chemistry",
-    "difficulty": "easy",
-    "points": 1,
-    "examId": "6907ed807e6823764527feeb",
+    "points": 3,
+    "examId": "6907fac22baa25d38e1c5f73",
     "options": [
       "7",
       "0",
@@ -1079,17 +1041,55 @@
     ],
     "correctAnswer": "7",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.971221",
-    "updatedAt": "2025-11-03T06:47:12.971221"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527feee",
+    "_id": "6907fac22baa25d38e1c5f7a",
+    "text": "What is the chemical symbol for gold?",
+    "type": "multiple_choice",
+    "subject": "Chemistry",
+    "difficulty": "easy",
+    "points": 1,
+    "examId": "6907fac22baa25d38e1c5f79",
+    "options": [
+      "Au",
+      "Ag",
+      "Fe",
+      "Cu"
+    ],
+    "correctAnswer": "Au",
+    "correctOptionIndex": 0,
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
+  },
+  {
+    "_id": "6907fac22baa25d38e1c5f7b",
+    "text": "What is the pH of a neutral solution?",
+    "type": "multiple_choice",
+    "subject": "Chemistry",
+    "difficulty": "easy",
+    "points": 3,
+    "examId": "6907fac22baa25d38e1c5f79",
+    "options": [
+      "7",
+      "0",
+      "14",
+      "1"
+    ],
+    "correctAnswer": "7",
+    "correctOptionIndex": 0,
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
+  },
+  {
+    "_id": "6907fac22baa25d38e1c5f7c",
     "text": "What is the formula for water?",
     "type": "multiple_choice",
     "subject": "Chemistry",
-    "difficulty": "medium",
-    "points": 2,
-    "examId": "6907ed807e6823764527feeb",
+    "difficulty": "hard",
+    "points": 3,
+    "examId": "6907fac22baa25d38e1c5f79",
     "options": [
       "H₂O",
       "CO₂",
@@ -1098,17 +1098,17 @@
     ],
     "correctAnswer": "H₂O",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.971221",
-    "updatedAt": "2025-11-03T06:47:12.971221"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527feef",
+    "_id": "6907fac22baa25d38e1c5f7d",
     "text": "What is the chemical symbol for gold?",
     "type": "multiple_choice",
     "subject": "Chemistry",
-    "difficulty": "easy",
-    "points": 1,
-    "examId": "6907ed807e6823764527feeb",
+    "difficulty": "hard",
+    "points": 2,
+    "examId": "6907fac22baa25d38e1c5f79",
     "options": [
       "Au",
       "Ag",
@@ -1117,17 +1117,17 @@
     ],
     "correctAnswer": "Au",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.971221",
-    "updatedAt": "2025-11-03T06:47:12.971221"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fef0",
+    "_id": "6907fac22baa25d38e1c5f7e",
     "text": "What is the pH of a neutral solution?",
     "type": "multiple_choice",
     "subject": "Chemistry",
     "difficulty": "hard",
-    "points": 1,
-    "examId": "6907ed807e6823764527feeb",
+    "points": 2,
+    "examId": "6907fac22baa25d38e1c5f79",
     "options": [
       "7",
       "0",
@@ -1136,17 +1136,17 @@
     ],
     "correctAnswer": "7",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.971221",
-    "updatedAt": "2025-11-03T06:47:12.971221"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fef2",
+    "_id": "6907fac22baa25d38e1c5f80",
     "text": "What is the derivative of f(x) = x²?",
     "type": "multiple_choice",
-    "subject": "Calculus",
-    "difficulty": "medium",
+    "subject": "Algebra",
+    "difficulty": "hard",
     "points": 3,
-    "examId": "6907ed807e6823764527fef1",
+    "examId": "6907fac22baa25d38e1c5f7f",
     "options": [
       "2x",
       "x²",
@@ -1155,17 +1155,17 @@
     ],
     "correctAnswer": "2x",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.971221",
-    "updatedAt": "2025-11-03T06:47:12.971221"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fef3",
+    "_id": "6907fac22baa25d38e1c5f81",
     "text": "Solve the equation: 2x + 5 = 13",
     "type": "multiple_choice",
-    "subject": "Calculus",
-    "difficulty": "medium",
-    "points": 1,
-    "examId": "6907ed807e6823764527fef1",
+    "subject": "Algebra",
+    "difficulty": "hard",
+    "points": 3,
+    "examId": "6907fac22baa25d38e1c5f7f",
     "options": [
       "x = 4",
       "x = 3",
@@ -1174,17 +1174,17 @@
     ],
     "correctAnswer": "x = 4",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.971221",
-    "updatedAt": "2025-11-03T06:47:12.971221"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fef4",
+    "_id": "6907fac22baa25d38e1c5f82",
     "text": "What is the value of π (pi) to two decimal places?",
     "type": "multiple_choice",
-    "subject": "Calculus",
-    "difficulty": "medium",
+    "subject": "Algebra",
+    "difficulty": "hard",
     "points": 3,
-    "examId": "6907ed807e6823764527fef1",
+    "examId": "6907fac22baa25d38e1c5f7f",
     "options": [
       "3.14",
       "3.16",
@@ -1193,17 +1193,17 @@
     ],
     "correctAnswer": "3.14",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.971221",
-    "updatedAt": "2025-11-03T06:47:12.971221"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fef5",
+    "_id": "6907fac22baa25d38e1c5f83",
     "text": "What is the derivative of f(x) = x²?",
     "type": "multiple_choice",
-    "subject": "Calculus",
+    "subject": "Algebra",
     "difficulty": "hard",
-    "points": 3,
-    "examId": "6907ed807e6823764527fef1",
+    "points": 2,
+    "examId": "6907fac22baa25d38e1c5f7f",
     "options": [
       "2x",
       "x²",
@@ -1212,17 +1212,17 @@
     ],
     "correctAnswer": "2x",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.971221",
-    "updatedAt": "2025-11-03T06:47:12.971221"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fef6",
+    "_id": "6907fac22baa25d38e1c5f84",
     "text": "Solve the equation: 2x + 5 = 13",
     "type": "multiple_choice",
-    "subject": "Calculus",
+    "subject": "Algebra",
     "difficulty": "hard",
-    "points": 2,
-    "examId": "6907ed807e6823764527fef1",
+    "points": 3,
+    "examId": "6907fac22baa25d38e1c5f7f",
     "options": [
       "x = 4",
       "x = 3",
@@ -1231,17 +1231,17 @@
     ],
     "correctAnswer": "x = 4",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.971221",
-    "updatedAt": "2025-11-03T06:47:12.971221"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fef8",
+    "_id": "6907fac22baa25d38e1c5f86",
     "text": "What is the derivative of f(x) = x²?",
     "type": "multiple_choice",
     "subject": "Algebra",
-    "difficulty": "hard",
-    "points": 2,
-    "examId": "6907ed807e6823764527fef7",
+    "difficulty": "easy",
+    "points": 3,
+    "examId": "6907fac22baa25d38e1c5f85",
     "options": [
       "2x",
       "x²",
@@ -1250,17 +1250,17 @@
     ],
     "correctAnswer": "2x",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.971221",
-    "updatedAt": "2025-11-03T06:47:12.971221"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fef9",
+    "_id": "6907fac22baa25d38e1c5f87",
     "text": "Solve the equation: 2x + 5 = 13",
     "type": "multiple_choice",
     "subject": "Algebra",
     "difficulty": "medium",
-    "points": 3,
-    "examId": "6907ed807e6823764527fef7",
+    "points": 2,
+    "examId": "6907fac22baa25d38e1c5f85",
     "options": [
       "x = 4",
       "x = 3",
@@ -1269,17 +1269,17 @@
     ],
     "correctAnswer": "x = 4",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.971221",
-    "updatedAt": "2025-11-03T06:47:12.971221"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fefa",
+    "_id": "6907fac22baa25d38e1c5f88",
     "text": "What is the value of π (pi) to two decimal places?",
     "type": "multiple_choice",
     "subject": "Algebra",
     "difficulty": "medium",
-    "points": 3,
-    "examId": "6907ed807e6823764527fef7",
+    "points": 1,
+    "examId": "6907fac22baa25d38e1c5f85",
     "options": [
       "3.14",
       "3.16",
@@ -1288,17 +1288,17 @@
     ],
     "correctAnswer": "3.14",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.971221",
-    "updatedAt": "2025-11-03T06:47:12.971221"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fefb",
+    "_id": "6907fac22baa25d38e1c5f89",
     "text": "What is the derivative of f(x) = x²?",
     "type": "multiple_choice",
     "subject": "Algebra",
-    "difficulty": "easy",
+    "difficulty": "medium",
     "points": 1,
-    "examId": "6907ed807e6823764527fef7",
+    "examId": "6907fac22baa25d38e1c5f85",
     "options": [
       "2x",
       "x²",
@@ -1307,17 +1307,55 @@
     ],
     "correctAnswer": "2x",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.971221",
-    "updatedAt": "2025-11-03T06:47:12.971221"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fefc",
+    "_id": "6907fac22baa25d38e1c5f8a",
+    "text": "Solve the equation: 2x + 5 = 13",
+    "type": "multiple_choice",
+    "subject": "Algebra",
+    "difficulty": "easy",
+    "points": 1,
+    "examId": "6907fac22baa25d38e1c5f85",
+    "options": [
+      "x = 4",
+      "x = 3",
+      "x = 5",
+      "x = 6"
+    ],
+    "correctAnswer": "x = 4",
+    "correctOptionIndex": 0,
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
+  },
+  {
+    "_id": "6907fac22baa25d38e1c5f8c",
+    "text": "What is the derivative of f(x) = x²?",
+    "type": "multiple_choice",
+    "subject": "Algebra",
+    "difficulty": "easy",
+    "points": 3,
+    "examId": "6907fac22baa25d38e1c5f8b",
+    "options": [
+      "2x",
+      "x²",
+      "2",
+      "x"
+    ],
+    "correctAnswer": "2x",
+    "correctOptionIndex": 0,
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
+  },
+  {
+    "_id": "6907fac22baa25d38e1c5f8d",
     "text": "Solve the equation: 2x + 5 = 13",
     "type": "multiple_choice",
     "subject": "Algebra",
     "difficulty": "medium",
     "points": 3,
-    "examId": "6907ed807e6823764527fef7",
+    "examId": "6907fac22baa25d38e1c5f8b",
     "options": [
       "x = 4",
       "x = 3",
@@ -1326,55 +1364,17 @@
     ],
     "correctAnswer": "x = 4",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.971221",
-    "updatedAt": "2025-11-03T06:47:12.971221"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527fefe",
-    "text": "What is the derivative of f(x) = x²?",
-    "type": "multiple_choice",
-    "subject": "Algebra",
-    "difficulty": "easy",
-    "points": 2,
-    "examId": "6907ed807e6823764527fefd",
-    "options": [
-      "2x",
-      "x²",
-      "2",
-      "x"
-    ],
-    "correctAnswer": "2x",
-    "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.971221",
-    "updatedAt": "2025-11-03T06:47:12.971221"
-  },
-  {
-    "_id": "6907ed807e6823764527feff",
-    "text": "Solve the equation: 2x + 5 = 13",
-    "type": "multiple_choice",
-    "subject": "Algebra",
-    "difficulty": "easy",
-    "points": 1,
-    "examId": "6907ed807e6823764527fefd",
-    "options": [
-      "x = 4",
-      "x = 3",
-      "x = 5",
-      "x = 6"
-    ],
-    "correctAnswer": "x = 4",
-    "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.971221",
-    "updatedAt": "2025-11-03T06:47:12.971221"
-  },
-  {
-    "_id": "6907ed807e6823764527ff00",
+    "_id": "6907fac22baa25d38e1c5f8e",
     "text": "What is the value of π (pi) to two decimal places?",
     "type": "multiple_choice",
     "subject": "Algebra",
     "difficulty": "medium",
-    "points": 2,
-    "examId": "6907ed807e6823764527fefd",
+    "points": 3,
+    "examId": "6907fac22baa25d38e1c5f8b",
     "options": [
       "3.14",
       "3.16",
@@ -1383,17 +1383,17 @@
     ],
     "correctAnswer": "3.14",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.971221",
-    "updatedAt": "2025-11-03T06:47:12.971221"
+    "createdAt": "2025-11-03T07:43:46.098461",
+    "updatedAt": "2025-11-03T07:43:46.098461"
   },
   {
-    "_id": "6907ed807e6823764527ff01",
+    "_id": "6907fac22baa25d38e1c5f8f",
     "text": "What is the derivative of f(x) = x²?",
     "type": "multiple_choice",
     "subject": "Algebra",
-    "difficulty": "easy",
-    "points": 2,
-    "examId": "6907ed807e6823764527fefd",
+    "difficulty": "medium",
+    "points": 3,
+    "examId": "6907fac22baa25d38e1c5f8b",
     "options": [
       "2x",
       "x²",
@@ -1402,17 +1402,17 @@
     ],
     "correctAnswer": "2x",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.971221",
-    "updatedAt": "2025-11-03T06:47:12.971221"
+    "createdAt": "2025-11-03T07:43:46.099466",
+    "updatedAt": "2025-11-03T07:43:46.099466"
   },
   {
-    "_id": "6907ed807e6823764527ff02",
+    "_id": "6907fac22baa25d38e1c5f90",
     "text": "Solve the equation: 2x + 5 = 13",
     "type": "multiple_choice",
     "subject": "Algebra",
-    "difficulty": "hard",
-    "points": 3,
-    "examId": "6907ed807e6823764527fefd",
+    "difficulty": "easy",
+    "points": 1,
+    "examId": "6907fac22baa25d38e1c5f8b",
     "options": [
       "x = 4",
       "x = 3",
@@ -1421,7 +1421,7 @@
     ],
     "correctAnswer": "x = 4",
     "correctOptionIndex": 0,
-    "createdAt": "2025-11-03T06:47:12.971221",
-    "updatedAt": "2025-11-03T06:47:12.971221"
+    "createdAt": "2025-11-03T07:43:46.099466",
+    "updatedAt": "2025-11-03T07:43:46.099466"
   }
 ]

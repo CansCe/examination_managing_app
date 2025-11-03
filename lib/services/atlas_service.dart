@@ -14,14 +14,20 @@ class AtlasService {
   static Future<void> init() async {
     if (!_isInitialized) {
       try {
+        print('Connecting to MongoDB Atlas...');
+        print('Database: ${DatabaseConfig.databaseName}');
         _db = await Db.create(DatabaseConfig.connectionString);
         await _db!.open();
         _isInitialized = true;
-        print('Successfully connected to MongoDB Atlas');
-      } catch (e) {
-        print("Error connecting to MongoDB Atlas: $e");
+        print('✓ Successfully connected to MongoDB Atlas');
+        print('✓ Connected to database: ${_db!.databaseName}');
+      } catch (e, stackTrace) {
+        print("❌ Error connecting to MongoDB Atlas: $e");
+        print("Stack trace: $stackTrace");
         rethrow;
       }
+    } else {
+      print('✓ MongoDB Atlas connection already initialized');
     }
   }
 
@@ -74,7 +80,14 @@ class AtlasService {
   static Future<List<String>> uploadMany(String collection, List<Map<String, dynamic>> documents) async {
     await _ensureConnection();
     try {
+      if (documents.isEmpty) {
+        print('⚠ Warning: Attempted to upload empty list to $collection');
+        return [];
+      }
+      
+      print('  → Inserting ${documents.length} documents into $collection...');
       final result = await _db!.collection(collection).insertAll(documents);
+      
       final List<String> ids = [];
       if (result.containsKey('insertedIds')) {
         final insertedIds = result['insertedIds'] as List;
@@ -82,9 +95,23 @@ class AtlasService {
           ids.add(id.toString());
         }
       }
+      
+      // Verify insertion by counting documents
+      try {
+        final count = await _db!.collection(collection).count();
+        print('  → Collection $collection now has $count document(s)');
+      } catch (e) {
+        print('  → Note: Could not verify document count: $e');
+      }
+      
+      if (ids.length != documents.length) {
+        print('⚠ Warning: Expected ${documents.length} inserted IDs but got ${ids.length}');
+      }
+      
       return ids;
-    } catch (e) {
-      print("Error uploading multiple documents to $collection: $e");
+    } catch (e, stackTrace) {
+      print("❌ Error uploading multiple documents to $collection: $e");
+      print("Stack trace: $stackTrace");
       rethrow;
     }
   }
@@ -114,6 +141,22 @@ class AtlasService {
       return result['ok'] == 1;
     } catch (e) {
       print('Error deleting document from $collection: $e');
+      rethrow;
+    }
+  }
+
+  // Delete multiple documents by filter
+  static Future<int> deleteDocuments(String collection, Map<String, dynamic> filter) async {
+    await _ensureConnection();
+    try {
+      SelectorBuilder selector = where;
+      filter.forEach((key, value) {
+        selector = selector.eq(key, value);
+      });
+      final result = await _db!.collection(collection).remove(selector);
+      return result['n'] ?? 0; // Return number of deleted documents
+    } catch (e) {
+      print('Error deleting documents from $collection: $e');
       rethrow;
     }
   }
@@ -660,35 +703,107 @@ class AtlasService {
     }
   }
 
+  // Drop the entire database
+  static Future<void> dropDatabase() async {
+    await _ensureConnection();
+    try {
+      print('\n⚠ WARNING: Dropping entire database: ${DatabaseConfig.databaseName}');
+      print('This will delete ALL data in the database!');
+      
+      // Drop the entire database
+      await _db!.drop();
+      print('✓ Database dropped successfully');
+      
+      // Close the connection
+      await close();
+      _isInitialized = false;
+      
+      // Reconnect to the database (it will be recreated automatically when we access it)
+      print('Reconnecting to database...');
+      await init();
+      
+      // Ensure collections exist (they'll be created automatically on first insert, but let's be explicit)
+      print('Ensuring collections exist...');
+      try {
+        await _db!.createCollection(DatabaseConfig.teachersCollection);
+        await _db!.createCollection(DatabaseConfig.studentsCollection);
+        await _db!.createCollection(DatabaseConfig.examsCollection);
+        await _db!.createCollection(DatabaseConfig.questionsCollection);
+        await _db!.createCollection(DatabaseConfig.usersCollection);
+        await _db!.createCollection(DatabaseConfig.chatMessagesCollection);
+        print('✓ All collections ensured');
+      } catch (e) {
+        // Collections might already exist or will be created on insert, that's okay
+        print('Note: Some collections may already exist (will be created on first insert if needed)');
+      }
+      
+      print('✓ Database recreated and ready for new data');
+    } catch (e, stackTrace) {
+      print('❌ Error dropping database: $e');
+      print('Stack trace: $stackTrace');
+      throw Exception('Failed to drop database: $e');
+    }
+  }
+
   // Clear all collections
   static Future<void> clearAllCollections() async {
+    await _ensureConnection();
     try {
-      print('Clearing all collections...');
+      print('Clearing all collections in database: ${DatabaseConfig.databaseName}...');
       
       // Drop and recreate teachers collection
-      await _db!.collection(DatabaseConfig.teachersCollection).drop();
+      try {
+        await _db!.collection(DatabaseConfig.teachersCollection).drop();
+      } catch (e) {
+        // Collection might not exist, that's okay
+        print('Note: Teachers collection did not exist or already dropped');
+      }
       await _db!.createCollection(DatabaseConfig.teachersCollection);
-      print('Teachers collection cleared');
+      print('✓ Teachers collection cleared');
       
       // Drop and recreate students collection
-      await _db!.collection(DatabaseConfig.studentsCollection).drop();
+      try {
+        await _db!.collection(DatabaseConfig.studentsCollection).drop();
+      } catch (e) {
+        print('Note: Students collection did not exist or already dropped');
+      }
       await _db!.createCollection(DatabaseConfig.studentsCollection);
-      print('Students collection cleared');
+      print('✓ Students collection cleared');
       
       // Drop and recreate exams collection
-      await _db!.collection(DatabaseConfig.examsCollection).drop();
+      try {
+        await _db!.collection(DatabaseConfig.examsCollection).drop();
+      } catch (e) {
+        print('Note: Exams collection did not exist or already dropped');
+      }
       await _db!.createCollection(DatabaseConfig.examsCollection);
-      print('Exams collection cleared');
+      print('✓ Exams collection cleared');
       
       // Drop and recreate questions collection
-      await _db!.collection(DatabaseConfig.questionsCollection).drop();
+      try {
+        await _db!.collection(DatabaseConfig.questionsCollection).drop();
+      } catch (e) {
+        print('Note: Questions collection did not exist or already dropped');
+      }
       await _db!.createCollection(DatabaseConfig.questionsCollection);
-      await _db!.createCollection(DatabaseConfig.chatMessagesCollection);
-      print('Questions collection cleared');
+      print('✓ Questions collection cleared');
       
-      print('All collections cleared successfully');
+      // Ensure chatMessages collection exists (don't clear it)
+      try {
+        await _db!.createCollection(DatabaseConfig.chatMessagesCollection);
+        print('✓ ChatMessages collection ensured');
+      } catch (e) {
+        // Collection might already exist, that's okay
+        print('Note: ChatMessages collection already exists');
+      }
+      
+      // Note: users collection is not cleared here to preserve other user data
+      // Admin users will be cleared and replaced separately in generateBatch
+      
+      print('✓ All collections cleared successfully');
     } catch (e) {
-      print('Error clearing collections: $e');
+      print('❌ Error clearing collections: $e');
+      print('Stack trace: ${StackTrace.current}');
       throw Exception('Failed to clear collections: $e');
     }
   }
@@ -819,6 +934,13 @@ class AtlasService {
       
       print('Inserting questions...');
       await _db!.collection(DatabaseConfig.questionsCollection).insertAll(mockData['questions']!);
+      
+      // Insert admin users
+      if (mockData['admins'] != null && (mockData['admins'] as List).isNotEmpty) {
+        print('Inserting admins...');
+        await _db!.collection(DatabaseConfig.usersCollection).insertAll(mockData['admins']!);
+        print('✓ Inserted ${(mockData['admins'] as List).length} admin users');
+      }
       
       print('Mock data inserted successfully');
     } catch (e) {

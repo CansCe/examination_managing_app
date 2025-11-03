@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:mongo_dart/mongo_dart.dart';
 import '../../services/chat_service.dart';
 import '../../services/atlas_service.dart';
 import '../../models/student.dart';
