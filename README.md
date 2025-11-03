@@ -1,4 +1,4 @@
 # exam_management_app
 
-A new Flutter project.
+An exman app
 
