@@ -150,17 +150,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         }
         
         setState(() {
-          if (widget.userRole == UserRole.student) {
-            _nearestUpcomingExam = nearestUpcoming;
-            _pastExams = pastExams;
-            _exams = pastExams; // Use _exams for past exams list
-          } else {
-            _exams = assignedExams;
-          }
+          _nearestUpcomingExam = nearestUpcoming;
+          _pastExams = pastExams;
+          _exams = pastExams; // Use _exams for past exams list
           _hasMoreData = assignedExams.length == _pageSize;
         });
       } else {
-        // For teachers or if studentId is not available, load all relevant data
+        // For teachers and admins, load all relevant data
         final teachers = await AtlasService.findTeachers();
         final students = await AtlasService.findStudents();
         final exams = await AtlasService.findExams();
@@ -210,6 +206,24 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     try {
       if (widget.userRole == UserRole.teacher) {
         await _loadTeacherData();
+      } else if (widget.userRole == UserRole.admin) {
+        // For admins, load all exams
+        final exams = await AtlasService.findExams();
+        final students = await AtlasService.findStudents();
+        
+        if (!mounted) return;
+        
+        setState(() {
+          if (refresh || _currentPage == 0) {
+            _exams = exams;
+            _students = students;
+          } else {
+            _exams.addAll(exams);
+            _students.addAll(students);
+          }
+          _hasMoreData = false; // Load all at once for admins
+          _isLoading = false;
+        });
       } else {
         // For students, load their exams using studentId if available, else fallback to username
         final studentId = widget.studentId ?? widget.username;
@@ -1684,13 +1698,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       return;
     }
     
-    // Navigate to question edit page
+    // Navigate to question edit page (create mode)
     if (_teacherId != null && _teacherId!.isNotEmpty) {
       Navigator.pushNamed(
         context,
         AppRoutes.questionEdit,
         arguments: {
-          'questionId': null,
+          'questionId': null, // null means create mode
           'teacherId': _teacherId!,
           'userRole': widget.userRole,
         },

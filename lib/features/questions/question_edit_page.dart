@@ -26,9 +26,11 @@ class _QuestionEditPageState extends State<QuestionEditPage> {
   late List<TextEditingController> _optionControllers;
   late TextEditingController _topicController;
   late TextEditingController _pointsController;
+  late TextEditingController _fillInAnswerController;
   
   String? _selectedSubject;
   String _selectedDifficulty = 'medium';
+  String _questionType = 'multiple_choice'; // 'multiple_choice' or 'fill_in'
   int _correctOptionIndex = 0;
   bool _isLoading = false;
   Question? _question; // Store loaded question if editing
@@ -41,6 +43,7 @@ class _QuestionEditPageState extends State<QuestionEditPage> {
     _optionControllers = List.generate(4, (_) => TextEditingController());
     _topicController = TextEditingController();
     _pointsController = TextEditingController(text: '1');
+    _fillInAnswerController = TextEditingController();
     
     if (widget.questionId != null) {
       _fetchQuestionAndInit();
@@ -61,16 +64,22 @@ class _QuestionEditPageState extends State<QuestionEditPage> {
         _topicController.text = question.topic;
         _selectedSubject = question.subject;
         _selectedDifficulty = question.difficulty;
+        _questionType = question.type;
         _correctOptionIndex = question.correctOptionIndex;
         _points = question.points;
         _pointsController.text = question.points.toString();
         
-        // Initialize option controllers
-        for (int i = 0; i < 4; i++) {
-          if (i < question.options.length) {
-            _optionControllers[i].text = question.options[i];
-          } else {
-            _optionControllers[i].text = '';
+        // Initialize based on question type
+        if (_questionType == 'fill_in') {
+          _fillInAnswerController.text = question.correctAnswer;
+        } else {
+          // Initialize option controllers
+          for (int i = 0; i < 4; i++) {
+            if (i < question.options.length) {
+              _optionControllers[i].text = question.options[i];
+            } else {
+              _optionControllers[i].text = '';
+            }
           }
         }
       } else {
@@ -102,8 +111,10 @@ class _QuestionEditPageState extends State<QuestionEditPage> {
     _questionTextController.text = '';
     _topicController.text = '';
     _pointsController.text = '1';
+    _fillInAnswerController.text = '';
     _selectedSubject = null;
     _selectedDifficulty = 'medium';
+    _questionType = 'multiple_choice';
     _correctOptionIndex = 0;
     _points = 1;
     for (var controller in _optionControllers) {
@@ -114,13 +125,26 @@ class _QuestionEditPageState extends State<QuestionEditPage> {
   Future<void> _saveQuestion() async {
     if (!_formKey.currentState!.validate()) return;
 
-    // Validate that all options are filled
-    for (int i = 0; i < _optionControllers.length; i++) {
-      if (_optionControllers[i].text.trim().isEmpty) {
+    // Validate based on question type
+    if (_questionType == 'multiple_choice') {
+      // Validate that all options are filled
+      for (int i = 0; i < _optionControllers.length; i++) {
+        if (_optionControllers[i].text.trim().isEmpty) {
+          DialogHelper.showErrorDialog(
+            context: context,
+            title: 'Validation Error',
+            message: 'Please fill in all 4 options.',
+          );
+          return;
+        }
+      }
+    } else if (_questionType == 'fill_in') {
+      // Validate fill-in answer
+      if (_fillInAnswerController.text.trim().isEmpty) {
         DialogHelper.showErrorDialog(
           context: context,
           title: 'Validation Error',
-          message: 'Please fill in all 4 options.',
+          message: 'Please enter the correct answer.',
         );
         return;
       }
@@ -139,15 +163,30 @@ class _QuestionEditPageState extends State<QuestionEditPage> {
     setState(() => _isLoading = true);
     try {
       final questionText = _questionTextController.text.trim();
-      final options = _optionControllers.map((c) => c.text.trim()).toList();
       final topic = _topicController.text.trim();
       final points = int.tryParse(_pointsController.text) ?? 1;
+
+      // Prepare options and correct answer based on type
+      final List<String> options;
+      final String correctAnswer;
+      final int correctOptionIndex;
+
+      if (_questionType == 'multiple_choice') {
+        options = _optionControllers.map((c) => c.text.trim()).toList();
+        correctAnswer = options[_correctOptionIndex];
+        correctOptionIndex = _correctOptionIndex;
+      } else {
+        // For fill-in questions, use empty options and store answer in correctAnswer
+        options = [];
+        correctAnswer = _fillInAnswerController.text.trim();
+        correctOptionIndex = 0;
+      }
 
       final question = Question(
         id: _question?.id ?? ObjectId(),
         text: questionText,
         questionText: questionText,
-        type: 'multiple_choice',
+        type: _questionType,
         subject: _selectedSubject!,
         topic: topic,
         difficulty: _selectedDifficulty,
@@ -155,8 +194,8 @@ class _QuestionEditPageState extends State<QuestionEditPage> {
         examId: widget.examId ?? _question?.examId ?? ObjectId(),
         createdBy: _question?.createdBy ?? ObjectId.fromHexString(widget.teacherId),
         options: options,
-        correctAnswer: options[_correctOptionIndex],
-        correctOptionIndex: _correctOptionIndex,
+        correctAnswer: correctAnswer,
+        correctOptionIndex: correctOptionIndex,
         createdAt: _question?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
       );
@@ -268,6 +307,67 @@ class _QuestionEditPageState extends State<QuestionEditPage> {
                   ),
                   const SizedBox(height: 16),
                   
+                  // Question Type Selector
+                  DropdownButtonFormField<String>(
+                    value: _questionType,
+                    decoration: const InputDecoration(
+                      labelText: 'Question Type',
+                      border: OutlineInputBorder(),
+                      helperText: 'Required',
+                    ),
+                    items: [
+                      DropdownMenuItem(
+                        value: 'multiple_choice',
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.radio_button_checked, size: 20),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                'Option Question (Multiple Choice)',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      DropdownMenuItem(
+                        value: 'fill_in',
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.edit, size: 20),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                'Fill In Question',
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) {
+                        setState(() {
+                          _questionType = value;
+                          // Clear fields when switching types
+                          if (value == 'fill_in') {
+                            for (var controller in _optionControllers) {
+                              controller.text = '';
+                            }
+                            _correctOptionIndex = 0;
+                          } else {
+                            _fillInAnswerController.text = '';
+                          }
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  
                   // Question Text
                   TextFormField(
                     controller: _questionTextController,
@@ -282,45 +382,68 @@ class _QuestionEditPageState extends State<QuestionEditPage> {
                   ),
                   const SizedBox(height: 16),
                   
-                  // Options Section
-                  const Text(
-                    'Options',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  ...List.generate(4, (index) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12.0),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _optionControllers[index],
-                              decoration: InputDecoration(
-                                labelText: 'Option ${index + 1}',
-                                border: const OutlineInputBorder(),
-                                helperText: 'Required',
-                                suffixIcon: _correctOptionIndex == index
-                                    ? const Icon(Icons.check_circle, color: Colors.green)
+                  // Conditional UI based on question type
+                  if (_questionType == 'multiple_choice') ...[
+                    // Options Section
+                    const Text(
+                      'Options',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    ...List.generate(4, (index) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12.0),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: TextFormField(
+                                controller: _optionControllers[index],
+                                decoration: InputDecoration(
+                                  labelText: 'Option ${index + 1}',
+                                  border: const OutlineInputBorder(),
+                                  helperText: 'Required',
+                                  suffixIcon: _correctOptionIndex == index
+                                      ? const Icon(Icons.check_circle, color: Colors.green)
+                                      : null,
+                                ),
+                                validator: _questionType == 'multiple_choice'
+                                    ? (value) => value?.isEmpty ?? true ? 'Please enter an option' : null
                                     : null,
                               ),
-                              validator: (value) =>
-                                  value?.isEmpty ?? true ? 'Please enter an option' : null,
                             ),
-                          ),
-                          Radio<int>(
-                            value: index,
-                            groupValue: _correctOptionIndex,
-                            onChanged: (value) {
-                              setState(() {
-                                _correctOptionIndex = value!;
-                              });
-                            },
-                          ),
-                        ],
+                            Radio<int>(
+                              value: index,
+                              groupValue: _correctOptionIndex,
+                              onChanged: (value) {
+                                setState(() {
+                                  _correctOptionIndex = value!;
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ] else if (_questionType == 'fill_in') ...[
+                    // Fill In Answer Section
+                    const Text(
+                      'Correct Answer',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _fillInAnswerController,
+                      decoration: const InputDecoration(
+                        labelText: 'Correct Answer',
+                        border: OutlineInputBorder(),
+                        helperText: 'Enter the expected answer for this fill-in question',
                       ),
-                    );
-                  }),
+                      maxLines: 2,
+                      validator: _questionType == 'fill_in'
+                          ? (value) => value?.isEmpty ?? true ? 'Please enter the correct answer' : null
+                          : null,
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   
                   // Difficulty Dropdown
@@ -399,6 +522,7 @@ class _QuestionEditPageState extends State<QuestionEditPage> {
     }
     _topicController.dispose();
     _pointsController.dispose();
+    _fillInAnswerController.dispose();
     super.dispose();
   }
 }

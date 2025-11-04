@@ -29,7 +29,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter Login Demo',
       theme: ThemeData(
-        // ... your theme
+        // replaceable
       ),
       initialRoute: AppRoutes.login, // Or whatever your initial route is
       // --- THIS IS THE CRUCIAL LINE ---

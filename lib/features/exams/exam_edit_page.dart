@@ -451,11 +451,14 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'Select Questions',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                      Flexible(
+                        child: const Text(
+                          'Select Questions',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       Text(
@@ -563,11 +566,14 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(
-                                  'Selected Questions (${_selectedQuestions.length})',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16,
+                                Flexible(
+                                  child: Text(
+                                    'Selected Questions (${_selectedQuestions.length})',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 16,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                                 TextButton.icon(
@@ -655,20 +661,20 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
                                     const SizedBox(height: 4),
-                                    Row(
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
                                       children: [
                                         Chip(
                                           label: Text(question.subject),
                                           avatar: const Icon(Icons.book, size: 16),
                                           labelStyle: const TextStyle(fontSize: 12),
                                         ),
-                                        const SizedBox(width: 8),
                                         Chip(
                                           label: Text(question.difficulty.toUpperCase()),
                                           avatar: const Icon(Icons.trending_up, size: 16),
                                           labelStyle: const TextStyle(fontSize: 12),
                                         ),
-                                        const SizedBox(width: 8),
                                         Chip(
                                           label: Text('${question.points} pts'),
                                           avatar: const Icon(Icons.star, size: 16),
