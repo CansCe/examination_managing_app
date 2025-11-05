@@ -662,8 +662,14 @@ class AtlasService {
   }) async {
     await _ensureConnection();
     try {
-      final studentObjectId = ObjectId.fromHexString(studentId);
-      final examObjectId = ObjectId.fromHexString(examId);
+      String? _extractHex(String input) {
+        final match = RegExp(r'([a-fA-F0-9]{24})').firstMatch(input);
+        return match != null ? match.group(1) : null;
+      }
+      final studentHex = _extractHex(studentId) ?? studentId;
+      final examHex = _extractHex(examId) ?? examId;
+      final studentObjectId = ObjectId.fromHexString(studentHex);
+      final examObjectId = ObjectId.fromHexString(examHex);
 
       // Get current assigned exams
       final student = await _db!.collection(DatabaseConfig.studentsCollection)
@@ -685,7 +691,7 @@ class AtlasService {
       }
 
       // Check if already assigned
-      if (currentAssignedExams.any((id) => id.toHexString() == examId)) {
+      if (currentAssignedExams.any((id) => id.toHexString() == examHex)) {
         return true; // Already assigned
       }
 
@@ -711,8 +717,14 @@ class AtlasService {
   }) async {
     await _ensureConnection();
     try {
-      final studentObjectId = ObjectId.fromHexString(studentId);
-      final examObjectId = ObjectId.fromHexString(examId);
+      String? _extractHex(String input) {
+        final match = RegExp(r'([a-fA-F0-9]{24})').firstMatch(input);
+        return match != null ? match.group(1) : null;
+      }
+      final studentHex = _extractHex(studentId) ?? studentId;
+      final examHex = _extractHex(examId) ?? examId;
+      final studentObjectId = ObjectId.fromHexString(studentHex);
+      final examObjectId = ObjectId.fromHexString(examHex);
 
       // Get current assigned exams
       final student = await _db!.collection(DatabaseConfig.studentsCollection)
@@ -734,7 +746,7 @@ class AtlasService {
       }
 
       // Remove the exam
-      currentAssignedExams.removeWhere((id) => id.toHexString() == examId);
+      currentAssignedExams.removeWhere((id) => id.toHexString() == examHex);
 
       final result = await _db!.collection(DatabaseConfig.studentsCollection).updateOne(
         where.id(studentObjectId),

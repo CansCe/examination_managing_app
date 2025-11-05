@@ -24,6 +24,7 @@ class _AdminStudentExamAssignmentPageState
   List<Student> _filteredStudents = [];
   bool _isLoading = true;
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _idsInputController = TextEditingController();
 
   @override
   void initState() {
@@ -35,6 +36,7 @@ class _AdminStudentExamAssignmentPageState
   @override
   void dispose() {
     _searchController.dispose();
+    _idsInputController.dispose();
     super.dispose();
   }
 
@@ -48,7 +50,7 @@ class _AdminStudentExamAssignmentPageState
       final assignedStudents =
           await AtlasService.getStudentsAssignedToExam(examId: widget.examId);
 
-      final assignedIds = assignedStudents.map((s) => s.id).toSet();
+      // Keep assigned list in state; no need for a separate set
 
       if (mounted) {
         setState(() {
@@ -111,7 +113,7 @@ class _AdminStudentExamAssignmentPageState
                   ? 'Student removed from exam'
                   : 'Student assigned to exam',
             ),
-            backgroundColor: Colors.green,
+            backgroundColor: isAssigned ? Colors.red : Colors.green,
           ),
         );
         await _loadData();
@@ -128,6 +130,50 @@ class _AdminStudentExamAssignmentPageState
     }
   }
 
+  Future<void> _assignByIds() async {
+    final raw = _idsInputController.text.trim();
+    if (raw.isEmpty) return;
+    final List<String> tokens = raw
+        .split(RegExp(r"[\s,]+"))
+        .map((t) => t.trim())
+        .where((t) => t.isNotEmpty)
+        .toList();
+
+    int successCount = 0;
+    int notFoundCount = 0;
+    for (final token in tokens) {
+      // Match by rollNumber or by id
+      final candidates = _allStudents.where((s) =>
+          s.rollNumber.toLowerCase() == token.toLowerCase() ||
+          s.id.toLowerCase() == token.toLowerCase());
+      if (candidates.isEmpty) {
+        notFoundCount++;
+        continue;
+      }
+      final match = candidates.first;
+      try {
+        final alreadyAssigned = _assignedStudents.any((s) => s.id == match.id);
+        if (!alreadyAssigned) {
+          final ok = await AtlasService.assignStudentToExam(
+            studentId: match.id,
+            examId: widget.examId,
+          );
+          if (ok) successCount++;
+        }
+      } catch (_) {}
+    }
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Added: $successCount, Not found/Skipped: $notFoundCount'),
+        ),
+      );
+      _idsInputController.clear();
+      await _loadData();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -136,9 +182,9 @@ class _AdminStudentExamAssignmentPageState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(widget.exam.title),
-            Text(
+            const Text(
               'Manage Student Assignments',
-              style: const TextStyle(fontSize: 12),
+              style: TextStyle(fontSize: 12),
             ),
           ],
         ),
@@ -174,6 +220,37 @@ class _AdminStudentExamAssignmentPageState
               },
             ),
           ),
+          // Bulk assign by IDs
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _idsInputController,
+                    minLines: 1,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      hintText: 'Enter Student IDs (comma, space or newline separated)',
+                      prefixIcon: const Icon(Icons.playlist_add),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      filled: true,
+                      fillColor: Colors.grey[50],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  onPressed: _isLoading ? null : _assignByIds,
+                  icon: const Icon(Icons.person_add_alt_1),
+                  label: const Text('Add by IDs'),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
           // Stats
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -181,8 +258,8 @@ class _AdminStudentExamAssignmentPageState
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildStatCard('Total Students', '${_allStudents.length}'),
-                _buildStatCard(
-                    'Assigned', '${_assignedStudents.length}', Colors.green),
+                // _buildStatCard(
+                //     'Assigned', '${_assignedStudents.length}', Colors.green),
               ],
             ),
           ),

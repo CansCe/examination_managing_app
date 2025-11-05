@@ -4,6 +4,7 @@ import 'package:mongo_dart/mongo_dart.dart'  hide Center;
 import '../../models/index.dart';
 import '../../services/mongodb_service.dart';
 import '../../utils/dialog_helper.dart';
+import '../admin/admin_student_exam_assignment_page.dart';
 import '../questions/question_edit_page.dart';
 
 class ExamEditPage extends StatefulWidget {
@@ -257,6 +258,31 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
             icon: const Icon(Icons.save),
             onPressed: _isLoading ? null : _saveExam,
           ),
+          IconButton(
+            icon: const Icon(Icons.people_alt_outlined),
+            tooltip: 'Select Students',
+            onPressed: _isLoading
+                ? null
+                : () {
+                    if (_exam == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Please save the exam first before assigning students.'),
+                        ),
+                      );
+                      return;
+                    }
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => AdminStudentExamAssignmentPage(
+                          examId: _exam!.id.toHexString(),
+                          exam: _exam!,
+                        ),
+                      ),
+                    );
+                  },
+          ),
           PopupMenuButton<String>(
             onSelected: (value) {
               switch (value) {
@@ -301,6 +327,39 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
               child: ListView(
                 padding: const EdgeInsets.all(16.0),
                 children: [
+                  // Prominent Select Students button
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: ElevatedButton.icon(
+                      onPressed: _isLoading
+                          ? null
+                          : () {
+                              if (_exam == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Please save the exam first before assigning students.'),
+                                  ),
+                                );
+                                return;
+                              }
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => AdminStudentExamAssignmentPage(
+                                    examId: _exam!.id.toHexString(),
+                                    exam: _exam!,
+                                  ),
+                                ),
+                              );
+                            },
+                      icon: const Icon(Icons.people_alt),
+                      label: const Text('Select Students'),
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   TextFormField(
                     controller: _titleController,
                     decoration: const InputDecoration(
@@ -723,6 +782,7 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
     );
   }
 
+  //Soft Lock: Only teachers or admins can create questions
   Future<void> _createNewQuestion() async {
     // Only teachers or admins can create questions
     final userId = widget.teacherId ?? widget.adminId ?? '';

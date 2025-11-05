@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'dart:math';
 import '../config/routes.dart';
 import '../models/index.dart';
 import '../services/atlas_service.dart';
@@ -181,6 +182,48 @@ class _ExamDetailsPageState extends State<ExamDetailsPage> {
     }
   }
 
+  /// Randomize questions and their options for each student to prevent cheating
+  List<Question> _randomizeQuestions(List<Question> questions) {
+    final random = Random();
+    final randomizedQuestions = List<Question>.from(questions);
+    
+    // Shuffle the questions list
+    randomizedQuestions.shuffle(random);
+    
+    // For each question, shuffle options if it's a multiple-choice question
+    for (int i = 0; i < randomizedQuestions.length; i++) {
+      final question = randomizedQuestions[i];
+      
+      // Only shuffle options for multiple-choice questions (type 'option' or 'multiple_choice')
+      if (question.type == 'option' || question.type == 'multiple_choice') {
+        if (question.options.isNotEmpty) {
+          // Store the correct answer string before shuffling
+          final correctAnswerText = question.correctAnswer;
+          
+          // Create a copy of options with their original indices
+          final optionsWithIndices = question.options.asMap().entries.toList();
+          
+          // Shuffle the options
+          optionsWithIndices.shuffle(random);
+          
+          // Extract the shuffled options
+          final shuffledOptions = optionsWithIndices.map((e) => e.value).toList();
+          
+          // Find the new index of the correct answer
+          final newCorrectIndex = shuffledOptions.indexOf(correctAnswerText);
+          
+          // Create a new question with shuffled options and updated correctOptionIndex
+          randomizedQuestions[i] = question.copyWith(
+            options: shuffledOptions,
+            correctOptionIndex: newCorrectIndex >= 0 ? newCorrectIndex : 0,
+          );
+        }
+      }
+    }
+    
+    return randomizedQuestions;
+  }
+
   void _startExam() {
     // Re-check availability before starting
     _checkExamAvailability();
@@ -206,12 +249,15 @@ class _ExamDetailsPageState extends State<ExamDetailsPage> {
       return;
     }
 
+    // Randomize questions and options for each student
+    final randomizedQuestions = _randomizeQuestions(_questions);
+
     Navigator.pushNamed(
       context,
       AppRoutes.examination,
       arguments: {
         'exam': widget.exam,
-        'questions': _questions,
+        'questions': randomizedQuestions,
         'studentId': widget.studentId,
       },
     );
