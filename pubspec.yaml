@@ -37,6 +37,8 @@ dependencies:
   mongo_dart: ^0.9.1
   uuid: ^3.0.7
   path: ^1.8.3
+  http: ^1.2.2
+  socket_io_client: ^2.0.3+1
 
 dev_dependencies:
   flutter_test:
