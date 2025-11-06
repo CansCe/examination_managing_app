@@ -1,0 +1,11 @@
+# MongoDB Configuration
+MONGODB_URI=mongodb+srv://<username>:<password>@clustertest.7nkaqoh.mongodb.net/exam_management?retryWrites=true&w=majority&appName=ClusterTest
+MONGODB_DB=exam_management
+
+# Server Configuration
+PORT=3000
+NODE_ENV=production
+
+# CORS Configuration (comma-separated)
+ALLOWED_ORIGINS=http://localhost:8080,http://localhost:3000
+
