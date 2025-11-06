@@ -35,6 +35,90 @@ export const sendStudentMessage = async (req, res) => {
   }
 };
 
+export const closeConversation = async (req, res) => {
+  try {
+    const { userId, targetUserId } = req.params;
+    // For DELETE, body might be in req.body or query params
+    const body = req.body || {};
+    const { topic, priority, assignedAdmin } = Object.keys(body).length > 0 ? body : req.query || {};
+    const db = getDatabase();
+    const conversationId = [userId, targetUserId].sort().join(':');
+
+    const deleteResult = await db.collection('chat_messages').deleteMany({ conversationId });
+    // Record status in conversations collection with metadata
+    await db.collection('conversations').updateOne(
+      { _id: conversationId },
+      {
+        $set: {
+          status: 'closed',
+          closedAt: new Date().toISOString(),
+          topic: topic || null,
+          priority: priority || 'normal',
+          assignedAdmin: assignedAdmin ? new ObjectId(assignedAdmin) : null
+        },
+        $setOnInsert: {
+          participants: [userId, targetUserId],
+          createdAt: new Date().toISOString()
+        }
+      },
+      { upsert: true }
+    );
+
+    res.json({ success: true, deleted: deleteResult.deletedCount || 0 });
+  } catch (error) {
+    console.error('Close conversation error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+};
+
+export const createOrUpdateConversation = async (req, res) => {
+  try {
+    const { userId, targetUserId, topic, priority, assignedAdmin } = req.body;
+    if (!userId || !targetUserId) {
+      return res.status(400).json({ success: false, error: 'userId and targetUserId required' });
+    }
+    const db = getDatabase();
+    const conversationId = [userId, targetUserId].sort().join(':');
+
+    const conversation = await db.collection('conversations').findOneAndUpdate(
+      { _id: conversationId },
+      {
+        $set: {
+          participants: [userId, targetUserId],
+          updatedAt: new Date().toISOString(),
+          ...(topic && { topic }),
+          ...(priority && { priority }),
+          ...(assignedAdmin && { assignedAdmin: new ObjectId(assignedAdmin) })
+        },
+        $setOnInsert: {
+          status: 'open',
+          createdAt: new Date().toISOString()
+        }
+      },
+      { upsert: true, returnDocument: 'after' }
+    );
+
+    res.json({ success: true, data: conversation.value || conversation });
+  } catch (error) {
+    console.error('Create/update conversation error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+};
+
+export const getConversationMetadata = async (req, res) => {
+  try {
+    const { userId, targetUserId } = req.params;
+    const db = getDatabase();
+    const conversationId = [userId, targetUserId].sort().join(':');
+
+    const conversation = await db.collection('conversations').findOne({ _id: conversationId });
+    res.json({ success: true, data: conversation || null });
+  } catch (error) {
+    console.error('Get conversation metadata error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+};
+
 export const sendTeacherMessage = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -142,51 +226,43 @@ export const getAllConversations = async (req, res) => {
   try {
     const db = getDatabase();
 
-    // Collect distinct student userIds from either side of messages
-    const fromStudents = await db.collection('chat_messages')
-      .distinct('fromUserId', { fromUserRole: 'student' });
-    const toStudents = await db.collection('chat_messages')
-      .distinct('toUserId', { toUserRole: 'student' });
-
-    // Merge and unique
-    const studentIdSet = new Set([
-      ...fromStudents.map(id => id.toString()),
-      ...toStudents.map(id => id.toString())
-    ]);
-
-    const studentIds = Array.from(studentIdSet);
-
-    // Build conversations summary per student
-    const conversations = await Promise.all(studentIds.map(async (studentIdStr) => {
-      const studentObjectId = new ObjectId(studentIdStr);
-
+    // Distinct conversationIds and derive a studentId for each
+    const conversationIds = await db.collection('chat_messages').distinct('conversationId');
+    const conversations = await Promise.all(conversationIds.map(async (convId) => {
       const lastMessage = await db.collection('chat_messages')
-        .find({
-          $or: [
-            { fromUserId: studentObjectId },
-            { toUserId: studentObjectId }
-          ]
-        })
+        .find({ conversationId: convId })
         .sort({ timestamp: -1 })
         .limit(1)
         .toArray()
         .then(arr => arr[0] || null);
 
+      if (!lastMessage) {
+        return null;
+      }
+
+      // Extract the studentId from the conversation by inspecting the last message roles
+      const studentId = (lastMessage.fromUserRole === 'student'
+        ? lastMessage.fromUserId
+        : (lastMessage.toUserRole === 'student' ? lastMessage.toUserId : null));
+
+      if (!studentId) return null;
+
       const unreadCount = await db.collection('chat_messages')
         .countDocuments({
-          fromUserId: studentObjectId,
+          conversationId: convId,
           fromUserRole: 'student',
           isRead: false
         });
 
       return {
-        studentId: studentIdStr,
+        conversationId: convId,
+        studentId: studentId.toString(),
         lastMessage,
         unreadCount,
       };
     }));
 
-    res.json({ success: true, data: conversations });
+    res.json({ success: true, data: conversations.filter(Boolean) });
   } catch (error) {
     console.error('Get all conversations error:', error);
     res.status(500).json({ success: false, error: 'Internal server error' });
@@ -246,7 +322,11 @@ export const markAsRead = async (req, res) => {
     const db = getDatabase();
 
     await db.collection('chat_messages').updateMany(
-      { studentId: new ObjectId(studentId), isRead: false },
+      {
+        fromUserId: new ObjectId(studentId),
+        fromUserRole: 'student',
+        isRead: false
+      },
       { $set: { isRead: true, readAt: new Date().toISOString() } }
     );
 

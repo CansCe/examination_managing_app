@@ -8,7 +8,10 @@ import {
   markAsRead,
   getAllConversations,
   getUnreadMessages,
-  getDefaultAdmin
+  getDefaultAdmin,
+  closeConversation,
+  createOrUpdateConversation,
+  getConversationMetadata
 } from '../controllers/chat.controller.js';
 
 const router = express.Router();
@@ -44,6 +47,9 @@ router.get('/conversation', getConversation);
 router.get('/conversations', getAllConversations);
 router.get('/unread', getUnreadMessages);
 router.get('/default-admin', getDefaultAdmin);
+router.get('/conversation/:userId/:targetUserId/metadata', getConversationMetadata);
+router.post('/conversation', createOrUpdateConversation);
+router.delete('/conversation/:userId/:targetUserId', closeConversation);
 router.put('/read/:studentId', markAsRead);
 
 export default router;

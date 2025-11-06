@@ -3,7 +3,7 @@ import 'dart:async';
 import 'dart:math';
 import '../config/routes.dart';
 import '../models/index.dart';
-import '../services/atlas_service.dart';
+import '../services/index.dart';
 
 
 class ExamDetailsPage extends StatefulWidget {

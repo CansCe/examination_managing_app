@@ -1,11 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:mongo_dart/mongo_dart.dart' hide State, Center;
-import '../../services/chat_service.dart';
+import '../../services/index.dart';
 
 class HelpdeskChat extends StatefulWidget {
   final String? studentId;
+  final String? targetUserId; // Admin or teacher ID
+  final String? targetUserRole; // 'admin' or 'teacher'
+  final String? userRole; // Current user role
   
-  const HelpdeskChat({Key? key, this.studentId}) : super(key: key);
+  const HelpdeskChat({
+    Key? key, 
+    this.studentId,
+    this.targetUserId,
+    this.targetUserRole,
+    this.userRole,
+  }) : super(key: key);
 
   @override
   State<HelpdeskChat> createState() => _HelpdeskChatState();
@@ -16,107 +25,124 @@ class _HelpdeskChatState extends State<HelpdeskChat> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isLoading = true;
+  ChatSocketService? _chatService;
+  bool _showInfoBanner = false;
+  String? _resolvedTargetId;
+  String _resolvedTargetRole = 'admin';
 
   @override
   void initState() {
     super.initState();
-    _loadMessages();
-    // Refresh messages every 3 seconds
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) _refreshMessages();
-    });
+    _resolveAndConnect();
   }
 
-  Future<void> _loadMessages() async {
-    if (widget.studentId == null) return;
-    
-    setState(() {
-      _isLoading = true;
-    });
+  Future<void> _resolveAndConnect() async {
+    if (widget.studentId == null) {
+      setState(() { _isLoading = false; });
+      return;
+    }
+
+    setState(() { _isLoading = true; });
 
     try {
-      final messages = await ChatService.getStudentMessages(widget.studentId!);
-      if (mounted) {
+      _resolvedTargetId = widget.targetUserId;
+      _resolvedTargetRole = widget.targetUserRole ?? 'admin';
+
+      if (_resolvedTargetId == null) {
+        final api = ApiService();
+        _resolvedTargetId = await api.getDefaultAdminId();
+        api.close();
+      }
+
+      if (_resolvedTargetId == null) {
+        setState(() { _isLoading = false; _showInfoBanner = true; });
+        return;
+      }
+
+      _chatService = ChatSocketService();
+      _chatService!.connect(
+        userId: widget.studentId!,
+        userRole: widget.userRole ?? 'student',
+        targetUserId: _resolvedTargetId!,
+        targetUserRole: _resolvedTargetRole,
+      );
+
+      _chatService!.historyStream.listen((messages) {
+        if (!mounted) return;
         setState(() {
-          _messages.clear();
-          _messages.addAll(messages);
+          _messages..clear()..addAll(messages);
           _isLoading = false;
         });
         _scrollToBottom();
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
+        if (_messages.isEmpty || DateTime.now().difference(_messages.last.timestamp).inMinutes > 30) {
+          setState(() { _showInfoBanner = true; });
+        }
+      });
 
-  Future<void> _refreshMessages() async {
-    if (widget.studentId == null) return;
-    try {
-      final messages = await ChatService.getStudentMessages(widget.studentId!);
-      if (mounted) {
+      _chatService!.messageStream.listen((message) {
+        if (!mounted) return;
         setState(() {
-          _messages.clear();
-          _messages.addAll(messages);
+          if (!_messages.any((m) => m.id.toHexString() == message.id.toHexString())) {
+            _messages.add(message);
+          }
         });
         _scrollToBottom();
-      }
-    } catch (e) {
-      // Ignore refresh errors
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() { _isLoading = false; });
     }
-    // Continue refreshing
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) _refreshMessages();
-    });
   }
 
   Future<void> _sendMessage() async {
-    if (widget.studentId == null) return;
+    if (widget.studentId == null || _resolvedTargetId == null) return;
     
     final text = _controller.text.trim();
-    if (text.isNotEmpty) {
-      _controller.clear();
-      
-      // Optimistically add message to UI
-      final tempMessage = ChatMessage(
-        id: ObjectId(),
-        studentId: widget.studentId!,
+    if (text.isEmpty || _chatService == null) return;
+    
+    _controller.clear();
+    
+    // Optimistically add message to UI
+    final tempMessage = ChatMessage(
+      id: ObjectId(),
+      fromUserId: widget.studentId!,
+      fromUserRole: widget.userRole ?? 'student',
+      toUserId: _resolvedTargetId!,
+      toUserRole: _resolvedTargetRole,
+      message: text,
+      timestamp: DateTime.now(),
+    );
+    
+    setState(() {
+      _messages.add(tempMessage);
+    });
+    _scrollToBottom();
+    
+    try {
+      _chatService!.sendMessage(
         message: text,
-        sender: 'student',
-        timestamp: DateTime.now(),
+        fromUserId: widget.studentId!,
+        fromUserRole: widget.userRole ?? 'student',
+        toUserId: _resolvedTargetId!,
+        toUserRole: _resolvedTargetRole,
       );
-      
-      setState(() {
-        _messages.add(tempMessage);
-      });
-      _scrollToBottom();
-      
-      try {
-        // Send message to database
-        await ChatService.sendStudentMessage(
-          studentId: widget.studentId!,
-          message: text,
+      if (_showInfoBanner) {
+        Future.delayed(const Duration(seconds: 5), () {
+          if (mounted) setState(() { _showInfoBanner = false; });
+        });
+      }
+    } catch (e) {
+      // Remove temp message if send failed
+      if (mounted) {
+        setState(() {
+          _messages.removeLast();
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to send message: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
-        // Reload messages to get actual data from DB
-        await _loadMessages();
-      } catch (e) {
-        // Remove temp message if send failed
-        if (mounted) {
-          setState(() {
-            _messages.removeLast();
-          });
-        }
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Failed to send message: $e'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
       }
     }
   }
@@ -131,6 +157,14 @@ class _HelpdeskChatState extends State<HelpdeskChat> {
         );
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _chatService?.dispose();
+    _controller.dispose();
+    _scrollController.dispose();
+    super.dispose();
   }
 
   @override
@@ -161,6 +195,11 @@ class _HelpdeskChatState extends State<HelpdeskChat> {
                     ),
                   ),
                   const Spacer(),
+                  if (_chatService != null && _chatService!.isConnected)
+                    const Icon(Icons.circle, color: Colors.green, size: 12)
+                  else
+                    const Icon(Icons.circle, color: Colors.red, size: 12),
+                  const SizedBox(width: 8),
                   IconButton(
                     icon: const Icon(Icons.close, color: Colors.white),
                     tooltip: 'Exit',
@@ -174,42 +213,73 @@ class _HelpdeskChatState extends State<HelpdeskChat> {
             Expanded(
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
-                  : ListView.builder(
-                      controller: _scrollController,
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _messages.length,
-                      itemBuilder: (context, index) {
-                        final msg = _messages[index];
-                        final isUser = msg.sender == 'student';
-                        return Align(
-                          alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-                          child: Container(
-                            margin: const EdgeInsets.symmetric(vertical: 4),
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: isUser ? Colors.blue[100] : Colors.grey[200],
-                              borderRadius: BorderRadius.circular(12),
+                  : Stack(
+                      children: [
+                        if (_messages.isEmpty)
+                          const Center(
+                            child: Text(
+                              'No messages yet.\nStart a conversation!',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.grey),
                             ),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  msg.message,
-                                  style: const TextStyle(fontSize: 14),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${msg.timestamp.hour.toString().padLeft(2, '0')}:${msg.timestamp.minute.toString().padLeft(2, '0')}',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: Colors.grey[600],
+                          )
+                        else
+                          ListView.builder(
+                            controller: _scrollController,
+                            padding: const EdgeInsets.all(16),
+                            itemCount: _messages.length,
+                            itemBuilder: (context, index) {
+                              final msg = _messages[index];
+                              final isUser = msg.fromUserId == widget.studentId;
+                              return Align(
+                                alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+                                child: Container(
+                                  margin: const EdgeInsets.symmetric(vertical: 4),
+                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: isUser ? Colors.blue[100] : Colors.grey[200],
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        msg.message,
+                                        style: const TextStyle(fontSize: 14),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '${msg.timestamp.hour.toString().padLeft(2, '0')}:${msg.timestamp.minute.toString().padLeft(2, '0')}',
+                                        style: TextStyle(
+                                          fontSize: 10,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ],
+                              );
+                            },
+                          ),
+                        if (_showInfoBanner)
+                          Align(
+                            alignment: Alignment.topCenter,
+                            child: Container(
+                              margin: const EdgeInsets.all(12),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.amber[100],
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.amber.shade300),
+                              ),
+                              child: const Text(
+                                'Your info has been passed  please wait till an admin contact you',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(fontSize: 12),
+                              ),
                             ),
                           ),
-                        );
-                      },
+                      ],
                     ),
             ),
             Container(
@@ -253,11 +323,4 @@ class _HelpdeskChatState extends State<HelpdeskChat> {
       ),
     );
   }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    _scrollController.dispose();
-    super.dispose();
-  }
-} 
+}

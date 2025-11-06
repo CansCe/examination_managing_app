@@ -1,14 +1,10 @@
 // lib/features/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:mongo_dart/mongo_dart.dart' hide State,Center;
+import '../services/index.dart';
 import '../config/routes.dart'; // For AppRoutes.login
 import '../models/index.dart';
-//import 'exam_details_page.dart';
-import '../features/shared/helpdesk_chat.dart';
-import '../features/admin/admin_chat_page.dart';
-import '../features/admin/admin_student_exam_assignment_page.dart';
-import '../features/exams/exam_edit_page.dart';
-import '../services/atlas_service.dart';
+import '../features/index.dart';
 import '../utils/dialog_helper.dart';
 
 final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
@@ -433,6 +429,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               ],
             ),
             actions: [
+              if (widget.userRole == UserRole.admin)
+                IconButton(
+                  icon: const Icon(Icons.cloud),
+                  tooltip: 'Test Backend API',
+                  onPressed: _testApiCall,
+                ),
               if (widget.userRole == UserRole.teacher)
                 IconButton(
                   icon: const Icon(Icons.add_circle_outline),
@@ -1484,6 +1486,44 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         'teacherId': _teacherId,
       },
     ).then((_) => _loadData(refresh: true));
+  }
+
+  Future<void> _testApiCall() async {
+    // Restrict API test to admins only (defense in depth)
+    if (widget.userRole != UserRole.admin) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Access Denied: Only admins can test the API.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+    try {
+      final api = ApiService();
+      // Create a valid test ObjectId for createdBy
+      final testObjectId = ObjectId().toHexString();
+      final insertedId = await api.createExam({
+        'title': 'API Sample Exam',
+        'subject': 'General Knowledge',
+        'examDate': DateTime.now().toIso8601String(),
+        'duration': 60,
+        'createdBy': testObjectId,
+      });
+      final doc = await api.getExam(insertedId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('API OK. Inserted ${doc['_id']}')),
+      );
+      api.close();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('API error: $e')),
+      );
+    }
   }
 
   void _delayExam(Exam exam) {

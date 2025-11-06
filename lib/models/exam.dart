@@ -55,6 +55,24 @@ class Exam {
     };
   }
 
+  /// Converts Exam to JSON-safe format for API calls
+  /// Converts ObjectIds to hex strings and DateTimes to ISO strings
+  Map<String, dynamic> toJson() {
+    return {
+      'title': title,
+      'description': description,
+      'subject': subject,
+      'difficulty': difficulty,
+      'examDate': examDate.toIso8601String(),
+      'examTime': examTime,
+      'duration': duration,
+      'maxStudents': maxStudents,
+      'questions': questions.map((q) => q.toHexString()).toList(),
+      'createdBy': createdBy.toHexString(),
+      'status': status,
+    };
+  }
+
   factory Exam.fromMap(Map<String, dynamic> map) {
     // Handle ID conversion
     ObjectId examId;

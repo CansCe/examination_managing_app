@@ -1,7 +1,6 @@
 import 'dart:math';
 import 'package:mongo_dart/mongo_dart.dart';
-import '../services/mongodb_service.dart';
-import '../services/atlas_service.dart';
+import '../services/index.dart';
 import '../config/database_config.dart';
 
 class MockDataGenerator {

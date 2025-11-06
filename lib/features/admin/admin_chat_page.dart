@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mongo_dart/mongo_dart.dart' hide State,Center;
-import '../../services/chat_service.dart';
-import '../../services/atlas_service.dart';
+import '../../services/index.dart';
 import '../../models/index.dart';
 
 class AdminChatPage extends StatefulWidget {
@@ -215,79 +214,124 @@ class _AdminChatPageState extends State<AdminChatPage> {
           Expanded(
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
-                : _filteredStudents.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.chat_bubble_outline,
-                              size: 64,
-                              color: Colors.grey[400],
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              _searchController.text.isEmpty
-                                  ? 'No chat conversations yet'
-                                  : 'No students found',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey[600],
+                : Column(
+                    children: [
+                      if (_filteredStudents.isEmpty && _searchController.text.length == 24 && RegExp(r'^[0-9a-fA-F]{24}').hasMatch(_searchController.text))
+                        Card(
+                          color: Colors.blue[50],
+                          margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          child: Column(
+                            children: [
+                              ListTile(
+                                leading: const Icon(Icons.person_add),
+                                title: const Text('Start chat with Student by ID'),
+                                subtitle: Text(_searchController.text),
+                                onTap: () {
+                                  final dummyStudent = Student(
+                                    id: _searchController.text,
+                                    rollNumber: _searchController.text,
+                                    className: '',
+                                    email: '', firstName: 'unknown', lastName: 'student', phoneNumber: '', address: '', assignedExams: [],
+                                  );
+                                  _navigateToChat(dummyStudent);
+                                },
                               ),
-                            ),
-                          ],
+                              const Divider(height: 1),
+                              ListTile(
+                                leading: const Icon(Icons.school),
+                                title: const Text('Start chat with Teacher by ID'),
+                                subtitle: Text(_searchController.text),
+                                onTap: () {
+                                  // Reuse student path but pass ID into conversation page using minimal student
+                                  final dummyStudent = Student(
+                                    id: _searchController.text,
+                                    rollNumber: _searchController.text,
+                                    className: '',
+                                    email: '', firstName: 'Unknown', lastName: 'Teacher', phoneNumber: '', address: '', assignedExams: [],
+                                  );
+                                  _navigateToChat(dummyStudent);
+                                },
+                              ),
+                            ],
+                          ),
                         ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 8),
-                        itemCount: _filteredStudents.length,
-                        itemBuilder: (context, index) {
-                          final student = _filteredStudents[index];
-                          final unreadCount = _unreadMessageCounts[student.id] ?? 0;
-                          
-                          return Card(
-                            margin: const EdgeInsets.symmetric(
-                              horizontal: 0,
-                              vertical: 4,
-                            ),
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                child: Text(
-                                  student.fullName.isNotEmpty
-                                      ? student.fullName[0].toUpperCase()
-                                      : '?',
+                      Expanded(
+                        child: _filteredStudents.isEmpty
+                            ? Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      Icons.chat_bubble_outline,
+                                      size: 64,
+                                      color: Colors.grey[400],
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Text(
+                                      _searchController.text.isEmpty
+                                          ? 'No chat conversations yet'
+                                          : 'No students found',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ),
-                              title: Text(
-                                student.fullName,
-                                style: const TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              subtitle: Text(student.rollNumber),
-                              trailing: unreadCount > 0
-                                  ? Container(
-                                      width: 32,
-                                      height: 32,
-                                      alignment: Alignment.center,
-                                      decoration: const BoxDecoration(
-                                        color: Colors.red,
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: Text(
-                                        unreadCount > 99 ? '99+' : '$unreadCount',
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 11,
+                              )
+                            : ListView.builder(
+                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                itemCount: _filteredStudents.length,
+                                itemBuilder: (context, index) {
+                                  final student = _filteredStudents[index];
+                                  final unreadCount = _unreadMessageCounts[student.id] ?? 0;
+                                  
+                                  return Card(
+                                    margin: const EdgeInsets.symmetric(
+                                      horizontal: 0,
+                                      vertical: 4,
+                                    ),
+                                    child: ListTile(
+                                      leading: CircleAvatar(
+                                        child: Text(
+                                          student.fullName.isNotEmpty
+                                              ? student.fullName[0].toUpperCase()
+                                              : '?',
                                         ),
-                                        textAlign: TextAlign.center,
                                       ),
-                                    )
-                                  : const Icon(Icons.chevron_right, color: Colors.grey),
-                              onTap: () => _navigateToChat(student),
-                            ),
-                          );
-                        },
+                                      title: Text(
+                                        student.fullName,
+                                        style: const TextStyle(fontWeight: FontWeight.bold),
+                                      ),
+                                      subtitle: Text(student.rollNumber),
+                                      trailing: unreadCount > 0
+                                          ? Container(
+                                              width: 32,
+                                              height: 32,
+                                              alignment: Alignment.center,
+                                              decoration: const BoxDecoration(
+                                                color: Colors.red,
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: Text(
+                                                unreadCount > 99 ? '99+' : '$unreadCount',
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 11,
+                                                ),
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            )
+                                          : const Icon(Icons.chevron_right, color: Colors.grey),
+                                      onTap: () => _navigateToChat(student),
+                                    ),
+                                  );
+                                },
+                              ),
                       ),
+                    ],
+                  ),
           ),
         ],
       ),
@@ -315,69 +359,163 @@ class _AdminChatConversationPageState
   List<ChatMessage> _messages = [];
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
-  bool _isLoadingMessages = false;
+  bool _isLoadingMessages = true;
+  ChatSocketService? _chatService;
+  Map<String, dynamic>? _conversationMetadata;
 
   @override
   void initState() {
     super.initState();
-    _loadMessages();
-    _startPollingMessages();
+    _initializeChat();
+    _loadMetadata();
+  }
+
+  Future<void> _loadMetadata() async {
+    try {
+      final api = ApiService();
+      final meta = await api.getConversationMetadata(
+        userId: widget.adminId,
+        targetUserId: widget.student.id,
+      );
+      api.close();
+      if (mounted) {
+        setState(() {
+          _conversationMetadata = meta;
+        });
+      }
+    } catch (e) {
+      print('Error loading metadata: $e');
+    }
+  }
+
+  Future<void> _showMetadataDialog() async {
+    final topicController = TextEditingController(text: _conversationMetadata?['topic'] ?? '');
+    String? priority = _conversationMetadata?['priority'] ?? 'normal';
+    final assignedAdminController = TextEditingController(text: _conversationMetadata?['assignedAdmin']?.toString() ?? '');
+
+    await showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Conversation Metadata'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: topicController,
+                decoration: const InputDecoration(labelText: 'Topic'),
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                value: priority,
+                decoration: const InputDecoration(labelText: 'Priority'),
+                items: ['low', 'normal', 'high', 'urgent']
+                    .map((p) => DropdownMenuItem(value: p, child: Text(p.toUpperCase())))
+                    .toList(),
+                onChanged: (v) {
+                  setDialogState(() => priority = v);
+                },
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: assignedAdminController,
+                decoration: const InputDecoration(labelText: 'Assigned Admin ID (optional)'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                try {
+                  final api = ApiService();
+                  await api.createOrUpdateConversation(
+                    userId: widget.adminId,
+                    targetUserId: widget.student.id,
+                    topic: topicController.text.trim().isEmpty ? null : topicController.text.trim(),
+                    priority: priority,
+                    assignedAdmin: assignedAdminController.text.trim().isEmpty ? null : assignedAdminController.text.trim(),
+                  );
+                  api.close();
+                  if (mounted) {
+                    Navigator.pop(ctx);
+                    await _loadMetadata();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Metadata updated')),
+                    );
+                  }
+                } catch (e) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error: $e')),
+                    );
+                  }
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _initializeChat() {
+    _chatService = ChatSocketService();
+    
+    // Connect to chat
+    _chatService!.connect(
+      userId: widget.adminId,
+      userRole: 'admin',
+      targetUserId: widget.student.id,
+      targetUserRole: 'student',
+    );
+
+    // Listen for chat history
+    _chatService!.historyStream.listen((messages) {
+      if (mounted) {
+        setState(() {
+          _messages.clear();
+          _messages.addAll(messages);
+          _isLoadingMessages = false;
+        });
+        _scrollToBottom();
+        // Mark messages as read
+        _chatService?.markAsRead(widget.adminId, widget.student.id);
+      }
+    });
+
+    // Listen for new messages
+    _chatService!.messageStream.listen((message) {
+      if (mounted) {
+        setState(() {
+          // Only add if not already in the list
+          if (!_messages.any((m) => m.id.toHexString() == message.id.toHexString())) {
+            _messages.add(message);
+          }
+          });
+          _scrollToBottom();
+        // Mark as read if from student
+        if (message.fromUserRole == 'student') {
+          _chatService?.markAsRead(widget.adminId, widget.student.id);
+        }
+      }
+    });
   }
 
   @override
   void dispose() {
+    _chatService?.dispose();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  Future<void> _loadMessages() async {
-    setState(() {
-      _isLoadingMessages = true;
-    });
-    try {
-      final messages = await ChatService.getConversation(widget.student.id);
-      if (mounted) {
-        setState(() {
-          _messages = messages;
-          _isLoadingMessages = false;
-        });
-        _scrollToBottom();
-        // Mark messages as read after loading
-        await ChatService.markAsRead(widget.student.id);
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading messages: $e')),
-        );
-        setState(() {
-          _isLoadingMessages = false;
-        });
-      }
-    }
-  }
-
-  void _startPollingMessages() {
-    Future.delayed(const Duration(seconds: 3), () async {
-      if (!mounted) return;
-      try {
-        final messages = await ChatService.getConversation(widget.student.id);
-        if (mounted) {
-          setState(() {
-            _messages = messages;
-          });
-          _scrollToBottom();
-        }
-      } catch (e) {
-        // Ignore polling errors
-      }
-      _startPollingMessages(); // Schedule next poll
-    });
-  }
-
   Future<void> _sendMessage() async {
-    if (_messageController.text.trim().isEmpty) return;
+    if (_messageController.text.trim().isEmpty || _chatService == null) return;
 
     final text = _messageController.text.trim();
     _messageController.clear();
@@ -385,10 +523,11 @@ class _AdminChatConversationPageState
     // Optimistically add message to UI
     final tempMessage = ChatMessage(
       id: ObjectId(),
-      studentId: widget.student.id,
-      adminId: widget.adminId,
+      fromUserId: widget.adminId,
+      fromUserRole: 'admin',
+      toUserId: widget.student.id,
+      toUserRole: 'student',
       message: text,
-      sender: 'admin',
       timestamp: DateTime.now(),
       isRead: true, // Admin messages are considered read by admin
     );
@@ -399,13 +538,13 @@ class _AdminChatConversationPageState
     _scrollToBottom();
 
     try {
-      await ChatService.sendAdminMessage(
-        studentId: widget.student.id,
-        adminId: widget.adminId,
+      _chatService!.sendMessage(
         message: text,
+        fromUserId: widget.adminId,
+        fromUserRole: 'admin',
+        toUserId: widget.student.id,
+        toUserRole: 'student',
       );
-      // Reload messages to get actual data from DB and ensure consistency
-      await _loadMessages();
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -448,6 +587,61 @@ class _AdminChatConversationPageState
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.of(context).pop(),
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Conversation metadata',
+            icon: const Icon(Icons.info_outline),
+            onPressed: _showMetadataDialog,
+          ),
+          if (_conversationMetadata != null && _conversationMetadata!['priority'] != null)
+            Chip(
+              label: Text(_conversationMetadata!['priority'].toString().toUpperCase()),
+              backgroundColor: _conversationMetadata!['priority'] == 'urgent'
+                  ? Colors.red[100]
+                  : _conversationMetadata!['priority'] == 'high'
+                      ? Colors.orange[100]
+                      : Colors.blue[100],
+            ),
+          IconButton(
+            tooltip: 'Close conversation',
+            icon: const Icon(Icons.delete_forever),
+            onPressed: () async {
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Close conversation'),
+                  content: const Text('This will delete all messages in this chat. Continue?'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                    ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Delete')),
+                  ],
+                ),
+              );
+              if (confirm != true) return;
+              try {
+                final api = ApiService();
+                final ok = await api.closeConversation(userId: widget.adminId, targetUserId: widget.student.id);
+                api.close();
+                if (!mounted) return;
+                if (ok) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Conversation deleted')),
+                  );
+                  setState(() { _messages.clear(); });
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Failed to delete conversation')),
+                  );
+                }
+              } catch (e) {
+                if (!mounted) return;
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error: $e')),
+                );
+              }
+            },
+          )
+        ],
       ),
       body: Column(
         children: [
@@ -460,7 +654,7 @@ class _AdminChatConversationPageState
                     itemCount: _messages.length,
                     itemBuilder: (context, index) {
                       final msg = _messages[index];
-                      final isMe = msg.sender == 'admin';
+                      final isMe = msg.fromUserId == widget.adminId && msg.fromUserRole == 'admin';
                       return Align(
                         alignment:
                             isMe ? Alignment.centerRight : Alignment.centerLeft,
