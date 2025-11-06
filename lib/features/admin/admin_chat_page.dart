@@ -126,7 +126,9 @@ class _AdminChatPageState extends State<AdminChatPage> {
       final unreadMessages = await ChatService.getUnreadMessages();
       final Map<String, int> counts = {};
       for (var msg in unreadMessages) {
-        counts[msg.studentId] = (counts[msg.studentId] ?? 0) + 1;
+        // Get student ID from the message (fromUserId if student sent it)
+        final studentId = msg.fromUserRole == 'student' ? msg.fromUserId : msg.toUserId;
+        counts[studentId] = (counts[studentId] ?? 0) + 1;
       }
       if (mounted) {
         setState(() {
@@ -492,12 +494,20 @@ class _AdminChatConversationPageState
     _chatService!.messageStream.listen((message) {
       if (mounted) {
         setState(() {
-          // Only add if not already in the list
-          if (!_messages.any((m) => m.id.toHexString() == message.id.toHexString())) {
+          // Only add if not already in the list (check by ID or by content+timestamp for optimistic messages)
+          final exists = _messages.any((m) => 
+            m.id.toHexString() == message.id.toHexString() ||
+            (m.message == message.message && 
+             m.fromUserId == message.fromUserId && 
+             (m.timestamp.difference(message.timestamp).inSeconds.abs() < 2))
+          );
+          if (!exists) {
             _messages.add(message);
+            // Sort by timestamp to maintain order
+            _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
           }
-          });
-          _scrollToBottom();
+        });
+        _scrollToBottom();
         // Mark as read if from student
         if (message.fromUserRole == 'student') {
           _chatService?.markAsRead(widget.adminId, widget.student.id);
@@ -520,7 +530,7 @@ class _AdminChatConversationPageState
     final text = _messageController.text.trim();
     _messageController.clear();
 
-    // Optimistically add message to UI
+    // Optimistically add message to UI immediately (like Messenger)
     final tempMessage = ChatMessage(
       id: ObjectId(),
       fromUserId: widget.adminId,
@@ -534,10 +544,13 @@ class _AdminChatConversationPageState
 
     setState(() {
       _messages.add(tempMessage);
+      // Keep sorted by timestamp
+      _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
     });
     _scrollToBottom();
 
     try {
+      // Send via WebSocket - the server will broadcast it back, and we'll update the temp message with real ID
       _chatService!.sendMessage(
         message: text,
         fromUserId: widget.adminId,
@@ -545,10 +558,17 @@ class _AdminChatConversationPageState
         toUserId: widget.student.id,
         toUserRole: 'student',
       );
+      // Don't remove the message - let the WebSocket update it with the real server message
+      // The duplicate check in messageStream listener will handle it
     } catch (e) {
       if (mounted) {
+        // Only remove if send actually failed
         setState(() {
-          _messages.removeLast(); // Remove optimistic message if send failed
+          _messages.removeWhere((m) => 
+            m.message == text && 
+            m.fromUserId == widget.adminId && 
+            m.timestamp.difference(tempMessage.timestamp).inSeconds.abs() < 2
+          );
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to send message: $e')),

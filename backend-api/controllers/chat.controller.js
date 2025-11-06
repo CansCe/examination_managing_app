@@ -272,8 +272,14 @@ export const getAllConversations = async (req, res) => {
 export const getUnreadMessages = async (req, res) => {
   try {
     const db = getDatabase();
+    // Get unread messages from students (not yet answered by any admin)
     const unread = await db.collection('chat_messages')
-      .find({ fromUserRole: 'student', isRead: false })
+      .find({ 
+        fromUserRole: 'student', 
+        isRead: false,
+        // Only get messages from last 30 days
+        timestamp: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString() }
+      })
       .sort({ timestamp: -1 })
       .toArray();
     res.json({ success: true, data: unread });

@@ -82,8 +82,17 @@ class _HelpdeskChatState extends State<HelpdeskChat> {
       _chatService!.messageStream.listen((message) {
         if (!mounted) return;
         setState(() {
-          if (!_messages.any((m) => m.id.toHexString() == message.id.toHexString())) {
+          // Only add if not already in the list (check by ID or by content+timestamp for optimistic messages)
+          final exists = _messages.any((m) => 
+            m.id.toHexString() == message.id.toHexString() ||
+            (m.message == message.message && 
+             m.fromUserId == message.fromUserId && 
+             (m.timestamp.difference(message.timestamp).inSeconds.abs() < 2))
+          );
+          if (!exists) {
             _messages.add(message);
+            // Sort by timestamp to maintain order
+            _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
           }
         });
         _scrollToBottom();
@@ -102,7 +111,7 @@ class _HelpdeskChatState extends State<HelpdeskChat> {
     
     _controller.clear();
     
-    // Optimistically add message to UI
+    // Optimistically add message to UI immediately (like Messenger)
     final tempMessage = ChatMessage(
       id: ObjectId(),
       fromUserId: widget.studentId!,
@@ -115,10 +124,13 @@ class _HelpdeskChatState extends State<HelpdeskChat> {
     
     setState(() {
       _messages.add(tempMessage);
+      // Keep sorted by timestamp
+      _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
     });
     _scrollToBottom();
     
     try {
+      // Send via socket - the server will broadcast it back, and we'll update the temp message with real ID
       _chatService!.sendMessage(
         message: text,
         fromUserId: widget.studentId!,
@@ -126,16 +138,22 @@ class _HelpdeskChatState extends State<HelpdeskChat> {
         toUserId: _resolvedTargetId!,
         toUserRole: _resolvedTargetRole,
       );
+      // Don't remove the message - let the WebSocket update it with the real server message
+      // The duplicate check in messageStream listener will handle it
       if (_showInfoBanner) {
         Future.delayed(const Duration(seconds: 5), () {
           if (mounted) setState(() { _showInfoBanner = false; });
         });
       }
     } catch (e) {
-      // Remove temp message if send failed
+      // Only remove if send actually failed
       if (mounted) {
         setState(() {
-          _messages.removeLast();
+          _messages.removeWhere((m) => 
+            m.message == text && 
+            m.fromUserId == widget.studentId! && 
+            m.timestamp.difference(tempMessage.timestamp).inSeconds.abs() < 2
+          );
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
