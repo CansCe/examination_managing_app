@@ -142,6 +142,7 @@ app.use(notFound);
 app.use(errorHandler);
 
 // Start server
+let serverInstance;
 async function startServer() {
   try {
     // Connect to database
@@ -152,7 +153,7 @@ async function startServer() {
     setupChatSocket(io);
     
     // Start listening
-    httpServer.listen(PORT, () => {
+    serverInstance = httpServer.listen(PORT, () => {
       console.log(`✓ Server running on http://localhost:${PORT}`);
       console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`✓ API available at http://localhost:${PORT}/api`);
@@ -177,4 +178,25 @@ process.on('SIGINT', async () => {
 
 // Start the server
 startServer();
+
+// Shutdown endpoint for development
+app.post('/shutdown', (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(403).json({ ok: false, error: 'Shutdown disabled in production' });
+  }
+  const token = req.headers['x-shutdown-token'];
+  if (!process.env.SHUTDOWN_TOKEN || token !== process.env.SHUTDOWN_TOKEN) {
+    return res.status(401).json({ ok: false, error: 'Unauthorized' });
+  }
+  res.json({ ok: true, message: 'Shutting down server' });
+  try {
+    serverInstance?.close(() => {
+      console.log('HTTP server closed');
+      process.exit(0);
+    });
+    setTimeout(() => process.exit(0), 5000).unref();
+  } catch (e) {
+    process.exit(0);
+  }
+});
 

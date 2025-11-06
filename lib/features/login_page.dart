@@ -126,7 +126,7 @@ class _LoginPageState extends State<LoginPage> {
     return Scaffold(
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: const Text('Login Page'),
+        //title: const Text('Login Page'),
         actions: [
           // Hidden button in top right corner (transparent/invisible)
           GestureDetector(

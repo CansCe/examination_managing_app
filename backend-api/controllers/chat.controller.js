@@ -292,6 +292,11 @@ export const getUnreadMessages = async (req, res) => {
 export const getDefaultAdmin = async (req, res) => {
   try {
     const db = getDatabase();
+    // Fallback to configured default admin if provided
+    const envAdmin = process.env.DEFAULT_ADMIN_ID;
+    if (envAdmin && /^[0-9a-fA-F]{24}$/.test(envAdmin)) {
+      return res.json({ success: true, adminId: envAdmin });
+    }
     // Try to find the most recent active admin from chat history
     const recentAdminMessage = await db.collection('chat_messages')
       .find({ fromUserRole: 'admin' })
@@ -314,6 +319,14 @@ export const getDefaultAdmin = async (req, res) => {
     if (anyAdmin) {
       return res.json({ success: true, adminId: anyAdmin.toUserId.toString() });
     }
+
+    // Fallback 3: pick any teacher as admin candidate (development convenience)
+    try {
+      const teacher = await db.collection('teachers').findOne({});
+      if (teacher && teacher._id) {
+        return res.json({ success: true, adminId: teacher._id.toString() });
+      }
+    } catch (_) {}
 
     return res.status(404).json({ success: false, error: 'No admin available' });
   } catch (error) {
