@@ -1,3 +1,4 @@
+// MongoDB database configuration
 import { MongoClient } from 'mongodb';
 
 // Get MongoDB URI - check lazily to ensure env vars are loaded
@@ -31,26 +32,19 @@ export async function connectDatabase() {
     }
     
     db = client.db(dbName);
-
-    // Ensure indexes for chat efficiency and TTL cleanup
-    try {
-      await db.collection('chat_messages').createIndexes([
-        { key: { conversationId: 1, timestamp: 1 }, name: 'conv_ts_asc' },
-        { key: { fromUserId: 1, fromUserRole: 1, isRead: 1, timestamp: -1 }, name: 'from_unread_ts_desc' },
-        { key: { toUserId: 1, toUserRole: 1, isRead: 1, timestamp: -1 }, name: 'to_unread_ts_desc' },
-      ]);
-      // TTL index (30 days) on timestamp; note TTL cannot be compound and requires a Date value
-      // If index exists, this is a no-op
-      await db.collection('chat_messages').createIndex(
-        { timestamp: 1 },
-        { name: 'ttl_30d', expireAfterSeconds: 60 * 60 * 24 * 30 }
-      );
-    } catch (e) {
-      console.warn('Warning: failed to create chat indexes', e);
-    }
     return db;
   } catch (error) {
-    console.error('✗ MongoDB connection error:', error);
+    console.error('\n╔══════════════════════════════════════════════════════════╗');
+    console.error('║  ✗ MAIN API SERVICE - Database Connection Failed      ║');
+    console.error('╚══════════════════════════════════════════════════════════╝');
+    console.error('✗ Service: MAIN API (backend-api)');
+    console.error('✗ Database: MongoDB');
+    console.error('✗ Error:', error.message);
+    console.error('\n📝 Troubleshooting:');
+    console.error('   1. Check MONGODB_URI in backend-api/.env');
+    console.error('   2. Verify MongoDB is accessible');
+    console.error('   3. Check network/firewall settings');
+    console.error('   4. Ensure MongoDB server is running\n');
     throw error;
   }
 }
@@ -70,4 +64,3 @@ export function getDatabase() {
   }
   return db;
 }
-

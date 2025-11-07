@@ -2,6 +2,15 @@ import { getDatabase } from '../config/database.js';
 import { ObjectId } from 'mongodb';
 import { validationResult } from 'express-validator';
 
+// Helper function to validate ObjectId
+function isValidObjectId(id) {
+  try {
+    return ObjectId.isValid(id) && new ObjectId(id).toString() === id;
+  } catch {
+    return false;
+  }
+}
+
 export const getAllExams = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -15,14 +24,18 @@ export const getAllExams = async (req, res) => {
     const skip = page * limit;
 
     let query = {};
-    
+
     // Filter by teacher if provided
     if (req.query.teacherId) {
+      if (!isValidObjectId(req.query.teacherId)) {
+        return res.status(400).json({ success: false, error: 'Invalid teacher ID' });
+      }
       query.createdBy = new ObjectId(req.query.teacherId);
     }
 
     const exams = await db.collection('exams')
       .find(query)
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .toArray();
@@ -50,25 +63,23 @@ export const getExamById = async (req, res) => {
     const { id } = req.params;
     const db = getDatabase();
 
-    let exam;
-    try {
-      exam = await db.collection('exams').findOne({ _id: new ObjectId(id) });
-    } catch (error) {
+    if (!isValidObjectId(id)) {
       return res.status(400).json({ success: false, error: 'Invalid exam ID' });
     }
+
+    const exam = await db.collection('exams').findOne({ _id: new ObjectId(id) });
 
     if (!exam) {
       return res.status(404).json({ success: false, error: 'Exam not found' });
     }
 
-    // Populate questions if they exist
-    if (exam.questions && exam.questions.length > 0) {
-      const questionIds = exam.questions.map(q => 
-        typeof q === 'string' ? new ObjectId(q) : q
-      );
+    // Populate questions if exam has question IDs
+    if (exam.questions && Array.isArray(exam.questions) && exam.questions.length > 0) {
+      const questionIds = exam.questions.map(q => new ObjectId(q));
       const questions = await db.collection('questions')
         .find({ _id: { $in: questionIds } })
         .toArray();
+      
       exam.populatedQuestions = questions;
     }
 
@@ -87,29 +98,34 @@ export const createExam = async (req, res) => {
     }
 
     const db = getDatabase();
-    const examData = {
-      ...req.body,
-      _id: new ObjectId(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      status: req.body.status || 'scheduled',
-      questions: req.body.questions?.map(q => 
-        typeof q === 'string' ? new ObjectId(q) : q
-      ) || [],
-      createdBy: new ObjectId(req.body.createdBy)
-    };
+    const { questions, ...examData } = req.body;
 
-    // Convert examDate if it's a string
-    if (typeof examData.examDate === 'string') {
-      examData.examDate = new Date(examData.examDate);
+    // Validate createdBy is a valid ObjectId
+    if (examData.createdBy && !isValidObjectId(examData.createdBy)) {
+      return res.status(400).json({ success: false, error: 'Invalid createdBy ID' });
     }
 
-    const result = await db.collection('exams').insertOne(examData);
+    const examInsert = {
+      title: examData.title,
+      subject: examData.subject,
+      examDate: examData.examDate || examData.exam_date ? new Date(examData.examDate || examData.exam_date) : new Date(),
+      duration: examData.duration,
+      status: examData.status || 'scheduled',
+      createdBy: examData.createdBy ? new ObjectId(examData.createdBy) : null,
+      questions: questions && Array.isArray(questions) 
+        ? questions.filter(q => isValidObjectId(q)).map(q => new ObjectId(q))
+        : [],
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    const result = await db.collection('exams').insertOne(examInsert);
+    const exam = await db.collection('exams').findOne({ _id: result.insertedId });
 
     res.status(201).json({
       success: true,
-      data: examData,
-      insertedId: result.insertedId.toString()
+      data: exam,
+      insertedId: exam._id.toString()
     });
   } catch (error) {
     console.error('Create exam error:', error);
@@ -127,29 +143,41 @@ export const updateExam = async (req, res) => {
     const { id } = req.params;
     const db = getDatabase();
 
-    const updateData = {
-      ...req.body,
-      updatedAt: new Date().toISOString()
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ success: false, error: 'Invalid exam ID' });
+    }
+
+    const { questions, ...updateData } = req.body;
+
+    const examUpdate = {
+      updatedAt: new Date()
     };
 
-    // Convert dates if provided as strings
-    if (updateData.examDate && typeof updateData.examDate === 'string') {
-      updateData.examDate = new Date(updateData.examDate);
+    if (updateData.title) examUpdate.title = updateData.title;
+    if (updateData.subject) examUpdate.subject = updateData.subject;
+    if (updateData.examDate || updateData.exam_date) {
+      examUpdate.examDate = new Date(updateData.examDate || updateData.exam_date);
+    }
+    if (updateData.duration) examUpdate.duration = updateData.duration;
+    if (updateData.status) examUpdate.status = updateData.status;
+    if (updateData.createdBy || updateData.created_by) {
+      const createdBy = updateData.createdBy || updateData.created_by;
+      if (!isValidObjectId(createdBy)) {
+        return res.status(400).json({ success: false, error: 'Invalid createdBy ID' });
+      }
+      examUpdate.createdBy = new ObjectId(createdBy);
     }
 
-    // Convert ObjectIds if needed
-    if (updateData.createdBy) {
-      updateData.createdBy = new ObjectId(updateData.createdBy);
-    }
-    if (updateData.questions) {
-      updateData.questions = updateData.questions.map(q => 
-        typeof q === 'string' ? new ObjectId(q) : q
-      );
+    // Update questions if provided
+    if (questions && Array.isArray(questions)) {
+      examUpdate.questions = questions
+        .filter(q => isValidObjectId(q))
+        .map(q => new ObjectId(q));
     }
 
     const result = await db.collection('exams').updateOne(
       { _id: new ObjectId(id) },
-      { $set: updateData }
+      { $set: examUpdate }
     );
 
     if (result.matchedCount === 0) {
@@ -173,17 +201,21 @@ export const updateExamStatus = async (req, res) => {
     }
 
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, newDate } = req.body;
     const db = getDatabase();
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ success: false, error: 'Invalid exam ID' });
+    }
 
     const updateData = {
       status,
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date()
     };
 
     // If status is delayed and newDate is provided, update the date
-    if (status === 'delayed' && req.body.newDate) {
-      updateData.examDate = new Date(req.body.newDate);
+    if (status === 'delayed' && newDate) {
+      updateData.examDate = new Date(newDate);
     }
 
     const result = await db.collection('exams').updateOne(
@@ -195,7 +227,9 @@ export const updateExamStatus = async (req, res) => {
       return res.status(404).json({ success: false, error: 'Exam not found' });
     }
 
-    res.json({ success: true, message: 'Exam status updated' });
+    const updatedExam = await db.collection('exams').findOne({ _id: new ObjectId(id) });
+
+    res.json({ success: true, message: 'Exam status updated', data: updatedExam });
   } catch (error) {
     console.error('Update exam status error:', error);
     res.status(500).json({ success: false, error: 'Internal server error' });
@@ -206,6 +240,10 @@ export const deleteExam = async (req, res) => {
   try {
     const { id } = req.params;
     const db = getDatabase();
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({ success: false, error: 'Invalid exam ID' });
+    }
 
     const result = await db.collection('exams').deleteOne({ _id: new ObjectId(id) });
 
@@ -229,26 +267,18 @@ export const getTeacherExams = async (req, res) => {
 
     const db = getDatabase();
 
-    // Get teacher's created exams
-    const teacher = await db.collection('teachers').findOne({ 
-      _id: new ObjectId(teacherId) 
-    });
-
-    if (!teacher) {
-      return res.status(404).json({ success: false, error: 'Teacher not found' });
+    if (!isValidObjectId(teacherId)) {
+      return res.status(400).json({ success: false, error: 'Invalid teacher ID' });
     }
 
-    const examIds = (teacher.createdExams || []).map(id => 
-      typeof id === 'string' ? new ObjectId(id) : id
-    );
-
     const exams = await db.collection('exams')
-      .find({ _id: { $in: examIds } })
+      .find({ createdBy: new ObjectId(teacherId) })
+      .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
       .toArray();
 
-    const total = examIds.length;
+    const total = await db.collection('exams').countDocuments({ createdBy: new ObjectId(teacherId) });
 
     res.json({
       success: true,
@@ -275,21 +305,28 @@ export const getStudentExams = async (req, res) => {
 
     const db = getDatabase();
 
-    // Get student's assigned exams
-    const student = await db.collection('students').findOne({ 
-      _id: new ObjectId(studentId) 
-    });
-
-    if (!student) {
-      return res.status(404).json({ success: false, error: 'Student not found' });
+    if (!isValidObjectId(studentId)) {
+      return res.status(400).json({ success: false, error: 'Invalid student ID' });
     }
 
-    const examIds = (student.assignedExams || []).map(id => 
-      typeof id === 'string' ? new ObjectId(id) : id
-    );
+    // Get student's assigned exams from student_exams collection
+    const studentExams = await db.collection('student_exams')
+      .find({ studentId: new ObjectId(studentId) })
+      .toArray();
+
+    const examIds = studentExams.map(se => se.examId);
+
+    if (examIds.length === 0) {
+      return res.json({
+        success: true,
+        data: [],
+        pagination: { page, limit, total: 0, pages: 0 }
+      });
+    }
 
     const exams = await db.collection('exams')
       .find({ _id: { $in: examIds } })
+      .sort({ examDate: -1 })
       .skip(skip)
       .limit(limit)
       .toArray();
@@ -317,36 +354,33 @@ export const assignStudentToExam = async (req, res) => {
     const { id: examId, studentId } = req.params;
     const db = getDatabase();
 
+    if (!isValidObjectId(examId) || !isValidObjectId(studentId)) {
+      return res.status(400).json({ success: false, error: 'Invalid exam or student ID' });
+    }
+
     // Verify exam exists
     const exam = await db.collection('exams').findOne({ _id: new ObjectId(examId) });
+
     if (!exam) {
       return res.status(404).json({ success: false, error: 'Exam not found' });
     }
 
-    // Get student and add exam to assignedExams
-    const student = await db.collection('students').findOne({ 
-      _id: new ObjectId(studentId) 
+    // Check if already assigned
+    const existing = await db.collection('student_exams').findOne({
+      studentId: new ObjectId(studentId),
+      examId: new ObjectId(examId)
     });
 
-    if (!student) {
-      return res.status(404).json({ success: false, error: 'Student not found' });
-    }
-
-    const assignedExams = (student.assignedExams || []).map(id => 
-      typeof id === 'string' ? new ObjectId(id) : id
-    );
-
-    const examObjectId = new ObjectId(examId);
-    if (assignedExams.some(id => id.toString() === examObjectId.toString())) {
+    if (existing) {
       return res.json({ success: true, message: 'Student already assigned to exam' });
     }
 
-    assignedExams.push(examObjectId);
-
-    await db.collection('students').updateOne(
-      { _id: new ObjectId(studentId) },
-      { $set: { assignedExams, updatedAt: new Date().toISOString() } }
-    );
+    // Assign student to exam
+    await db.collection('student_exams').insertOne({
+      studentId: new ObjectId(studentId),
+      examId: new ObjectId(examId),
+      assignedAt: new Date()
+    });
 
     res.json({ success: true, message: 'Student assigned to exam successfully' });
   } catch (error) {
@@ -360,22 +394,18 @@ export const unassignStudentFromExam = async (req, res) => {
     const { id: examId, studentId } = req.params;
     const db = getDatabase();
 
-    const student = await db.collection('students').findOne({ 
-      _id: new ObjectId(studentId) 
-    });
-
-    if (!student) {
-      return res.status(404).json({ success: false, error: 'Student not found' });
+    if (!isValidObjectId(examId) || !isValidObjectId(studentId)) {
+      return res.status(400).json({ success: false, error: 'Invalid exam or student ID' });
     }
 
-    const assignedExams = (student.assignedExams || [])
-      .map(id => typeof id === 'string' ? new ObjectId(id) : id)
-      .filter(id => id.toString() !== examId);
+    const result = await db.collection('student_exams').deleteOne({
+      studentId: new ObjectId(studentId),
+      examId: new ObjectId(examId)
+    });
 
-    await db.collection('students').updateOne(
-      { _id: new ObjectId(studentId) },
-      { $set: { assignedExams, updatedAt: new Date().toISOString() } }
-    );
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ success: false, error: 'Assignment not found' });
+    }
 
     res.json({ success: true, message: 'Student unassigned from exam successfully' });
   } catch (error) {
@@ -389,10 +419,22 @@ export const getStudentsAssignedToExam = async (req, res) => {
     const { id: examId } = req.params;
     const db = getDatabase();
 
+    if (!isValidObjectId(examId)) {
+      return res.status(400).json({ success: false, error: 'Invalid exam ID' });
+    }
+
+    const studentExams = await db.collection('student_exams')
+      .find({ examId: new ObjectId(examId) })
+      .toArray();
+
+    const studentIds = studentExams.map(se => se.studentId);
+
+    if (studentIds.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+
     const students = await db.collection('students')
-      .find({ 
-        assignedExams: { $in: [new ObjectId(examId)] } 
-      })
+      .find({ _id: { $in: studentIds } })
       .toArray();
 
     res.json({ success: true, data: students });
@@ -401,4 +443,3 @@ export const getStudentsAssignedToExam = async (req, res) => {
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 };
-

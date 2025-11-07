@@ -1,10 +1,16 @@
 export const errorHandler = (err, req, res, next) => {
+  console.error('\n╔══════════════════════════════════════════════════════════╗');
+  console.error('║  ✗ MAIN API SERVICE - Error                           ║');
+  console.error('╚══════════════════════════════════════════════════════════╝');
   console.error('Error:', err);
+  console.error('Path:', req.originalUrl);
+  console.error('Method:', req.method);
 
   // MongoDB duplicate key error
   if (err.code === 11000) {
     return res.status(400).json({
       success: false,
+      service: 'MAIN API SERVICE',
       error: 'Duplicate entry',
       message: 'A record with this value already exists'
     });
@@ -14,6 +20,7 @@ export const errorHandler = (err, req, res, next) => {
   if (err.name === 'ValidationError') {
     return res.status(400).json({
       success: false,
+      service: 'MAIN API SERVICE',
       error: 'Validation Error',
       message: err.message,
       details: err.errors
@@ -24,6 +31,7 @@ export const errorHandler = (err, req, res, next) => {
   if (err.name === 'BSONError' || err.message?.includes('ObjectId')) {
     return res.status(400).json({
       success: false,
+      service: 'MAIN API SERVICE',
       error: 'Invalid ID format',
       message: 'The provided ID is not valid'
     });
@@ -35,6 +43,7 @@ export const errorHandler = (err, req, res, next) => {
 
   res.status(statusCode).json({
     success: false,
+    service: 'MAIN API SERVICE',
     error: message,
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
   });
@@ -43,6 +52,7 @@ export const errorHandler = (err, req, res, next) => {
 export const notFound = (req, res, next) => {
   res.status(404).json({
     success: false,
+    service: 'MAIN API SERVICE',
     error: 'Not Found',
     message: `Route ${req.originalUrl} not found`
   });

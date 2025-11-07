@@ -8,28 +8,49 @@ import { existsSync } from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// ============================================
+// MAIN API SERVICE (MongoDB Backend)
+// ============================================
+console.log('\n╔══════════════════════════════════════════════════════════╗');
+console.log('║     MAIN API SERVICE - Starting...                      ║');
+console.log('╚══════════════════════════════════════════════════════════╝\n');
+
 // Verify .env file exists
 const envPath = join(__dirname, '.env');
 if (!existsSync(envPath)) {
-  console.error(`✗ .env file not found at: ${envPath}`);
-  console.error('Please create a .env file with your MongoDB connection string');
+  console.error('╔══════════════════════════════════════════════════════════╗');
+  console.error('║  ✗ MAIN API SERVICE - Configuration Error               ║');
+  console.error('╚══════════════════════════════════════════════════════════╝');
+  console.error(`\n✗ .env file not found at: ${envPath}`);
+  console.error('✗ Service: MAIN API (backend-api)');
+  console.error('✗ Database: MongoDB');
+  console.error('\n📝 Solution:');
+  console.error('   1. Copy ENV_EXAMPLE.txt to .env');
+  console.error('   2. Fill in your MONGODB_URI');
+  console.error('   3. Restart the service\n');
   process.exit(1);
 }
 
 // Verify MONGODB_URI is loaded
 if (!process.env.MONGODB_URI) {
-  console.error('✗ MONGODB_URI not found in environment variables');
-  console.error('Make sure .env file contains: MONGODB_URI=your_connection_string');
+  console.error('╔══════════════════════════════════════════════════════════╗');
+  console.error('║  ✗ MAIN API SERVICE - Configuration Error               ║');
+  console.error('╚══════════════════════════════════════════════════════════╝');
+  console.error('\n✗ MONGODB_URI not found in environment variables');
+  console.error('✗ Service: MAIN API (backend-api)');
+  console.error('✗ Database: MongoDB');
+  console.error('\n📝 Solution:');
+  console.error('   Add MONGODB_URI=your_connection_string to backend-api/.env\n');
   process.exit(1);
 }
 
 console.log('✓ Environment variables loaded');
-console.log('✓ MONGODB_URI is configured');
+console.log('✓ Service: MAIN API (backend-api)');
+console.log('✓ Database: MongoDB');
+console.log('✓ Port: ' + (process.env.PORT || 3000));
 
 // Now import other modules
 import express from 'express';
-import { createServer } from 'http';
-import { Server } from 'socket.io';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -43,20 +64,9 @@ import studentRoutes from './routes/student.routes.js';
 import teacherRoutes from './routes/teacher.routes.js';
 import questionRoutes from './routes/question.routes.js';
 import examResultRoutes from './routes/examResult.routes.js';
-import chatRoutes from './routes/chat.routes.js';
-import { setupChatSocket } from './sockets/chat.socket.js';
+// Chat routes removed - handled by separate chat service (backend-chat)
 
 const app = express();
-const httpServer = createServer(app);
-const io = new Server(httpServer, {
-  cors: {
-    origin: process.env.ALLOWED_ORIGINS 
-      ? process.env.ALLOWED_ORIGINS.split(',')
-      : ['http://localhost:8080', 'http://localhost:3000'],
-    credentials: true,
-    methods: ['GET', 'POST']
-  }
-});
 const PORT = process.env.PORT || 3000;
 
 // Security middleware
@@ -97,15 +107,33 @@ app.get('/health', async (req, res) => {
     const db = await connectDatabase();
     await db.admin().ping();
     res.json({ 
-      ok: true, 
+      ok: true,
+      service: 'MAIN API SERVICE',
+      database: 'MongoDB',
+      port: PORT,
       timestamp: new Date().toISOString(),
-      environment: process.env.NODE_ENV || 'development'
+      environment: process.env.NODE_ENV || 'development',
+      endpoints: {
+        auth: '/api/auth',
+        exams: '/api/exams',
+        students: '/api/students',
+        teachers: '/api/teachers',
+        questions: '/api/questions',
+        examResults: '/api/exam-results'
+      }
     });
   } catch (e) {
     res.status(500).json({ 
-      ok: false, 
+      ok: false,
+      service: 'MAIN API SERVICE',
+      database: 'MongoDB',
       error: String(e),
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      troubleshooting: [
+        'Check MongoDB connection string in .env',
+        'Verify MongoDB is accessible',
+        'Check network/firewall settings'
+      ]
     });
   }
 });
@@ -117,7 +145,7 @@ app.use('/api/students', studentRoutes);
 app.use('/api/teachers', teacherRoutes);
 app.use('/api/questions', questionRoutes);
 app.use('/api/exam-results', examResultRoutes);
-app.use('/api/chat', chatRoutes);
+// Chat API removed - use separate chat service (backend-chat)
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -132,7 +160,7 @@ app.get('/', (req, res) => {
       teachers: '/api/teachers',
       questions: '/api/questions',
       examResults: '/api/exam-results',
-      chat: '/api/chat'
+      note: 'Chat API is handled by separate service (backend-chat)'
     }
   });
 });
@@ -146,21 +174,41 @@ let serverInstance;
 async function startServer() {
   try {
     // Connect to database
+    console.log('\n📡 Connecting to MongoDB...');
     await connectDatabase();
-    console.log('✓ Database connected');
-
-    // Setup WebSocket handlers
-    setupChatSocket(io);
+    console.log('✓ MongoDB connected');
     
     // Start listening
-    serverInstance = httpServer.listen(PORT, () => {
-      console.log(`✓ Server running on http://localhost:${PORT}`);
+    serverInstance = app.listen(PORT, () => {
+      console.log('\n╔══════════════════════════════════════════════════════════╗');
+      console.log('║     MAIN API SERVICE - Running                          ║');
+      console.log('╚══════════════════════════════════════════════════════════╝');
+      console.log(`\n✓ Service: MAIN API (backend-api)`);
+      console.log(`✓ URL: http://localhost:${PORT}`);
+      console.log(`✓ API: http://localhost:${PORT}/api`);
       console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`✓ API available at http://localhost:${PORT}/api`);
-      console.log(`✓ WebSocket server ready on ws://localhost:${PORT}`);
+      console.log(`✓ Database: MongoDB`);
+      console.log('\n📋 Available endpoints:');
+      console.log(`   - Health: http://localhost:${PORT}/health`);
+      console.log(`   - Auth: http://localhost:${PORT}/api/auth`);
+      console.log(`   - Exams: http://localhost:${PORT}/api/exams`);
+      console.log(`   - Students: http://localhost:${PORT}/api/students`);
+      console.log(`   - Teachers: http://localhost:${PORT}/api/teachers`);
+      console.log(`   - Questions: http://localhost:${PORT}/api/questions`);
+      console.log(`   - Exam Results: http://localhost:${PORT}/api/exam-results`);
+      console.log('\n💡 Note: Chat API is handled by separate service (backend-chat)\n');
     });
   } catch (error) {
-    console.error('✗ Failed to start server:', error);
+    console.error('\n╔══════════════════════════════════════════════════════════╗');
+    console.error('║  ✗ MAIN API SERVICE - Startup Failed                   ║');
+    console.error('╚══════════════════════════════════════════════════════════╝');
+    console.error('\n✗ Service: MAIN API (backend-api)');
+    console.error('✗ Error:', error.message);
+    console.error('\n📝 Troubleshooting:');
+    console.error('   1. Check MongoDB connection string in .env');
+    console.error('   2. Verify MongoDB is accessible');
+    console.error('   3. Check network/firewall settings');
+    console.error('   4. Review error details above\n');
     process.exit(1);
   }
 }
