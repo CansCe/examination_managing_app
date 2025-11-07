@@ -3,6 +3,7 @@ import '../models/index.dart';
 import '../utils/mock_data_export.dart';
 import '../utils/mock_data_generator.dart';
 import '../config/database_config.dart';
+import 'api_service.dart';
 
 class MongoDBService {
   static Db? _db;
@@ -11,6 +12,30 @@ class MongoDBService {
   static const String _examsCollection = 'exams';
   static const String _studentsCollection = 'students';
   static const String _teachersCollection = 'teachers';
+
+  static Map<String, dynamic> _questionToPayload(Question question, {bool includeTimestamps = true}) {
+    final payload = <String, dynamic>{
+      'text': question.questionText,
+      'questionText': question.questionText,
+      'type': question.type,
+      'subject': question.subject,
+      'topic': question.topic,
+      'difficulty': question.difficulty,
+      'points': question.points,
+      'options': question.options,
+      'correctAnswer': question.correctAnswer,
+      'correctOptionIndex': question.correctOptionIndex,
+      'examId': question.examId.toHexString(),
+      'createdBy': question.createdBy.toHexString(),
+    };
+
+    if (includeTimestamps) {
+      payload['createdAt'] = question.createdAt.toIso8601String();
+      payload['updatedAt'] = DateTime.now().toIso8601String();
+    }
+
+    return payload;
+  }
 
   static Future<Db> getDatabase() async {
     if (_db == null) {
@@ -487,9 +512,16 @@ class MongoDBService {
       final db = await getDatabase();
       final examsCollection = db.collection('exams');
 
+      ObjectId teacherObjectId;
+      try {
+        teacherObjectId = ObjectId.fromHexString(teacherId);
+      } catch (_) {
+        throw Exception('Invalid teacher ID format: $teacherId');
+      }
+
       final query = where
-          .eq('createdBy', teacherId)
-          .sortBy('date', descending: true);
+          .eq('createdBy', teacherObjectId)
+          .sortBy('examDate', descending: true);
 
       final cursor = examsCollection.find(query);
       final exams = await cursor
@@ -585,61 +617,35 @@ class MongoDBService {
   // Get questions by subject (if subject is empty, returns all questions)
   static Future<List<Question>> getQuestionsBySubject(String subject) async {
     try {
-      final collection = _db!.collection('questions');
-      final cursor = subject.isEmpty || subject == ''
-          ? collection.find()
-          : collection.find(where.eq('subject', subject));
-      final questions = await cursor.toList();
+      final api = ApiService();
+      const int pageSize = 100;
+      final List<Map<String, dynamic>> results = [];
 
-      return questions.map((doc) {
-        try {
-          final id = doc['_id'] as ObjectId;
-          final text = doc['text'] as String? ?? '';
-          final questionText = doc['questionText'] as String? ?? text;
-          final type = doc['type'] as String? ?? 'multiple_choice';
-          final subject = doc['subject'] as String? ?? 'General';
-          final topic = doc['topic'] as String? ?? 'General';
-          final difficulty = doc['difficulty'] as String? ?? 'medium';
-          final points = doc['points'] as int? ?? 1;
-          final examId = doc['examId'] is String 
-              ? ObjectId.fromHexString(doc['examId'] as String)
-              : doc['examId'] as ObjectId? ?? ObjectId();
-          final createdBy = doc['createdBy'] is String 
-              ? ObjectId.fromHexString(doc['createdBy'] as String)
-              : doc['createdBy'] as ObjectId? ?? ObjectId();
-          final options = (doc['options'] as List<dynamic>?)?.cast<String>() ?? [];
-          final correctAnswer = doc['correctAnswer'] as String? ?? '';
-          final correctOptionIndex = doc['correctOptionIndex'] as int? ?? 0;
-          final createdAt = doc['createdAt'] is String 
-              ? DateTime.parse(doc['createdAt'] as String)
-              : doc['createdAt'] as DateTime? ?? DateTime.now();
-          final updatedAt = doc['updatedAt'] is String 
-              ? DateTime.parse(doc['updatedAt'] as String)
-              : doc['updatedAt'] as DateTime? ?? DateTime.now();
-
-          return Question(
-            id: id,
-            text: text,
-            questionText: questionText,
-            type: type,
-            subject: subject,
-            topic: topic,
-            difficulty: difficulty,
-            points: points,
-            examId: examId,
-            createdBy: createdBy,
-            options: options,
-            correctAnswer: correctAnswer,
-            correctOptionIndex: correctOptionIndex,
-            createdAt: createdAt,
-            updatedAt: updatedAt,
-          );
-        } catch (e) {
-          print('Error converting question document: $e');
-          print('Document data: $doc');
-          rethrow;
+      for (int page = 0; page < 20; page++) {
+        final batch = await api.getQuestions(page: page, limit: pageSize);
+        if (batch.isEmpty) {
+          break;
         }
-      }).toList();
+
+        if (subject.isEmpty) {
+          results.addAll(batch);
+        } else {
+          final lowered = subject.toLowerCase();
+          results.addAll(
+            batch.where(
+              (q) => (q['subject']?.toString().toLowerCase() ?? '') == lowered,
+            ),
+          );
+        }
+
+        if (batch.length < pageSize) {
+          break;
+        }
+      }
+
+      api.close();
+
+      return results.map((doc) => Question.fromMap(doc)).toList();
     } catch (e) {
       print('Error getting questions by subject: $e');
       rethrow;
@@ -648,43 +654,14 @@ class MongoDBService {
 
   // Get exam by ID
   static Future<Exam?> getExamById(ObjectId examId) async {
-    if (_db == null) {
-      throw Exception('Database not initialized');
-    }
-
     try {
-      final exam = await _db!.collection(_examsCollection)
-          .findOne(where.id(examId));
-      
-      if (exam == null) {
+      final api = ApiService();
+      final data = await api.getExam(examId.toHexString());
+      api.close();
+      if (data.isEmpty) {
         return null;
       }
-
-      final Map<String, dynamic> examData = {
-        '_id': exam['_id'] is String 
-            ? ObjectId.fromHexString(exam['_id']) 
-            : exam['_id'],
-        'title': exam['title'] ?? '',
-        'description': exam['description'] ?? '',
-        'subject': exam['subject'] ?? '',
-        'date': exam['date'] is String 
-            ? DateTime.parse(exam['date']) 
-            : exam['date'] ?? DateTime.now(),
-        'duration': exam['duration'] ?? 60,
-        'maxStudents': exam['maxStudents'] ?? 30,
-        'difficulty': exam['difficulty'] ?? 'medium',
-        'status': exam['status'] ?? 'draft',
-        'questions': (exam['questions'] as List?)?.map((id) => 
-            id is String ? ObjectId.fromHexString(id) : id).toList() ?? [],
-        'createdAt': exam['createdAt'] is String 
-            ? DateTime.parse(exam['createdAt']) 
-            : exam['createdAt'] ?? DateTime.now(),
-        'updatedAt': exam['updatedAt'] is String 
-            ? DateTime.parse(exam['updatedAt']) 
-            : exam['updatedAt'] ?? DateTime.now(),
-      };
-
-      return Exam.fromMap(examData);
+      return Exam.fromMap(data);
     } catch (e) {
       print('Error getting exam by ID: $e');
       rethrow;
@@ -758,18 +735,12 @@ class MongoDBService {
 
   // Create exam
   static Future<Exam> createExam(Exam exam) async {
-    if (_db == null) {
-      throw Exception('Database not initialized');
-    }
-
     try {
-      final examMap = exam.toMap();
-      examMap['_id'] = ObjectId();
-      examMap['createdAt'] = DateTime.now();
-      examMap['updatedAt'] = DateTime.now();
-
-      await _db!.collection(_examsCollection).insertOne(examMap);
-      return Exam.fromMap(examMap);
+      final api = ApiService();
+      final insertedId = await api.createExam(exam);
+      final createdExam = await api.getExam(insertedId);
+      api.close();
+      return Exam.fromMap(createdExam);
     } catch (e) {
       print('Error creating exam: $e');
       rethrow;
@@ -778,14 +749,12 @@ class MongoDBService {
 
   static Future<bool> updateExam(Exam exam) async {
     try {
-      final db = await getDatabase();
-      final exams = db.collection('exams');
-      
-      await exams.updateOne(
-        where.id(exam.id),
-        exam.toMap()
-      );
-      
+      final api = ApiService();
+      final payload = exam.toJson()
+        ..['examDate'] = exam.examDate.toIso8601String()
+        ..['updatedAt'] = DateTime.now().toIso8601String();
+      await api.updateExam(exam.id.toHexString(), payload);
+      api.close();
       return true;
     } catch (e) {
       print('Error updating exam: $e');
@@ -817,10 +786,9 @@ class MongoDBService {
 
   static Future<bool> createQuestion(Question question) async {
     try {
-      final db = await getDatabase();
-      final questions = db.collection('questions');
-      
-      await questions.insert(question.toMap());
+      final api = ApiService();
+      await api.createQuestion(_questionToPayload(question));
+      api.close();
       return true;
     } catch (e) {
       print('Error creating question: $e');
@@ -830,14 +798,11 @@ class MongoDBService {
 
   static Future<bool> updateQuestion(Question question) async {
     try {
-      final db = await getDatabase();
-      final questions = db.collection('questions');
-      
-      await questions.updateOne(
-        where.id(question.id),
-        question.toMap()
-      );
-      
+      final api = ApiService();
+      final payload = _questionToPayload(question, includeTimestamps: false);
+      payload['updatedAt'] = DateTime.now().toIso8601String();
+      await api.updateQuestion(question.id.toHexString(), payload);
+      api.close();
       return true;
     } catch (e) {
       print('Error updating question: $e');
@@ -847,16 +812,13 @@ class MongoDBService {
 
   static Future<Question?> getQuestionById(ObjectId questionId) async {
     try {
-      final db = await getDatabase();
-      final questions = db.collection('questions');
-      
-      final questionDoc = await questions.findOne(where.id(questionId));
-      
-      if (questionDoc == null) {
+      final api = ApiService();
+      final doc = await api.getQuestion(questionId.toHexString());
+      api.close();
+      if (doc == null) {
         return null;
       }
-      
-      return Question.fromMap(questionDoc);
+      return Question.fromMap(doc);
     } catch (e) {
       print('Error getting question by ID: $e');
       return null;
@@ -865,11 +827,10 @@ class MongoDBService {
 
   static Future<bool> deleteQuestion(ObjectId questionId) async {
     try {
-      final db = await getDatabase();
-      final questions = db.collection('questions');
-      
-      await questions.deleteOne(where.id(questionId));
-      return true;
+      final api = ApiService();
+      final success = await api.deleteQuestion(questionId.toHexString());
+      api.close();
+      return success;
     } catch (e) {
       print('Error deleting question: $e');
       return false;
@@ -950,17 +911,17 @@ class MongoDBService {
 
   // Get questions by their IDs
   static Future<List<Question>> getQuestionsByIds(List<ObjectId> questionIds) async {
-    if (_db == null) {
-      throw Exception('Database not initialized');
-    }
-
     try {
-      final cursor = _db!.collection('questions').find(
-        where.eq('_id', {'\$in': questionIds})
+      if (questionIds.isEmpty) {
+        return [];
+      }
+
+      final api = ApiService();
+      final data = await api.getQuestionsByIds(
+        questionIds.map((id) => id.toHexString()).toList(),
       );
-      
-      final List<Map<String, dynamic>> questionMaps = await cursor.toList();
-      return questionMaps.map((map) => Question.fromMap(map)).toList();
+      api.close();
+      return data.map((map) => Question.fromMap(map)).toList();
     } catch (e) {
       print('Error fetching questions: $e');
       rethrow;

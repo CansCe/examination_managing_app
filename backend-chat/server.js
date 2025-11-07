@@ -11,14 +11,14 @@ const __dirname = dirname(__filename);
 // CHAT SERVICE (Supabase Backend)
 // ============================================
 console.log('\n╔══════════════════════════════════════════════════════════╗');
-console.log('║     CHAT SERVICE - Starting...                          ║');
+console.log('║     CHAT SERVICE - Starting...                           ║');
 console.log('╚══════════════════════════════════════════════════════════╝\n');
 
 // Verify .env file exists
 const envPath = join(__dirname, '.env');
 if (!existsSync(envPath)) {
   console.error('╔══════════════════════════════════════════════════════════╗');
-  console.error('║  ✗ CHAT SERVICE - Configuration Error                  ║');
+  console.error('║      CHAT SERVICE - Configuration Error                  ║');
   console.error('╚══════════════════════════════════════════════════════════╝');
   console.error(`\n✗ .env file not found at: ${envPath}`);
   console.error('✗ Service: CHAT SERVICE (backend-chat)');
@@ -33,7 +33,7 @@ if (!existsSync(envPath)) {
 // Verify Supabase credentials are loaded
 if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
   console.error('╔══════════════════════════════════════════════════════════╗');
-  console.error('║  ✗ CHAT SERVICE - Configuration Error                  ║');
+  console.error('║     CHAT SERVICE - Configuration Error                   ║');
   console.error('╚══════════════════════════════════════════════════════════╝');
   console.error('\n✗ Supabase credentials not found in environment variables');
   console.error('✗ Service: CHAT SERVICE (backend-chat)');
@@ -164,7 +164,7 @@ async function startServer() {
     // Start listening
     serverInstance = app.listen(PORT, () => {
       console.log('\n╔══════════════════════════════════════════════════════════╗');
-      console.log('║     CHAT SERVICE - Running                             ║');
+      console.log('║     CHAT SERVICE - Running                               ║');
       console.log('╚══════════════════════════════════════════════════════════╝');
       console.log(`\n✓ Service: CHAT SERVICE (backend-chat)`);
       console.log(`✓ URL: http://localhost:${PORT}`);
@@ -182,7 +182,7 @@ async function startServer() {
     });
   } catch (error) {
     console.error('\n╔══════════════════════════════════════════════════════════╗');
-    console.error('║  ✗ CHAT SERVICE - Startup Failed                      ║');
+    console.error('║   CHAT SERVICE - Startup Failed                          ║');
     console.error('╚══════════════════════════════════════════════════════════╝');
     console.error('\n✗ Service: CHAT SERVICE (backend-chat)');
     console.error('✗ Error:', error.message);

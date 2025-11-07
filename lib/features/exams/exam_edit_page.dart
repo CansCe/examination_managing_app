@@ -6,6 +6,7 @@ import '../../services/mongodb_service.dart';
 import '../../utils/dialog_helper.dart';
 import '../admin/admin_student_exam_assignment_page.dart';
 import '../questions/question_edit_page.dart';
+import '../questions/question_bank_page.dart';
 
 class ExamEditPage extends StatefulWidget {
   final String? examId; // If null, we're creating a new exam
@@ -181,6 +182,28 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
   Future<void> _saveExam() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final createdByHex = widget.teacherId ?? widget.adminId;
+    if (createdByHex == null || createdByHex.isEmpty) {
+      DialogHelper.showErrorDialog(
+        context: context,
+        title: 'Missing Creator',
+        message: 'Unable to determine the exam creator. Please log in again.',
+      );
+      return;
+    }
+
+    ObjectId createdBy;
+    try {
+      createdBy = ObjectId.fromHexString(createdByHex);
+    } catch (e) {
+      DialogHelper.showErrorDialog(
+        context: context,
+        title: 'Invalid ID',
+        message: 'The creator ID is invalid. Please contact an administrator.',
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
     try {
       final exam = Exam(
@@ -194,22 +217,29 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
         duration: int.tryParse(_durationController.text) ?? 60,
         maxStudents: int.tryParse(_maxStudentsController.text) ?? 30,
         questions: _selectedQuestions.map((q) => q.id).toList(),
-        createdBy: _exam?.createdBy ?? ObjectId.fromHexString(widget.teacherId ?? widget.adminId ?? ''),
+        createdBy: createdBy,
         createdAt: _exam?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
       );
 
-      final Object success = _exam == null
-          ? await MongoDBService.createExam(exam)
-          : await MongoDBService.updateExam(exam);
-
-      if (mounted) {
-        if (success is bool && success) {
+      if (_exam == null) {
+        final createdExam = await MongoDBService.createExam(exam);
+        _exam = createdExam;
+        if (mounted) {
           Navigator.pop(context, true);
-        } else if (success is WriteResult && success.isSuccess) {
-          Navigator.pop(context, true);
-        } else {
-          // Handle the case where success is neither a bool nor a WriteResult or it indicates failure
+        }
+      } else {
+        final success = await MongoDBService.updateExam(exam);
+        if (mounted) {
+          if (success) {
+            Navigator.pop(context, true);
+          } else {
+            DialogHelper.showErrorDialog(
+              context: context,
+              title: 'Update Failed',
+              message: 'The exam could not be updated. Please try again.',
+            );
+          }
         }
       }
     } catch (e) {
@@ -227,10 +257,31 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
     }
   }
 
+  Future<void> _openQuestionBank() async {
+    final creatorId = widget.teacherId ?? widget.adminId;
+    if (creatorId == null || creatorId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to open question bank: missing teacher/admin ID'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => QuestionBankPage(teacherId: creatorId),
+      ),
+    );
+    await _loadQuestions();
+  }
+
   @override
   Widget build(BuildContext context) {
     // Guard: Only teachers or admins can access this page
-    if ((widget.teacherId == null || widget.teacherId!.isEmpty) && 
+    if ((widget.teacherId == null || widget.teacherId!.isEmpty) &&
         (widget.adminId == null || widget.adminId!.isEmpty)) {
       return Scaffold(
         appBar: AppBar(
@@ -254,6 +305,11 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
       appBar: AppBar(
         title: Text(_exam == null ? 'Create New Exam' : 'Edit Exam'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.library_books_outlined),
+            tooltip: 'Open Question Bank',
+            onPressed: _isLoading ? null : _openQuestionBank,
+          ),
           IconButton(
             icon: const Icon(Icons.save),
             onPressed: _isLoading ? null : _saveExam,
@@ -327,39 +383,49 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
               child: ListView(
                 padding: const EdgeInsets.all(16.0),
                 children: [
-                  // Prominent Select Students button
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: ElevatedButton.icon(
-                      onPressed: _isLoading
-                          ? null
-                          : () {
-                              if (_exam == null) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Please save the exam first before assigning students.'),
+                  Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    runSpacing: 8,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: _isLoading ? null : _openQuestionBank,
+                        icon: const Icon(Icons.library_books),
+                        label: const Text('Question Bank'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: _isLoading
+                            ? null
+                            : () {
+                                if (_exam == null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('Please save the exam first before assigning students.'),
+                                    ),
+                                  );
+                                  return;
+                                }
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (_) => AdminStudentExamAssignmentPage(
+                                      examId: _exam!.id.toHexString(),
+                                      exam: _exam!,
+                                    ),
                                   ),
                                 );
-                                return;
-                              }
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => AdminStudentExamAssignmentPage(
-                                    examId: _exam!.id.toHexString(),
-                                    exam: _exam!,
-                                  ),
-                                ),
-                              );
-                            },
-                      icon: const Icon(Icons.people_alt),
-                      label: const Text('Select Students'),
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                              },
+                        icon: const Icon(Icons.people_alt),
+                        label: const Text('Select Students'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   TextFormField(
                     controller: _titleController,
                     decoration: const InputDecoration(
@@ -385,17 +451,31 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
                       labelText: 'Subject',
                       border: OutlineInputBorder(),
                     ),
-                    items: [
-                      const DropdownMenuItem<String>(
-                        value: null,
-                        child: Text('Select a subject'),
-                      ),
-                      ...['Mathematics', 'Physics', 'Chemistry', 'Biology']
-                          .map((subject) => DropdownMenuItem(
-                                value: subject,
-                                child: Text(subject),
-                              ))
-                    ],
+                    items: () {
+                      // Base list of subjects
+                      final baseSubjects = ['Mathematics', 'Physics', 'Chemistry', 'Biology'];
+                      
+                      // If editing an exam with a subject not in the base list, add it
+                      final allSubjects = <String>[...baseSubjects];
+                      if (_selectedSubject != null && 
+                          !baseSubjects.contains(_selectedSubject)) {
+                        allSubjects.add(_selectedSubject!);
+                      }
+                      
+                      // Remove duplicates and sort
+                      final uniqueSubjects = allSubjects.toSet().toList()..sort();
+                      
+                      return [
+                        const DropdownMenuItem<String>(
+                          value: null,
+                          child: Text('Select a subject'),
+                        ),
+                        ...uniqueSubjects.map((subject) => DropdownMenuItem(
+                              value: subject,
+                              child: Text(subject),
+                            ))
+                      ];
+                    }(),
                     onChanged: (value) {
                       setState(() {
                         _selectedSubject = value;
@@ -558,17 +638,34 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
                                     border: OutlineInputBorder(),
                                     contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                   ),
-                                  items: [
-                                    const DropdownMenuItem<String>(
-                                      value: null,
-                                      child: Text('All Subjects'),
-                                    ),
-                                    ...['Mathematics', 'Physics', 'Chemistry', 'Biology']
-                                        .map((subject) => DropdownMenuItem(
-                                              value: subject,
-                                              child: Text(subject),
-                                            ))
-                                  ],
+                                  items: () {
+                                    // Get unique subjects from available questions
+                                    final questionSubjects = _availableQuestions
+                                        .map((q) => q.subject)
+                                        .where((s) => s.isNotEmpty)
+                                        .toSet()
+                                        .toList();
+                                    
+                                    // Base list of subjects
+                                    final baseSubjects = ['Mathematics', 'Physics', 'Chemistry', 'Biology'];
+                                    
+                                    // Combine and remove duplicates
+                                    final allSubjects = <String>[...baseSubjects, ...questionSubjects]
+                                        .toSet()
+                                        .toList()
+                                      ..sort();
+                                    
+                                    return [
+                                      const DropdownMenuItem<String>(
+                                        value: null,
+                                        child: Text('All Subjects'),
+                                      ),
+                                      ...allSubjects.map((subject) => DropdownMenuItem(
+                                            value: subject,
+                                            child: Text(subject),
+                                          ))
+                                    ];
+                                  }(),
                                   onChanged: (value) {
                                     setState(() {
                                       _questionFilterSubject = value;

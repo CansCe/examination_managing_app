@@ -1,7 +1,5 @@
-import 'package:mongo_dart/mongo_dart.dart';
 import '../models/index.dart';
-import 'mongodb_service.dart';
-import '../config/database_config.dart';
+import 'api_service.dart';
 
 class AuthService {
   static Future<User?> login({
@@ -9,55 +7,27 @@ class AuthService {
     required String password,
   }) async {
     try {
-      final db = await MongoDBService.getDatabase();
-      
-      // Try to find student first
-      var user = await db.collection(DatabaseConfig.studentsCollection).findOne({
-        '\$or': [
-          {'username': username},
-          {'studentId': username},
-        ],
-        'password': password,
-      });
+      final api = ApiService();
+      final result = await api.login(username: username, password: password);
+      api.close();
 
-      // If not found, try to find teacher
-      user ??= await db.collection(DatabaseConfig.teachersCollection).findOne({
-          '\$or': [
-            {'username': username},
-            {'email': username},
-          ],
-          'password': password,
-        });
-
-      // If not found, try to find admin in users collection
-      user ??= await db.collection(DatabaseConfig.usersCollection).findOne({
-          '\$or': [
-            {'username': username},
-            {'email': username},
-          ],
-          'password': password,
-          'role': 'admin',
-        });
-
-      if (user != null) {
-        // Determine role based on collection and fields
-        UserRole role;
-        if (user.containsKey('role') && user['role'] == 'admin') {
-          role = UserRole.admin;
-        } else if (user.containsKey('department')) {
-          role = UserRole.teacher;
-        } else {
-          role = UserRole.student;
-        }
-        
-        return User(
-          id: user['_id'].toHexString(),
-          username: user['username'] ?? user['studentId'] ?? user['email'],
-          role: role,
-          fullName: user['fullName'] ?? '${user['firstName']} ${user['lastName']}',
-        );
+      if (result == null) {
+        return null;
       }
-      return null;
+
+      final roleString = (result['role'] as String? ?? 'student').toLowerCase();
+      final role = roleString == 'teacher'
+          ? UserRole.teacher
+          : roleString == 'admin'
+              ? UserRole.admin
+              : UserRole.student;
+
+      return User(
+        id: result['id']?.toString() ?? '',
+        username: result['username']?.toString() ?? username,
+        role: role,
+        fullName: result['fullName']?.toString() ?? result['username']?.toString() ?? username,
+      );
     } catch (e) {
       print('Error during login: $e');
       return null;
@@ -78,23 +48,14 @@ class AuthService {
     required String newPassword,
   }) async {
     try {
-      final db = await MongoDBService.getDatabase();
-      
-      // Try to update in students collection first
-      var result = await db.collection(DatabaseConfig.studentsCollection).updateOne(
-        where.id(ObjectId.fromHexString(userId)),
-        modify.set('password', newPassword),
+      final api = ApiService();
+      final success = await api.changePassword(
+        userId: userId,
+        currentPassword: currentPassword,
+        newPassword: newPassword,
       );
-
-      // If not found in students, try teachers collection
-      if (!result.isSuccess) {
-        result = await db.collection(DatabaseConfig.teachersCollection).updateOne(
-          where.id(ObjectId.fromHexString(userId)),
-          modify.set('password', newPassword),
-        );
-      }
-
-      return result.isSuccess;
+      api.close();
+      return success;
     } catch (e) {
       print('Error changing password: $e');
       rethrow;
@@ -103,43 +64,27 @@ class AuthService {
 
   static Future<User?> getCurrentUser(String userId) async {
     try {
-      final db = await MongoDBService.getDatabase();
-      
-      // Try to find in students collection first
-      var user = await db.collection(DatabaseConfig.studentsCollection).findOne(
-        where.id(ObjectId.fromHexString(userId)),
-      );
+      final api = ApiService();
+      final result = await api.getCurrentUser(userId);
+      api.close();
 
-      // If not found, try teachers collection
-      user ??= await db.collection(DatabaseConfig.teachersCollection).findOne(
-          where.id(ObjectId.fromHexString(userId)),
-        );
-
-      // If not found, try users collection (for admins)
-      user ??= await db.collection(DatabaseConfig.usersCollection).findOne(
-          where.id(ObjectId.fromHexString(userId)),
-        );
-
-      if (user != null) {
-        // Determine role based on collection and fields
-        UserRole role;
-        if (user.containsKey('role') && user['role'] == 'admin') {
-          role = UserRole.admin;
-        } else if (user.containsKey('department')) {
-          role = UserRole.teacher;
-        } else {
-          role = UserRole.student;
-        }
-        
-        return User(
-          id: user['_id'].toHexString(),
-          username: user['username'] ?? user['studentId'] ?? user['email'],
-          role: role,
-          fullName: user['fullName'] ?? '${user['firstName']} ${user['lastName']}',
-        );
+      if (result == null) {
+        return null;
       }
 
-      return null;
+      final roleString = (result['role'] as String? ?? 'student').toLowerCase();
+      final role = roleString == 'teacher'
+          ? UserRole.teacher
+          : roleString == 'admin'
+              ? UserRole.admin
+              : UserRole.student;
+
+      return User(
+        id: result['id']?.toString() ?? userId,
+        username: result['username']?.toString() ?? '',
+        role: role,
+        fullName: result['fullName']?.toString() ?? result['username']?.toString() ?? '',
+      );
     } catch (e) {
       print('Error getting current user: $e');
       rethrow;

@@ -5,6 +5,7 @@ import '../services/index.dart';
 import '../config/routes.dart'; // For AppRoutes.login
 import '../models/index.dart';
 import '../features/index.dart';
+import '../features/questions/question_bank_page.dart';
 import '../utils/dialog_helper.dart';
 
 final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
@@ -312,24 +313,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   Future<void> _loadTeacherData() async {
-    if (!mounted || _isLoading) return;
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
     });
     try {
-      print('_loadTeacherData called for username: ${widget.username}');
-      // First get the teacher's ID from their username
-      final teacher = await AtlasService.findTeacherByUsername(widget.username!);
-      if (teacher == null) {
-        print('Teacher not found for username: ${widget.username}');
+      final teacherId = _teacherId ?? widget.teacherId;
+      if (teacherId == null) {
+        print('Teacher ID not available for teacher user');
         setState(() {
           _isLoading = false;
         });
         return;
       }
-      // Get the teacher's ID and ensure it's a string
-      final teacherId = teacher['_id'].toHexString();
-      print('Found teacher ID: $teacherId');
+      print('_loadTeacherData called for teacherId: $teacherId');
       // Get teacher's exams using their ID
       final exams = await AtlasService.getTeacherExams(
         teacherId: teacherId,
@@ -437,9 +434,21 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ),
               if (widget.userRole == UserRole.teacher)
                 IconButton(
+                  icon: const Icon(Icons.library_books),
+                  tooltip: 'Question Bank',
+                  onPressed: _openQuestionBankPage,
+                ),
+              if (widget.userRole == UserRole.teacher)
+                IconButton(
                   icon: const Icon(Icons.add_circle_outline),
                   tooltip: 'Create Exam',
                   onPressed: _createNewExam,
+                ),
+              if (widget.userRole == UserRole.teacher || widget.userRole == UserRole.admin)
+                IconButton(
+                  icon: const Icon(Icons.auto_mode),
+                  tooltip: 'Generate Demo Exam',
+                  onPressed: _generateDummyExamScenario,
                 ),
               if (widget.userRole == UserRole.teacher)
                 PopupMenuButton<String>(
@@ -480,6 +489,31 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       context: context,
                       builder: (context) => HelpdeskChat(
                         studentId: widget.studentId,
+                      ),
+                    );
+                  },
+                ),
+              if (widget.userRole == UserRole.teacher)
+                IconButton(
+                  icon: const Icon(Icons.support_agent),
+                  tooltip: 'Contact Admin',
+                  onPressed: () {
+                    final chatUserId = _teacherId ?? widget.teacherId;
+                    if (chatUserId == null || chatUserId.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Unable to open chat: missing teacher ID.'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
+                    showDialog(
+                      context: context,
+                      builder: (context) => HelpdeskChat(
+                        studentId: chatUserId,
+                        targetUserRole: 'admin',
+                        userRole: 'teacher',
                       ),
                     );
                   },
@@ -1423,6 +1457,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           arguments: {
             'examId': tempId,
             'teacherId': _teacherId,
+            'userRole': UserRole.teacher,
           },
         ).then((_) => _loadData(refresh: true));
       }
@@ -1445,6 +1480,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           arguments: {
             'examId': examId,
             'teacherId': _teacherId,
+            'userRole': UserRole.teacher,
           },
         ).then((_) => _loadData(refresh: true));
       }
@@ -1467,7 +1503,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             exam: exam,
           ),
         ),
-      ).then((_) => _loadData(refresh: true));
+      ).then((_) {
+        if (!mounted) return;
+        if (widget.userRole == UserRole.teacher) {
+          _currentPage = 0;
+          _loadTeacherData();
+        } else {
+          _loadData(refresh: true);
+        }
+      });
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -1484,8 +1528,141 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       AppRoutes.examEdit,
       arguments: {
         'teacherId': _teacherId,
+        'userRole': UserRole.teacher,
       },
-    ).then((_) => _loadData(refresh: true));
+    ).then((_) {
+      if (!mounted) return;
+      if (widget.userRole == UserRole.teacher) {
+        _currentPage = 0;
+        _exams.clear();
+        _loadTeacherData();
+      } else {
+        _loadData(refresh: true);
+      }
+    });
+  }
+
+  Future<void> _openQuestionBankPage() async {
+    final teacherId = _teacherId ?? widget.teacherId;
+    if (teacherId == null || teacherId.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to open question bank: missing teacher ID.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => QuestionBankPage(teacherId: teacherId),
+      ),
+    );
+
+    if (!mounted) return;
+    if (widget.userRole == UserRole.teacher) {
+      _currentPage = 0;
+      await _loadTeacherData();
+    } else {
+      await _loadData(refresh: true);
+    }
+  }
+
+  Future<void> _generateDummyExamScenario() async {
+    if (_isLoading) return;
+
+    String? creatorId;
+    if (widget.userRole == UserRole.teacher) {
+      creatorId = _teacherId ?? widget.teacherId;
+    } else if (widget.userRole == UserRole.admin) {
+      if (_teachers.isNotEmpty) {
+        creatorId = _teachers.first.id.toHexString();
+      } else {
+        try {
+          final teachers = await AtlasService.findTeachers(limit: 1);
+          if (teachers.isNotEmpty) {
+            creatorId = teachers.first.id.toHexString();
+            if (mounted) {
+              setState(() {
+                _teachers = teachers;
+              });
+            }
+          }
+        } catch (e) {
+          if (mounted) {
+            DialogHelper.showErrorDialog(
+              context: context,
+              title: 'Demo Exam Failed',
+              message: 'Unable to load teacher list: $e',
+            );
+          }
+          return;
+        }
+      }
+    }
+
+    if (creatorId == null || creatorId.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No teacher available to own the demo exam.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      return;
+    }
+
+    bool refreshTeacherTab = widget.userRole == UserRole.teacher;
+    bool refreshAdminTab = widget.userRole == UserRole.admin;
+
+    setState(() => _isLoading = true);
+    try {
+      final setup = await AtlasService.createDummyExamScenario(teacherId: creatorId);
+      if (!mounted) return;
+
+      final buffer = StringBuffer('Created demo exam "${setup.exam.title}"');
+
+      final studentName = setup.assignedStudent?['fullName'] ?? setup.assignedStudent?['full_name'];
+      if (studentName != null) {
+        buffer.write(' assigned to $studentName');
+      }
+
+      final rawScore = setup.submission?['percentageScore'] ?? setup.submission?['percentage_score'];
+      if (rawScore is num) {
+        buffer.write(' (score: ${rawScore.toStringAsFixed(1)}%).');
+      } else if (rawScore != null) {
+        buffer.write(' (score: $rawScore%).');
+      } else {
+        buffer.write('.');
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(buffer.toString())),
+      );
+    } catch (e) {
+      if (mounted) {
+        DialogHelper.showErrorDialog(
+          context: context,
+          title: 'Demo Exam Failed',
+          message: 'Unable to create demo exam: $e',
+        );
+      }
+      refreshTeacherTab = false;
+      refreshAdminTab = false;
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        if (refreshTeacherTab) {
+          await _loadTeacherData();
+        } else if (refreshAdminTab) {
+          await _loadData(refresh: true);
+        }
+      }
+    }
   }
 
   Future<void> _testApiCall() async {

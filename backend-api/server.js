@@ -12,14 +12,14 @@ const __dirname = dirname(__filename);
 // MAIN API SERVICE (MongoDB Backend)
 // ============================================
 console.log('\n╔══════════════════════════════════════════════════════════╗');
-console.log('║     MAIN API SERVICE - Starting...                      ║');
+console.log('║     MAIN API SERVICE - Starting...                       ║');
 console.log('╚══════════════════════════════════════════════════════════╝\n');
 
 // Verify .env file exists
 const envPath = join(__dirname, '.env');
 if (!existsSync(envPath)) {
   console.error('╔══════════════════════════════════════════════════════════╗');
-  console.error('║  ✗ MAIN API SERVICE - Configuration Error               ║');
+  console.error('║     MAIN API SERVICE - Configuration Error               ║');
   console.error('╚══════════════════════════════════════════════════════════╝');
   console.error(`\n✗ .env file not found at: ${envPath}`);
   console.error('✗ Service: MAIN API (backend-api)');
@@ -34,7 +34,7 @@ if (!existsSync(envPath)) {
 // Verify MONGODB_URI is loaded
 if (!process.env.MONGODB_URI) {
   console.error('╔══════════════════════════════════════════════════════════╗');
-  console.error('║  ✗ MAIN API SERVICE - Configuration Error               ║');
+  console.error('║     MAIN API SERVICE - Configuration Error               ║');
   console.error('╚══════════════════════════════════════════════════════════╝');
   console.error('\n✗ MONGODB_URI not found in environment variables');
   console.error('✗ Service: MAIN API (backend-api)');
@@ -181,7 +181,7 @@ async function startServer() {
     // Start listening
     serverInstance = app.listen(PORT, () => {
       console.log('\n╔══════════════════════════════════════════════════════════╗');
-      console.log('║     MAIN API SERVICE - Running                          ║');
+      console.log('║     MAIN API SERVICE - Running                           ║');
       console.log('╚══════════════════════════════════════════════════════════╝');
       console.log(`\n✓ Service: MAIN API (backend-api)`);
       console.log(`✓ URL: http://localhost:${PORT}`);
@@ -200,7 +200,7 @@ async function startServer() {
     });
   } catch (error) {
     console.error('\n╔══════════════════════════════════════════════════════════╗');
-    console.error('║  ✗ MAIN API SERVICE - Startup Failed                   ║');
+    console.error('║     MAIN API SERVICE - Startup Failed                    ║');
     console.error('╚══════════════════════════════════════════════════════════╝');
     console.error('\n✗ Service: MAIN API (backend-api)');
     console.error('✗ Error:', error.message);

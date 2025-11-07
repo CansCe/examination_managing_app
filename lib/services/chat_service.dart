@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'package:supabase_flutter/supabase_flutter.dart';
-import 'supabase_service.dart';
 import 'api_service.dart';
 
 class ChatMessage {
@@ -72,7 +70,7 @@ class ChatMessage {
 }
 
 class ChatSocketService {
-  RealtimeChannel? _channel;
+  dynamic _channel; // No longer using RealtimeChannel, kept for compatibility
   final StreamController<ChatMessage> _messageController = StreamController<ChatMessage>.broadcast();
   final StreamController<List<ChatMessage>> _historyController = StreamController<List<ChatMessage>>.broadcast();
   bool _isConnected = false;
@@ -82,17 +80,13 @@ class ChatSocketService {
   Stream<List<ChatMessage>> get historyStream => _historyController.stream;
   bool get isConnected => _isConnected;
 
-  /// Connect to the chat using Supabase Realtime
+  /// Connect to the chat using REST API (Realtime disabled)
   Future<void> connect({
     required String userId,
     required String userRole,
     required String targetUserId,
     required String targetUserRole,
   }) async {
-    if (!SupabaseService.isInitialized) {
-      await SupabaseService.initialize();
-    }
-
     // Disconnect existing connection
     if (_channel != null) {
       await disconnect();
@@ -102,92 +96,98 @@ class ChatSocketService {
     _conversationId = sortedIds.join(':');
     final conversationId = _conversationId!;
 
-    print('Connecting to Supabase Realtime for conversation: $conversationId');
+    print('Connecting to chat service for conversation: $conversationId');
 
     try {
-      // Subscribe to chat_messages table changes for this conversation
-      _channel = SupabaseService.client
-          .channel('chat:$conversationId')
-          .onPostgresChanges(
-            event: PostgresChangeEvent.insert,
-            schema: 'public',
-            table: 'chat_messages',
-            filter: PostgresChangeFilter(
-              type: PostgresChangeFilterType.eq,
-              column: 'conversation_id',
-              value: conversationId,
-            ),
-            callback: (payload) {
-              try {
-                final message = ChatMessage.fromMap(payload.newRecord);
-                _messageController.add(message);
-              } catch (e) {
-                print('Error parsing new message: $e');
-              }
-            },
-          )
-          .onPostgresChanges(
-            event: PostgresChangeEvent.update,
-            schema: 'public',
-            table: 'chat_messages',
-            filter: PostgresChangeFilter(
-              type: PostgresChangeFilterType.eq,
-              column: 'conversation_id',
-              value: conversationId,
-            ),
-            callback: (payload) {
-              // Handle message updates (e.g., read status)
-              try {
-                final message = ChatMessage.fromMap(payload.newRecord);
-                _messageController.add(message);
-              } catch (e) {
-                print('Error parsing updated message: $e');
-              }
-            },
-          )
-          .subscribe((status, [error]) {
-            if (status == RealtimeSubscribeStatus.subscribed) {
-              _isConnected = true;
-              print('✓ Connected to Supabase Realtime');
-              // Load chat history
-              _loadChatHistory(userId, targetUserId);
-            } else {
-              _isConnected = false;
-              print('✗ Supabase Realtime status: $status, error: $error');
-            }
-          });
-
       _isConnected = true;
+      print('✓ Connected to chat service (REST API)');
+      
+      // Load chat history
+      await _loadChatHistory(userId, targetUserId);
+      
+      // Start polling for new messages every 3 seconds
+      _startPolling(userId, targetUserId);
     } catch (e) {
       _isConnected = false;
-      print('✗ Error connecting to Supabase Realtime: $e');
+      print('✗ Error connecting to chat service: $e');
       rethrow;
     }
   }
 
-  /// Load chat history from Supabase
+  Timer? _pollingTimer;
+  DateTime? _lastMessageTimestamp; // Track last message timestamp to avoid duplicates
+  final Set<String> _seenMessageIds = {}; // Track all seen message IDs
+  
+  void _startPolling(String userId, String targetUserId) {
+    // Stop any existing polling
+    _pollingTimer?.cancel();
+    
+    // Poll every 3 seconds for new messages
+    _pollingTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
+      if (!_isConnected) {
+        timer.cancel();
+        return;
+      }
+      
+      try {
+        final api = ApiService();
+        final messages = await api.getChatMessages(
+          userId: userId,
+          targetUserId: targetUserId,
+        );
+        final chatMessages = messages
+            .map((m) => ChatMessage.fromMap(m))
+            .toList();
+        
+        // Only add new messages that we haven't seen before
+        for (final msg in chatMessages) {
+          // Skip if we've already seen this message
+          if (_seenMessageIds.contains(msg.id)) {
+            continue;
+          }
+          
+          // Only add messages that are newer than the last one we saw
+          if (_lastMessageTimestamp == null || 
+              msg.timestamp.isAfter(_lastMessageTimestamp!)) {
+            _messageController.add(msg);
+            _seenMessageIds.add(msg.id);
+            _lastMessageTimestamp = msg.timestamp;
+          }
+        }
+        
+        api.close();
+      } catch (e) {
+        print('Error polling for messages: $e');
+      }
+    });
+  }
+
+  /// Load chat history from REST API
   Future<void> _loadChatHistory(String userId, String targetUserId) async {
     try {
-      final conversationId = [userId, targetUserId]..sort();
-      final thirtyDaysAgo = DateTime.now().subtract(const Duration(days: 30));
-
-      final response = await SupabaseService.client
-          .from('chat_messages')
-          .select()
-          .eq('conversation_id', conversationId.join(':'))
-          .gte('timestamp', thirtyDaysAgo.toIso8601String())
-          .order('timestamp', ascending: true);
-
-      final messages = (response as List)
-          .map((m) => ChatMessage.fromMap(m as Map<String, dynamic>))
+      final api = ApiService();
+      final messages = await api.getChatMessages(
+        userId: userId,
+        targetUserId: targetUserId,
+      );
+      final chatMessages = messages
+          .map((m) => ChatMessage.fromMap(m))
           .toList();
-      _historyController.add(messages);
-        } catch (e) {
+      _historyController.add(chatMessages);
+      
+      // Set last message timestamp and track seen IDs for polling
+      if (chatMessages.isNotEmpty) {
+        _lastMessageTimestamp = chatMessages.last.timestamp;
+        _seenMessageIds.addAll(chatMessages.map((m) => m.id));
+      }
+      
+      api.close();
+    } catch (e) {
       print('Error loading chat history: $e');
     }
   }
 
-  /// Send a message via Supabase
+  /// Send a message via REST API
   Future<void> sendMessage({
     required String message,
     required String fromUserId,
@@ -195,64 +195,60 @@ class ChatSocketService {
     required String toUserId,
     required String toUserRole,
   }) async {
-    if (!SupabaseService.isInitialized) {
-      await SupabaseService.initialize();
-    }
-
-    final conversationId = [fromUserId, toUserId]..sort();
-    
+    final api = ApiService();
     try {
-      final response = await SupabaseService.client
-          .from('chat_messages')
-          .insert({
-            'conversation_id': conversationId.join(':'),
-            'from_user_id': fromUserId,
-            'from_user_role': fromUserRole,
-            'to_user_id': toUserId,
-            'to_user_role': toUserRole,
-            'message': message,
-            'is_read': false,
-          })
-          .select()
-          .single();
+      Map<String, dynamic> response;
+      
+      // Call the appropriate REST API endpoint based on user role
+      if (fromUserRole == 'student') {
+        response = await api.sendStudentMessage(
+          fromUserId: fromUserId,
+          toUserId: toUserId,
+          message: message,
+          toUserRole: toUserRole,
+        );
+      } else if (fromUserRole == 'teacher') {
+        response = await api.sendTeacherMessage(
+          fromUserId: fromUserId,
+          toUserId: toUserId,
+          message: message,
+          toUserRole: toUserRole,
+        );
+      } else if (fromUserRole == 'admin') {
+        response = await api.sendAdminMessage(
+          fromUserId: fromUserId,
+          toUserId: toUserId,
+          message: message,
+          toUserRole: toUserRole,
+        );
+      } else {
+        throw Exception('Invalid user role: $fromUserRole');
+      }
 
-      // Message will be broadcast via Realtime subscription
-      // But we can also add it optimistically
+      // Convert response to ChatMessage and add to stream
       final chatMessage = ChatMessage.fromMap(response);
       _messageController.add(chatMessage);
-        } catch (e) {
+    } catch (e) {
       print('Error sending message: $e');
       rethrow;
+    } finally {
+      api.close();
     }
   }
 
-  /// Mark messages as read
+  /// Mark messages as read (using REST API)
   Future<void> markAsRead(String userId, String targetUserId) async {
-    if (!SupabaseService.isInitialized) {
-      await SupabaseService.initialize();
-    }
-
-    final conversationId = [userId, targetUserId]..sort();
-    
-    try {
-      await SupabaseService.client
-          .from('chat_messages')
-          .update({
-            'is_read': true,
-            'read_at': DateTime.now().toIso8601String(),
-          })
-          .eq('conversation_id', conversationId.join(':'))
-          .eq('to_user_id', userId)
-          .eq('is_read', false);
-    } catch (e) {
-      print('Error marking messages as read: $e');
-    }
+    // Note: This would require a REST API endpoint for marking messages as read
+    // For now, we'll leave this as a placeholder since the backend has PUT /api/chat/read/:studentId
+    // but it's designed for admin marking student messages as read
+    print('Mark as read not yet implemented via REST API');
   }
 
-  /// Disconnect from Supabase Realtime
+  /// Disconnect from chat
   Future<void> disconnect() async {
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
     if (_channel != null) {
-      await SupabaseService.client.removeChannel(_channel!);
       _channel = null;
     }
     _isConnected = false;

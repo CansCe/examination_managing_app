@@ -2,6 +2,20 @@ import 'package:mongo_dart/mongo_dart.dart';
 import '../config/database_config.dart';
 import '../models/index.dart';
 import '../utils/mock_data_generator.dart';
+import 'index.dart';
+import 'api_service.dart';
+
+class DummyExamSetup {
+  final Exam exam;
+  final Map<String, dynamic>? assignedStudent;
+  final Map<String, dynamic>? submission;
+
+  DummyExamSetup({
+    required this.exam,
+    this.assignedStudent,
+    this.submission,
+  });
+}
 
 class AtlasService {
   static Db? _db;
@@ -10,21 +24,9 @@ class AtlasService {
   // Initialize connection to MongoDB Atlas
   static Future<void> init() async {
     if (!_isInitialized) {
-      try {
-        print('Connecting to MongoDB Atlas...');
-        print('Database: ${DatabaseConfig.databaseName}');
-        _db = await Db.create(DatabaseConfig.connectionString);
-        await _db!.open();
-        _isInitialized = true;
-        print('✓ Successfully connected to MongoDB Atlas');
-        print('✓ Connected to database: ${_db!.databaseName}');
-      } catch (e, stackTrace) {
-        print("❌ Error connecting to MongoDB Atlas: $e");
-        print("Stack trace: $stackTrace");
-        rethrow;
-      }
-    } else {
-      print('✓ MongoDB Atlas connection already initialized');
+      // REST-based implementation no longer requires a persistent MongoDB connection.
+      // Preserve existing API for legacy callers.
+      _isInitialized = true;
     }
   }
 
@@ -290,18 +292,8 @@ class AtlasService {
 
   // Get questions by their IDs
   static Future<List<Question>> getQuestionsByIds(List<ObjectId> questionIds) async {
-    await _ensureConnection();
     try {
-      final documents = await _db!.collection(DatabaseConfig.questionsCollection)
-          .find(where.oneFrom('_id', questionIds))
-          .toList();
-      
-      return documents.map((doc) {
-        // Convert ObjectId to String for the id field
-        final Map<String, dynamic> questionData = Map<String, dynamic>.from(doc);
-        questionData['id'] = doc['_id'].toString();
-        return Question.fromMap(questionData);
-      }).toList();
+      return MongoDBService.getQuestionsByIds(questionIds);
     } catch (e) {
       print('Error getting questions by IDs: $e');
       rethrow;
@@ -310,19 +302,11 @@ class AtlasService {
 
   // Find all teachers with pagination
   static Future<List<Teacher>> findTeachers({int page = 0, int limit = 20}) async {
-    await _ensureConnection();
     try {
-      final documents = await _db!.collection(DatabaseConfig.teachersCollection)
-          .find(where)
-          .skip(page * limit)
-          .take(limit)
-          .toList();
-      
-      return documents.map((doc) {
-        final Map<String, dynamic> teacherData = Map<String, dynamic>.from(doc);
-        teacherData['id'] = doc['_id'].toString();
-        return Teacher.fromMap(teacherData);
-      }).toList();
+      final api = ApiService();
+      final data = await api.getTeachers(page: page, limit: limit);
+      api.close();
+      return data.map((doc) => Teacher.fromMap(doc)).toList();
     } catch (e) {
       print('Error finding teachers: $e');
       rethrow;
@@ -331,19 +315,11 @@ class AtlasService {
 
   // Find all students with pagination
   static Future<List<Student>> findStudents({int page = 0, int limit = 20}) async {
-    await _ensureConnection();
     try {
-      final documents = await _db!.collection(DatabaseConfig.studentsCollection)
-          .find(where)
-          .skip(page * limit)
-          .take(limit)
-          .toList();
-      
-      return documents.map((doc) {
-        final Map<String, dynamic> studentData = Map<String, dynamic>.from(doc);
-        studentData['id'] = doc['_id'].toString();
-        return Student.fromMap(studentData);
-      }).toList();
+      final api = ApiService();
+      final data = await api.getStudents(page: page, limit: limit);
+      api.close();
+      return data.map((doc) => Student.fromMap(doc)).toList();
     } catch (e) {
       print('Error finding students: $e');
       rethrow;
@@ -352,26 +328,138 @@ class AtlasService {
 
   // Find all exams with pagination
   static Future<List<Exam>> findExams({int page = 0, int limit = 20}) async {
-    await _ensureConnection();
     try {
-      final documents = await _db!.collection(DatabaseConfig.examsCollection)
-          .find(where)
-          .skip(page * limit)
-          .take(limit)
-          .toList();
-      
-      final List<Exam> exams = [];
-      for (var doc in documents) {
-        final exam = Exam.fromMap(doc);
+      final api = ApiService();
+      final documents = await api.getExams(page: page, limit: limit);
+      api.close();
+
+      final List<Exam> exams = documents.map((doc) => Exam.fromMap(doc)).toList();
+      for (final exam in exams) {
         if (exam.questions.isNotEmpty) {
-          exam.populatedQuestions = await getQuestionsByIds(exam.questions);
+          exam.populatedQuestions = await MongoDBService.getQuestionsByIds(exam.questions);
         }
-        exams.add(exam);
       }
       return exams;
     } catch (e) {
       print('Error finding exams: $e');
       rethrow;
+    }
+  }
+
+  static Future<DummyExamSetup> createDummyExamScenario({
+    required String teacherId,
+    bool assignSampleStudent = true,
+  }) async {
+    final api = ApiService();
+    try {
+      final now = DateTime.now();
+      final subject = 'Demo Subject';
+      final questionTemplates = [
+        {
+          'questionText': 'What is the capital of France?',
+          'options': ['Paris', 'London', 'Berlin', 'Madrid'],
+          'correctAnswer': 'Paris',
+          'difficulty': 'easy',
+          'points': 1,
+        },
+        {
+          'questionText': 'Solve: 12 + 8 = ?',
+          'options': ['18', '20', '16', '22'],
+          'correctAnswer': '20',
+          'difficulty': 'easy',
+          'points': 1,
+        },
+        {
+          'questionText': 'Water freezes at what temperature (°C)?',
+          'options': ['0', '100', '-10', '50'],
+          'correctAnswer': '0',
+          'difficulty': 'medium',
+          'points': 2,
+        },
+      ];
+
+      final questionIds = <String>[];
+      final gradingTemplates = <Map<String, dynamic>>[];
+
+      for (final template in questionTemplates) {
+        final payload = {
+          'text': template['questionText'],
+          'questionText': template['questionText'],
+          'type': 'multiple-choice',
+          'subject': subject,
+          'topic': 'General Knowledge',
+          'difficulty': template['difficulty'],
+          'options': template['options'],
+          'correctAnswer': template['correctAnswer'],
+          'points': template['points'],
+          'createdBy': teacherId,
+        };
+
+        final insertedId = await api.createQuestion(payload);
+        questionIds.add(insertedId);
+        gradingTemplates.add({
+          'id': insertedId,
+          'points': template['points'],
+          'correctAnswer': template['correctAnswer'],
+        });
+      }
+
+      final examPayload = {
+        'title': 'Demo Exam ${now.millisecondsSinceEpoch}',
+        'description': 'Automatically generated exam for quick testing.',
+        'subject': subject,
+        'difficulty': 'medium',
+        'examDate': now.add(const Duration(days: 1)).toIso8601String(),
+        'examTime': '09:00',
+        'duration': 45,
+        'maxStudents': 30,
+        'questions': questionIds,
+        'createdBy': teacherId,
+        'status': 'scheduled',
+      };
+
+      final insertedExamId = await api.createExam(examPayload);
+      final examMap = await api.getExam(insertedExamId);
+      final exam = Exam.fromMap(examMap);
+
+      Map<String, dynamic>? assignedStudent;
+      Map<String, dynamic>? submission;
+
+      if (assignSampleStudent) {
+        final students = await api.getStudents(limit: 1);
+        if (students.isNotEmpty) {
+          assignedStudent = students.first;
+          final studentId = (assignedStudent['_id'] ?? assignedStudent['id'])?.toString();
+          if (studentId != null && studentId.length == 24) {
+            await api.assignStudentToExam(insertedExamId, studentId);
+
+            final answers = <String, String>{};
+            for (var index = 0; index < gradingTemplates.length; index++) {
+              answers['$index'] = gradingTemplates[index]['correctAnswer'] as String;
+            }
+
+            final submissionResponse = await api.submitExamAnswers(
+              examId: insertedExamId,
+              studentId: studentId,
+              answers: answers,
+              questions: gradingTemplates,
+              isTimeUp: false,
+            );
+            submission = submissionResponse['data'] as Map<String, dynamic>? ?? submissionResponse;
+          }
+        }
+      }
+
+      return DummyExamSetup(
+        exam: exam,
+        assignedStudent: assignedStudent,
+        submission: submission,
+      );
+    } catch (e) {
+      print('Error creating dummy exam scenario: $e');
+      rethrow;
+    } finally {
+      api.close();
     }
   }
 
@@ -415,57 +503,23 @@ class AtlasService {
     int page = 0,
     int limit = 20,
   }) async {
-    await _ensureConnection();
     try {
-      // Convert teacherId to ObjectId if it's a string
-      final ObjectId teacherObjectId = teacherId as ObjectId;
+      final api = ApiService();
+      final data = await api.getTeacherExams(
+        teacherId: teacherId,
+        page: page,
+        limit: limit,
+      );
+      api.close();
 
-      // Find the teacher by 'teacherId' (which is the _id as string)
-      final teacher = await _db!.collection(DatabaseConfig.teachersCollection)
-          .findOne(where.eq('_id', teacherObjectId));
-      
-      if (teacher == null) {
-        print('Teacher not found with ID: $teacherId');
-        return [];
-      }
+      final exams = data.map((doc) => Exam.fromMap(doc)).toList();
 
-      final List<ObjectId> createdExamIds = [];
-      if (teacher['createdExams'] is List) {
-        for (var id in teacher['createdExams'] as List) {
-          if (id is String) {
-            try {
-              createdExamIds.add(ObjectId.parse(id));
-            } catch (e) {
-              print('Warning: Invalid ObjectId string in createdExams: $id - $e');
-            }
-          } else if (id is ObjectId) {
-            createdExamIds.add(id);
-          } else {
-            print('Warning: Unexpected type in createdExams list: $id');
-          }
-        }
-      }
-
-      if (createdExamIds.isEmpty) {
-        print('No exams found for teacher: $teacherId');
-        return [];
-      }
-
-      // Then get the exam details
-      final documents = await _db!.collection(DatabaseConfig.examsCollection)
-          .find(where.oneFrom('_id', createdExamIds))
-          .skip(page * limit)
-          .take(limit)
-          .toList();
-      
-      final List<Exam> exams = [];
-      for (var doc in documents) {
-        final exam = Exam.fromMap(doc);
+      for (final exam in exams) {
         if (exam.questions.isNotEmpty) {
-          exam.populatedQuestions = await getQuestionsByIds(exam.questions);
+          exam.populatedQuestions = await MongoDBService.getQuestionsByIds(exam.questions);
         }
-        exams.add(exam);
       }
+
       return exams;
     } catch (e) {
       print('Error getting teacher exams: $e');
@@ -479,57 +533,23 @@ class AtlasService {
     int page = 0,
     int limit = 20,
   }) async {
-    await _ensureConnection();
     try {
-      // First get the student's assigned exams using _id (ObjectId)
-      final studentObjectId = ObjectId.fromHexString(studentId);
-      
-      final student = await _db!.collection(DatabaseConfig.studentsCollection)
-          .findOne(where.id(studentObjectId));
-      
-      if (student == null) {
-        print('Student not found with ID: $studentId');
-        return [];
-      }
+      final api = ApiService();
+      final data = await api.getStudentExams(
+        studentId: studentId,
+        page: page,
+        limit: limit,
+      );
+      api.close();
 
-      final List<ObjectId> assignedExamIds = [];
-      if (student['assignedExams'] is List) {
-        for (var id in student['assignedExams'] as List) {
-          if (id is String) {
-            try {
-              assignedExamIds.add(ObjectId.fromHexString(id));
-            } catch (e) {
-              print('Warning: Invalid ObjectId string in assignedExams: $id - $e');
-              // Optionally, skip this ID or handle it differently
-            }
-          } else if (id is ObjectId) {
-            assignedExamIds.add(id);
-          } else {
-            print('Warning: Unexpected type in assignedExams list: $id');
-          }
-        }
-      }
+      final exams = data.map((doc) => Exam.fromMap(doc)).toList();
 
-      if (assignedExamIds.isEmpty) {
-        print('No assigned exams found for student: $studentId');
-        return [];
-      }
-
-      // Then get the exam details
-      final documents = await _db!.collection(DatabaseConfig.examsCollection)
-          .find(where.oneFrom('_id', assignedExamIds))
-          .skip(page * limit)
-          .take(limit)
-          .toList();
-      
-      final List<Exam> exams = [];
-      for (var doc in documents) {
-        final exam = Exam.fromMap(doc);
+      for (final exam in exams) {
         if (exam.questions.isNotEmpty) {
-          exam.populatedQuestions = await getQuestionsByIds(exam.questions);
+          exam.populatedQuestions = await MongoDBService.getQuestionsByIds(exam.questions);
         }
-        exams.add(exam);
       }
+
       return exams;
     } catch (e) {
       print('Error getting student exams: $e');
@@ -542,15 +562,11 @@ class AtlasService {
     required String examId,
     required String status,
   }) async {
-    await _ensureConnection();
     try {
-      final result = await _db!.collection(DatabaseConfig.examsCollection).updateOne(
-        where.id(ObjectId.fromHexString(examId)),
-        modify
-          .set('status', status)
-          .set('updatedAt', DateTime.now().toIso8601String()),
-      );
-      return result.isSuccess;
+      final api = ApiService();
+      final success = await api.updateExamStatus(examId, status);
+      api.close();
+      return success;
     } catch (e) {
       print("Error updating exam status: $e");
       rethrow;
@@ -563,16 +579,16 @@ class AtlasService {
     required String status,
     required DateTime newDate,
   }) async {
-    await _ensureConnection();
     try {
-      final result = await _db!.collection(DatabaseConfig.examsCollection).updateOne(
-        where.id(ObjectId.fromHexString(examId)),
-        modify
-          .set('status', status)
-          .set('examDate', newDate.toIso8601String())
-          .set('updatedAt', DateTime.now().toIso8601String()),
-      );
-      return result.isSuccess;
+      final api = ApiService();
+      final payload = {
+        'status': status,
+        'examDate': newDate.toIso8601String(),
+        'updatedAt': DateTime.now().toIso8601String(),
+      };
+      final success = await api.updateExam(examId, payload);
+      api.close();
+      return success;
     } catch (e) {
       print("Error updating exam: $e");
       rethrow;
@@ -660,50 +676,11 @@ class AtlasService {
     required String studentId,
     required String examId,
   }) async {
-    await _ensureConnection();
     try {
-      String? extractHex(String input) {
-        final match = RegExp(r'([a-fA-F0-9]{24})').firstMatch(input);
-        return match?.group(1);
-      }
-      final studentHex = extractHex(studentId) ?? studentId;
-      final examHex = extractHex(examId) ?? examId;
-      final studentObjectId = ObjectId.fromHexString(studentHex);
-      final examObjectId = ObjectId.fromHexString(examHex);
-
-      // Get current assigned exams
-      final student = await _db!.collection(DatabaseConfig.studentsCollection)
-          .findOne(where.id(studentObjectId));
-
-      if (student == null) {
-        throw Exception('Student not found');
-      }
-
-      final List<ObjectId> currentAssignedExams = [];
-      if (student['assignedExams'] is List) {
-        for (var id in student['assignedExams'] as List) {
-          if (id is String) {
-            currentAssignedExams.add(ObjectId.fromHexString(id));
-          } else if (id is ObjectId) {
-            currentAssignedExams.add(id);
-          }
-        }
-      }
-
-      // Check if already assigned
-      if (currentAssignedExams.any((id) => id.toHexString() == examHex)) {
-        return true; // Already assigned
-      }
-
-      // Add the new exam
-      currentAssignedExams.add(examObjectId);
-
-      final result = await _db!.collection(DatabaseConfig.studentsCollection).updateOne(
-        where.id(studentObjectId),
-        modify.set('assignedExams', currentAssignedExams),
-      );
-
-      return result.isSuccess;
+      final api = ApiService();
+      final success = await api.assignStudentToExam(examId, studentId);
+      api.close();
+      return success;
     } catch (e) {
       print("Error assigning student to exam: $e");
       rethrow;
@@ -715,45 +692,11 @@ class AtlasService {
     required String studentId,
     required String examId,
   }) async {
-    await _ensureConnection();
     try {
-      String? extractHex(String input) {
-        final match = RegExp(r'([a-fA-F0-9]{24})').firstMatch(input);
-        return match?.group(1);
-      }
-      final studentHex = extractHex(studentId) ?? studentId;
-      final examHex = extractHex(examId) ?? examId;
-      final studentObjectId = ObjectId.fromHexString(studentHex);
-      final examObjectId = ObjectId.fromHexString(examHex);
-
-      // Get current assigned exams
-      final student = await _db!.collection(DatabaseConfig.studentsCollection)
-          .findOne(where.id(studentObjectId));
-
-      if (student == null) {
-        throw Exception('Student not found');
-      }
-
-      final List<ObjectId> currentAssignedExams = [];
-      if (student['assignedExams'] is List) {
-        for (var id in student['assignedExams'] as List) {
-          if (id is String) {
-            currentAssignedExams.add(ObjectId.fromHexString(id));
-          } else if (id is ObjectId) {
-            currentAssignedExams.add(id);
-          }
-        }
-      }
-
-      // Remove the exam
-      currentAssignedExams.removeWhere((id) => id.toHexString() == examHex);
-
-      final result = await _db!.collection(DatabaseConfig.studentsCollection).updateOne(
-        where.id(studentObjectId),
-        modify.set('assignedExams', currentAssignedExams),
-      );
-
-      return result.isSuccess;
+      final api = ApiService();
+      final success = await api.unassignStudentFromExam(examId, studentId);
+      api.close();
+      return success;
     } catch (e) {
       print("Error unassigning student from exam: $e");
       rethrow;
@@ -765,20 +708,12 @@ class AtlasService {
     required String examId,
     int limit = 1000,
   }) async {
-    await _ensureConnection();
     try {
-      final examObjectId = ObjectId.fromHexString(examId);
-      
-      final students = await _db!.collection(DatabaseConfig.studentsCollection)
-          .find(where.oneFrom('assignedExams', [examObjectId]))
-          .take(limit)
-          .toList();
+      final api = ApiService();
+      final data = await api.getStudentsAssignedToExam(examId);
+      api.close();
 
-      return students.map((doc) {
-        final Map<String, dynamic> studentData = Map<String, dynamic>.from(doc);
-        studentData['id'] = doc['_id'].toString();
-        return Student.fromMap(studentData);
-      }).toList();
+      return data.take(limit).map((doc) => Student.fromMap(doc)).toList();
     } catch (e) {
       print('Error getting students assigned to exam: $e');
       rethrow;
@@ -944,74 +879,32 @@ class AtlasService {
     bool isTimeUp = false,
     required List<Question> questions, // Questions to compare answers against
   }) async {
-    await _ensureConnection();
     try {
-      final examObjectId = ObjectId.fromHexString(examId);
-      final studentObjectId = ObjectId.fromHexString(studentId);
-      
-      // Convert answers map to a format suitable for database storage
-      final Map<String, String> answersMap = {};
-      answers.forEach((questionIndex, answer) {
-        answersMap[questionIndex.toString()] = answer;
+      final api = ApiService();
+
+      final formattedAnswers = <String, String>{};
+      answers.forEach((index, value) {
+        formattedAnswers[index.toString()] = value;
       });
-      
-      // Auto-grade the exam
-      int totalQuestions = questions.length;
-      int correctAnswers = 0;
-      int totalPoints = 0;
-      int earnedPoints = 0;
-      Map<int, bool> questionResults = {};
-      
-      for (int i = 0; i < questions.length; i++) {
-        final question = questions[i];
-        final studentAnswer = answers[i];
-        
-        totalPoints += question.points;
-        
-        // Check if the answer is correct
-        bool isCorrect = false;
-        if (studentAnswer != null && studentAnswer == question.correctAnswer) {
-          isCorrect = true;
-          correctAnswers++;
-          earnedPoints += question.points;
-        }
-        
-        questionResults[i] = isCorrect;
-      }
-      
-      // Calculate percentage score
-      double percentageScore = totalQuestions > 0 
-          ? (correctAnswers / totalQuestions) * 100 
-          : 0.0;
-      
-      final examResult = {
-        '_id': ObjectId(),
-        'examId': examObjectId,
-        'studentId': studentObjectId,
-        'answers': answersMap,
-        'submittedAt': submittedAt.toIso8601String(),
-        'isTimeUp': isTimeUp,
-        'createdAt': DateTime.now().toIso8601String(),
-        'status': 'graded',
-        'totalQuestions': totalQuestions,
-        'correctAnswers': correctAnswers,
-        'earnedPoints': earnedPoints,
-        'totalPoints': totalPoints,
-        'percentageScore': percentageScore,
-        'gradedAt': DateTime.now().toIso8601String(),
-      };
-      
-      await _db!.collection(DatabaseConfig.examResultsCollection).insert(examResult);
-      print('Exam answers submitted and auto-graded successfully: $correctAnswers/$totalQuestions correct');
-      
-      // Return grading results
-      return {
-        'totalQuestions': totalQuestions,
-        'correctAnswers': correctAnswers,
-        'earnedPoints': earnedPoints,
-        'totalPoints': totalPoints,
-        'percentageScore': percentageScore,
-      };
+
+      final questionPayloads = questions.map((q) {
+        return {
+          'id': q.id.toHexString(),
+          'correctAnswer': q.correctAnswer,
+          'points': q.points,
+        };
+      }).toList();
+
+      final response = await api.submitExamAnswers(
+        examId: examId,
+        studentId: studentId,
+        answers: formattedAnswers,
+        questions: questionPayloads,
+        isTimeUp: isTimeUp,
+      );
+      api.close();
+
+      return response['data'] as Map<String, dynamic>? ?? response;
     } catch (e) {
       print('Error submitting exam answers: $e');
       rethrow;
