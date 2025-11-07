@@ -1,11 +1,10 @@
 import 'dart:async';
-import 'package:mongo_dart/mongo_dart.dart';
-import 'package:socket_io_client/socket_io_client.dart' as IO;
-import '../config/api_config.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'supabase_service.dart';
 import 'api_service.dart';
 
 class ChatMessage {
-  final ObjectId id;
+  final String id; // Changed from ObjectId to String (UUID)
   final String fromUserId;
   final String fromUserRole; // 'student', 'teacher', or 'admin'
   final String toUserId;
@@ -13,6 +12,7 @@ class ChatMessage {
   final String message;
   final DateTime timestamp;
   final bool isRead;
+  final String? conversationId;
 
   ChatMessage({
     required this.id,
@@ -23,63 +23,46 @@ class ChatMessage {
     required this.message,
     required this.timestamp,
     this.isRead = false,
+    this.conversationId,
   });
 
   factory ChatMessage.fromMap(Map<String, dynamic> map) {
-    ObjectId messageId;
-    if (map['_id'] is String) {
-      messageId = ObjectId.fromHexString(map['_id']);
-    } else if (map['_id'] is ObjectId) {
-      messageId = map['_id'];
-    } else if (map['_id'] != null) {
-      // Handle ObjectId-like objects from MongoDB
-      try {
-        messageId = ObjectId.fromHexString(map['_id'].toString());
-      } catch (e) {
-        messageId = ObjectId();
-      }
-    } else {
-      messageId = ObjectId();
-    }
-
-    // Helper to convert ObjectId to string
+    // Handle both MongoDB format (_id) and Supabase format (id)
+    String messageId = map['id'] ?? map['_id']?.toString() ?? '';
+    
+    // Helper to convert any ID format to string
     String convertToString(dynamic value) {
       if (value is String) return value;
-      if (value is ObjectId) return value.toHexString();
-      if (value != null) {
-        try {
-          return ObjectId.fromHexString(value.toString()).toHexString();
-        } catch (e) {
-          return value.toString();
-        }
-      }
+      if (value != null) return value.toString();
       return '';
     }
 
     return ChatMessage(
       id: messageId,
-      fromUserId: convertToString(map['fromUserId']),
-      fromUserRole: map['fromUserRole'] ?? 'student',
-      toUserId: convertToString(map['toUserId']),
-      toUserRole: map['toUserRole'] ?? 'student',
+      fromUserId: convertToString(map['from_user_id'] ?? map['fromUserId']),
+      fromUserRole: map['from_user_role'] ?? map['fromUserRole'] ?? 'student',
+      toUserId: convertToString(map['to_user_id'] ?? map['toUserId']),
+      toUserRole: map['to_user_role'] ?? map['toUserRole'] ?? 'student',
       message: map['message'] ?? '',
       timestamp: map['timestamp'] is DateTime 
           ? map['timestamp'] 
           : DateTime.parse(map['timestamp'] ?? DateTime.now().toIso8601String()),
-      isRead: map['isRead'] ?? false,
+      isRead: map['is_read'] ?? map['isRead'] ?? false,
+      conversationId: map['conversation_id'] ?? map['conversationId'],
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
-      '_id': id.toHexString(),
-      'fromUserId': fromUserId,
-      'fromUserRole': fromUserRole,
-      'toUserId': toUserId,
-      'toUserRole': toUserRole,
+      'id': id,
+      'from_user_id': fromUserId,
+      'from_user_role': fromUserRole,
+      'to_user_id': toUserId,
+      'to_user_role': toUserRole,
       'message': message,
       'timestamp': timestamp.toIso8601String(),
-      'isRead': isRead,
+      'is_read': isRead,
+      'conversation_id': conversationId,
     };
   }
 
@@ -89,127 +72,194 @@ class ChatMessage {
 }
 
 class ChatSocketService {
-  IO.Socket? _socket;
-  final String _socketUrl;
-  bool _isConnected = false;
+  RealtimeChannel? _channel;
   final StreamController<ChatMessage> _messageController = StreamController<ChatMessage>.broadcast();
   final StreamController<List<ChatMessage>> _historyController = StreamController<List<ChatMessage>>.broadcast();
-
-  ChatSocketService({String? socketUrl}) 
-      : _socketUrl = socketUrl ?? ApiConfig.baseUrl.replaceFirst('http://', 'ws://').replaceFirst('https://', 'wss://').replaceFirst('localhost', 'localhost:3000');
+  bool _isConnected = false;
+  String? _conversationId;
 
   Stream<ChatMessage> get messageStream => _messageController.stream;
   Stream<List<ChatMessage>> get historyStream => _historyController.stream;
   bool get isConnected => _isConnected;
 
-  /// Connect to the chat server
-  void connect({
+  /// Connect to the chat using Supabase Realtime
+  Future<void> connect({
     required String userId,
     required String userRole,
     required String targetUserId,
     required String targetUserRole,
-  }) {
-    if (_socket != null && _isConnected) {
-      disconnect();
+  }) async {
+    if (!SupabaseService.isInitialized) {
+      await SupabaseService.initialize();
     }
 
-    _socket = IO.io(_socketUrl, <String, dynamic>{
-      'transports': ['websocket'],
-      'autoConnect': false,
-    });
+    // Disconnect existing connection
+    if (_channel != null) {
+      await disconnect();
+    }
 
-    _socket!.connect();
+    final sortedIds = [userId, targetUserId]..sort();
+    _conversationId = sortedIds.join(':');
+    final conversationId = _conversationId!;
 
-    _socket!.on('connect', (_) {
+    print('Connecting to Supabase Realtime for conversation: $conversationId');
+
+    try {
+      // Subscribe to chat_messages table changes for this conversation
+      _channel = SupabaseService.client
+          .channel('chat:$conversationId')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.insert,
+            schema: 'public',
+            table: 'chat_messages',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'conversation_id',
+              value: conversationId,
+            ),
+            callback: (payload) {
+              try {
+                final message = ChatMessage.fromMap(payload.newRecord);
+                _messageController.add(message);
+              } catch (e) {
+                print('Error parsing new message: $e');
+              }
+            },
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.update,
+            schema: 'public',
+            table: 'chat_messages',
+            filter: PostgresChangeFilter(
+              type: PostgresChangeFilterType.eq,
+              column: 'conversation_id',
+              value: conversationId,
+            ),
+            callback: (payload) {
+              // Handle message updates (e.g., read status)
+              try {
+                final message = ChatMessage.fromMap(payload.newRecord);
+                _messageController.add(message);
+              } catch (e) {
+                print('Error parsing updated message: $e');
+              }
+            },
+          )
+          .subscribe((status, [error]) {
+            if (status == RealtimeSubscribeStatus.subscribed) {
+              _isConnected = true;
+              print('✓ Connected to Supabase Realtime');
+              // Load chat history
+              _loadChatHistory(userId, targetUserId);
+            } else {
+              _isConnected = false;
+              print('✗ Supabase Realtime status: $status, error: $error');
+            }
+          });
+
       _isConnected = true;
-      print('✓ Connected to chat server');
-      
-      // Join chat room
-      _socket!.emit('join_chat', {
-        'userId': userId,
-        'userRole': userRole,
-        'targetUserId': targetUserId,
-        'targetUserRole': targetUserRole,
-      });
-    });
-
-    _socket!.on('disconnect', (_) {
+    } catch (e) {
       _isConnected = false;
-      print('✗ Disconnected from chat server');
-    });
-
-    _socket!.on('new_message', (data) {
-      try {
-        final messageData = data['message'] as Map<String, dynamic>;
-        final message = ChatMessage.fromMap(messageData);
-        _messageController.add(message);
-      } catch (e) {
-        print('Error parsing new message: $e');
-      }
-    });
-
-    _socket!.on('chat_history', (data) {
-      try {
-        final messages = (data['messages'] as List)
-            .map((m) => ChatMessage.fromMap(m as Map<String, dynamic>))
-            .toList();
-        _historyController.add(messages);
-      } catch (e) {
-        print('Error parsing chat history: $e');
-      }
-    });
-
-    _socket!.on('error', (data) {
-      print('Socket error: $data');
-    });
-
-    _socket!.on('messages_read', (_) {
-      // Handle read receipt if needed
-    });
+      print('✗ Error connecting to Supabase Realtime: $e');
+      rethrow;
+    }
   }
 
-  /// Send a message
-  void sendMessage({
+  /// Load chat history from Supabase
+  Future<void> _loadChatHistory(String userId, String targetUserId) async {
+    try {
+      final conversationId = [userId, targetUserId]..sort();
+      final thirtyDaysAgo = DateTime.now().subtract(const Duration(days: 30));
+
+      final response = await SupabaseService.client
+          .from('chat_messages')
+          .select()
+          .eq('conversation_id', conversationId.join(':'))
+          .gte('timestamp', thirtyDaysAgo.toIso8601String())
+          .order('timestamp', ascending: true);
+
+      final messages = (response as List)
+          .map((m) => ChatMessage.fromMap(m as Map<String, dynamic>))
+          .toList();
+      _historyController.add(messages);
+        } catch (e) {
+      print('Error loading chat history: $e');
+    }
+  }
+
+  /// Send a message via Supabase
+  Future<void> sendMessage({
     required String message,
     required String fromUserId,
     required String fromUserRole,
     required String toUserId,
     required String toUserRole,
-  }) {
-    if (!_isConnected || _socket == null) {
-      throw Exception('Not connected to chat server');
+  }) async {
+    if (!SupabaseService.isInitialized) {
+      await SupabaseService.initialize();
     }
 
-    _socket!.emit('send_message', {
-      'message': message,
-      'fromUserId': fromUserId,
-      'fromUserRole': fromUserRole,
-      'toUserId': toUserId,
-      'toUserRole': toUserRole,
-    });
+    final conversationId = [fromUserId, toUserId]..sort();
+    
+    try {
+      final response = await SupabaseService.client
+          .from('chat_messages')
+          .insert({
+            'conversation_id': conversationId.join(':'),
+            'from_user_id': fromUserId,
+            'from_user_role': fromUserRole,
+            'to_user_id': toUserId,
+            'to_user_role': toUserRole,
+            'message': message,
+            'is_read': false,
+          })
+          .select()
+          .single();
+
+      // Message will be broadcast via Realtime subscription
+      // But we can also add it optimistically
+      final chatMessage = ChatMessage.fromMap(response);
+      _messageController.add(chatMessage);
+        } catch (e) {
+      print('Error sending message: $e');
+      rethrow;
+    }
   }
 
   /// Mark messages as read
-  void markAsRead(String userId, String targetUserId) {
-    if (!_isConnected || _socket == null) {
-      return;
+  Future<void> markAsRead(String userId, String targetUserId) async {
+    if (!SupabaseService.isInitialized) {
+      await SupabaseService.initialize();
     }
 
-    _socket!.emit('mark_read', {
-      'userId': userId,
-      'targetUserId': targetUserId,
-    });
+    final conversationId = [userId, targetUserId]..sort();
+    
+    try {
+      await SupabaseService.client
+          .from('chat_messages')
+          .update({
+            'is_read': true,
+            'read_at': DateTime.now().toIso8601String(),
+          })
+          .eq('conversation_id', conversationId.join(':'))
+          .eq('to_user_id', userId)
+          .eq('is_read', false);
+    } catch (e) {
+      print('Error marking messages as read: $e');
+    }
   }
 
-  /// Disconnect from the server
-  void disconnect() {
-    _socket?.disconnect();
-    _socket?.dispose();
-    _socket = null;
+  /// Disconnect from Supabase Realtime
+  Future<void> disconnect() async {
+    if (_channel != null) {
+      await SupabaseService.client.removeChannel(_channel!);
+      _channel = null;
+    }
     _isConnected = false;
+    _conversationId = null;
   }
 
-  /// Get messages via REST API (fallback when WebSocket is not available)
+  /// Get messages via REST API (fallback when Realtime is not available)
   Future<List<ChatMessage>> getMessages({
     required String userId,
     required String targetUserId,
@@ -272,11 +322,9 @@ class ChatService {
 
   /// Get messages for a student (backward compatibility - use getMessages instead)
   static Future<List<ChatMessage>> getStudentMessages(String studentId) async {
-    // This method signature is deprecated - use getMessages with both userId and targetUserId
     throw UnimplementedError('Use ChatService.getMessages(userId, targetUserId) instead');
   }
 
-  // These methods should be migrated to use ChatSocketService
   static Future<void> sendStudentMessage({
     required String studentId,
     required String message,
@@ -314,7 +362,6 @@ class ChatService {
       final api = ApiService();
       final data = await api.getChatConversations();
       api.close();
-      // Each item contains studentId
       return data
         .map((c) => (c['studentId'] ?? (c['student']?['id']))?.toString())
         .whereType<String>()

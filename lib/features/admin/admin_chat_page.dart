@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:mongo_dart/mongo_dart.dart' hide State,Center;
+import 'package:uuid/uuid.dart';
 import '../../services/index.dart';
 import '../../models/index.dart';
+
+const _uuid = Uuid();
 
 class AdminChatPage extends StatefulWidget {
   final String adminId;
@@ -358,7 +360,7 @@ class AdminChatConversationPage extends StatefulWidget {
 
 class _AdminChatConversationPageState
     extends State<AdminChatConversationPage> {
-  List<ChatMessage> _messages = [];
+  final List<ChatMessage> _messages = [];
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isLoadingMessages = true;
@@ -496,7 +498,7 @@ class _AdminChatConversationPageState
         setState(() {
           // Only add if not already in the list (check by ID or by content+timestamp for optimistic messages)
           final exists = _messages.any((m) => 
-            m.id.toHexString() == message.id.toHexString() ||
+            m.id == message.id ||
             (m.message == message.message && 
              m.fromUserId == message.fromUserId && 
              (m.timestamp.difference(message.timestamp).inSeconds.abs() < 2))
@@ -532,7 +534,7 @@ class _AdminChatConversationPageState
 
     // Optimistically add message to UI immediately (like Messenger)
     final tempMessage = ChatMessage(
-      id: ObjectId(),
+      id: _uuid.v4(), // Generate UUID for temporary message
       fromUserId: widget.adminId,
       fromUserRole: 'admin',
       toUserId: widget.student.id,

@@ -315,14 +315,14 @@ class _QuestionEditPageState extends State<QuestionEditPage> {
                       border: OutlineInputBorder(),
                       helperText: 'Required',
                     ),
-                    items: [
+                    items: const [
                       DropdownMenuItem(
                         value: 'multiple_choice',
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.radio_button_checked, size: 20),
-                            const SizedBox(width: 8),
+                            Icon(Icons.radio_button_checked, size: 20),
+                            SizedBox(width: 8),
                             Flexible(
                               child: Text(
                                 'Option Question (Multiple Choice)',
@@ -337,8 +337,8 @@ class _QuestionEditPageState extends State<QuestionEditPage> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(Icons.edit, size: 20),
-                            const SizedBox(width: 8),
+                            Icon(Icons.edit, size: 20),
+                            SizedBox(width: 8),
                             Flexible(
                               child: Text(
                                 'Fill In Question',

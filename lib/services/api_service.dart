@@ -8,13 +8,19 @@ import 'package:exam_management_app/models/index.dart';
 class ApiService {
   final http.Client _client;
   final String _baseUrl;
+  final String _chatBaseUrl;
 
-  ApiService({http.Client? client, String? baseUrl})
+  ApiService({http.Client? client, String? baseUrl, String? chatBaseUrl})
       : _client = client ?? http.Client(),
-        _baseUrl = baseUrl ?? ApiConfig.baseUrl;
+        _baseUrl = baseUrl ?? ApiConfig.baseUrl,
+        _chatBaseUrl = chatBaseUrl ?? ApiConfig.chatBaseUrl;
 
   Uri _buildUri(String path, [Map<String, String>? query]) {
     return Uri.parse('$_baseUrl$path').replace(queryParameters: query);
+  }
+
+  Uri _buildChatUri(String path, [Map<String, String>? query]) {
+    return Uri.parse('$_chatBaseUrl$path').replace(queryParameters: query);
   }
 
   Future<Map<String, dynamic>> getExam(String id) async {
@@ -59,7 +65,7 @@ class ApiService {
           errorMsg.contains('Failed host lookup') ||
           errorMsg.contains('Network is unreachable')) {
         throw ApiException(
-          'Backend server is not running. Please start the backend server at $_baseUrl',
+          'Chat service is not running. Please start the chat service at $_chatBaseUrl',
           0,
           errorMsg,
         );
@@ -200,7 +206,7 @@ class ApiService {
           errorMsg.contains('Failed host lookup') ||
           errorMsg.contains('Network is unreachable')) {
         throw ApiException(
-          'Backend server is not running. Please start the backend server at $_baseUrl',
+          'Chat service is not running. Please start the chat service at $_chatBaseUrl',
           0,
           errorMsg,
         );
@@ -214,7 +220,7 @@ class ApiService {
     required String userId,
     required String targetUserId,
   }) async {
-    final uri = _buildUri('/api/chat/conversation', {
+    final uri = _buildChatUri('/api/chat/conversation', {
       'userId': userId,
       'targetUserId': targetUserId,
     });
@@ -259,7 +265,7 @@ class ApiService {
           errorMsg.contains('Failed host lookup') ||
           errorMsg.contains('Network is unreachable')) {
         throw ApiException(
-          'Backend server is not running. Please start the backend server at $_baseUrl',
+          'Chat service is not running. Please start the chat service at $_chatBaseUrl',
           0,
           errorMsg,
         );
@@ -270,7 +276,7 @@ class ApiService {
 
   /// Get all chat conversations summary (students with history, unread counts)
   Future<List<Map<String, dynamic>>> getChatConversations() async {
-    final uri = _buildUri('/api/chat/conversations');
+    final uri = _buildChatUri('/api/chat/conversations');
     try {
       final response = await _client.get(uri, headers: {
         'accept': 'application/json',
@@ -292,7 +298,7 @@ class ApiService {
           errorMsg.contains('Failed host lookup') ||
           errorMsg.contains('Network is unreachable')) {
         throw ApiException(
-          'Backend server is not running. Please start the backend server at $_baseUrl',
+          'Chat service is not running. Please start the chat service at $_chatBaseUrl',
           0,
           errorMsg,
         );
@@ -303,7 +309,7 @@ class ApiService {
 
   /// Get unread messages (from students)
   Future<List<Map<String, dynamic>>> getUnreadChatMessages() async {
-    final uri = _buildUri('/api/chat/unread');
+    final uri = _buildChatUri('/api/chat/unread');
     try {
       final response = await _client.get(uri, headers: {
         'accept': 'application/json',
@@ -325,7 +331,7 @@ class ApiService {
           errorMsg.contains('Failed host lookup') ||
           errorMsg.contains('Network is unreachable')) {
         throw ApiException(
-          'Backend server is not running. Please start the backend server at $_baseUrl',
+          'Chat service is not running. Please start the chat service at $_chatBaseUrl',
           0,
           errorMsg,
         );
@@ -336,7 +342,7 @@ class ApiService {
 
   /// Get default admin id for helpdesk
   Future<String?> getDefaultAdminId() async {
-    final uri = _buildUri('/api/chat/default-admin');
+    final uri = _buildChatUri('/api/chat/default-admin');
     try {
       final response = await _client.get(uri, headers: {
         'accept': 'application/json',
@@ -359,7 +365,7 @@ class ApiService {
           errorMsg.contains('Failed host lookup') ||
           errorMsg.contains('Network is unreachable')) {
         throw ApiException(
-          'Backend server is not running. Please start the backend server at $_baseUrl',
+          'Chat service is not running. Please start the chat service at $_chatBaseUrl',
           0,
           errorMsg,
         );
@@ -373,7 +379,7 @@ class ApiService {
     required String userId,
     required String targetUserId,
   }) async {
-    final uri = _buildUri('/api/chat/conversation/$userId/$targetUserId/metadata');
+    final uri = _buildChatUri('/api/chat/conversation/$userId/$targetUserId/metadata');
     try {
       final response = await _client.get(uri, headers: {
         'accept': 'application/json',
@@ -395,7 +401,7 @@ class ApiService {
           errorMsg.contains('Failed host lookup') ||
           errorMsg.contains('Network is unreachable')) {
         throw ApiException(
-          'Backend server is not running. Please start the backend server at $_baseUrl',
+          'Chat service is not running. Please start the chat service at $_chatBaseUrl',
           0,
           errorMsg,
         );
@@ -412,7 +418,7 @@ class ApiService {
     String? priority,
     String? assignedAdmin,
   }) async {
-    final uri = _buildUri('/api/chat/conversation');
+    final uri = _buildChatUri('/api/chat/conversation');
     try {
       final response = await _client.post(
         uri,
@@ -457,7 +463,7 @@ class ApiService {
     if (priority != null) queryParams['priority'] = priority;
     if (assignedAdmin != null) queryParams['assignedAdmin'] = assignedAdmin;
     
-    final uri = _buildUri('/api/chat/conversation/$userId/$targetUserId', queryParams);
+    final uri = _buildChatUri('/api/chat/conversation/$userId/$targetUserId', queryParams);
     try {
       final response = await _client.delete(
         uri,
@@ -479,7 +485,7 @@ class ApiService {
           errorMsg.contains('Failed host lookup') ||
           errorMsg.contains('Network is unreachable')) {
         throw ApiException(
-          'Backend server is not running. Please start the backend server at $_baseUrl',
+          'Chat service is not running. Please start the chat service at $_chatBaseUrl',
           0,
           errorMsg,
         );

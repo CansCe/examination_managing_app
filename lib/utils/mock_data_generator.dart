@@ -230,12 +230,12 @@ class MockDataGenerator {
       final adminId = ObjectId();
       final admin = {
         '_id': adminId,
-        'firstName': 'Admin${i}',
+        'firstName': 'Admin$i',
         'lastName': 'Support',
-        'email': 'admin${i}@school.com',
-        'username': 'admin${i}',
+        'email': 'admin$i@school.com',
+        'username': 'admin$i',
         'password': '12345678', // Default password
-        'fullName': 'Admin${i} Support',
+        'fullName': 'Admin$i Support',
         'role': 'admin',
         'isActive': true,
         'createdAt': DateTime.now(),

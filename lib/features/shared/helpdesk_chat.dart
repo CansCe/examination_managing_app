@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:mongo_dart/mongo_dart.dart' hide State, Center;
+import 'package:uuid/uuid.dart';
 import '../../services/index.dart';
+
+const _uuid = Uuid();
 
 class HelpdeskChat extends StatefulWidget {
   final String? studentId;
@@ -84,7 +86,7 @@ class _HelpdeskChatState extends State<HelpdeskChat> {
         setState(() {
           // Only add if not already in the list (check by ID or by content+timestamp for optimistic messages)
           final exists = _messages.any((m) => 
-            m.id.toHexString() == message.id.toHexString() ||
+            m.id == message.id ||
             (m.message == message.message && 
              m.fromUserId == message.fromUserId && 
              (m.timestamp.difference(message.timestamp).inSeconds.abs() < 2))
@@ -107,13 +109,23 @@ class _HelpdeskChatState extends State<HelpdeskChat> {
     if (widget.studentId == null || _resolvedTargetId == null) return;
     
     final text = _controller.text.trim();
-    if (text.isEmpty || _chatService == null) return;
+    if (text.isEmpty) return;
+    
+    if (_chatService == null || !_chatService!.isConnected) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Not connected to chat server. Please wait for connection.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
     
     _controller.clear();
     
     // Optimistically add message to UI immediately (like Messenger)
     final tempMessage = ChatMessage(
-      id: ObjectId(),
+      id: _uuid.v4(), // Generate UUID for temporary message
       fromUserId: widget.studentId!,
       fromUserRole: widget.userRole ?? 'student',
       toUserId: _resolvedTargetId!,
@@ -214,9 +226,15 @@ class _HelpdeskChatState extends State<HelpdeskChat> {
                   ),
                   const Spacer(),
                   if (_chatService != null && _chatService!.isConnected)
-                    const Icon(Icons.circle, color: Colors.green, size: 12)
+                    const Tooltip(
+                      message: 'Connected',
+                      child: Icon(Icons.circle, color: Colors.green, size: 12),
+                    )
                   else
-                    const Icon(Icons.circle, color: Colors.red, size: 12),
+                    const Tooltip(
+                      message: 'Disconnected - Check server connection',
+                      child: Icon(Icons.circle, color: Colors.red, size: 12),
+                    ),
                   const SizedBox(width: 8),
                   IconButton(
                     icon: const Icon(Icons.close, color: Colors.white),

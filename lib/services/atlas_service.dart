@@ -662,12 +662,12 @@ class AtlasService {
   }) async {
     await _ensureConnection();
     try {
-      String? _extractHex(String input) {
+      String? extractHex(String input) {
         final match = RegExp(r'([a-fA-F0-9]{24})').firstMatch(input);
-        return match != null ? match.group(1) : null;
+        return match?.group(1);
       }
-      final studentHex = _extractHex(studentId) ?? studentId;
-      final examHex = _extractHex(examId) ?? examId;
+      final studentHex = extractHex(studentId) ?? studentId;
+      final examHex = extractHex(examId) ?? examId;
       final studentObjectId = ObjectId.fromHexString(studentHex);
       final examObjectId = ObjectId.fromHexString(examHex);
 
@@ -717,12 +717,12 @@ class AtlasService {
   }) async {
     await _ensureConnection();
     try {
-      String? _extractHex(String input) {
+      String? extractHex(String input) {
         final match = RegExp(r'([a-fA-F0-9]{24})').firstMatch(input);
-        return match != null ? match.group(1) : null;
+        return match?.group(1);
       }
-      final studentHex = _extractHex(studentId) ?? studentId;
-      final examHex = _extractHex(examId) ?? examId;
+      final studentHex = extractHex(studentId) ?? studentId;
+      final examHex = extractHex(examId) ?? examId;
       final studentObjectId = ObjectId.fromHexString(studentHex);
       final examObjectId = ObjectId.fromHexString(examHex);
 

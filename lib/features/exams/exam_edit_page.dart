@@ -510,8 +510,8 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Flexible(
-                        child: const Text(
+                      const Flexible(
+                        child: Text(
                           'Select Questions',
                           style: TextStyle(
                             fontSize: 18,

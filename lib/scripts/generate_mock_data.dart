@@ -38,7 +38,7 @@ Note: Make sure your MongoDB connection string in database_config.dart is correc
   }
 
   try {
-    print('\n' + '='.padRight(60, '='));
+    print('\n${'='.padRight(60, '=')}');
     print('MOCK DATA GENERATOR - STANDALONE SCRIPT');
     print('='.padRight(60, '='));
     print('');
@@ -57,7 +57,7 @@ Note: Make sure your MongoDB connection string in database_config.dart is correc
     final mockData = await MockDataGenerator.generateBatch(uploadToMongoDB: true);
     
     // Print summary
-    print('\n' + '='.padRight(60, '='));
+    print('\n${'='.padRight(60, '=')}');
     print('GENERATION COMPLETE');
     print('='.padRight(60, '='));
     print('\nGenerated Data Summary:');
@@ -67,21 +67,21 @@ Note: Make sure your MongoDB connection string in database_config.dart is correc
     print('  • Questions: ${mockData['questions']?.length ?? 0}');
     print('  • Admins: ${mockData['admins']?.length ?? 0}');
     print('\n✓ All data has been uploaded to MongoDB Atlas!');
-    print('='.padRight(60, '=') + '\n');
+    print('${'='.padRight(60, '=')}\n');
     
     // Close the connection
     await AtlasService.close();
     
     exit(0);
   } catch (e, stackTrace) {
-    print('\n' + '='.padRight(60, '='));
+    print('\n${'='.padRight(60, '=')}');
     print('ERROR OCCURRED');
     print('='.padRight(60, '='));
     print('\n❌ Failed to generate/upload mock data:');
     print('Error: $e');
     print('\nStack trace:');
     print(stackTrace);
-    print('\n='.padRight(60, '=') + '\n');
+    print('${'\n='.padRight(60, '=')}\n');
     
     // Make sure to close connection even on error
     try {
