@@ -1,0 +1,23 @@
+# Chat Service - Supabase Configuration
+# Copy this file to .env and fill in your Supabase credentials
+
+# Supabase Project URL (from Supabase Dashboard > Settings > API)
+SUPABASE_URL=https://your-project-id.supabase.co
+
+# Supabase Service Role Key (from Supabase Dashboard > Settings > API)
+# WARNING: This key has admin privileges. Never expose it in client-side code.
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+
+# Optional: Default Admin ID (UUID format)
+# DEFAULT_ADMIN_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+
+# Server Configuration
+PORT=3001
+NODE_ENV=development
+
+# CORS Configuration (comma-separated origins)
+ALLOWED_ORIGINS=http://localhost:8080,http://localhost:3000,http://localhost:3001
+
+# Optional: Shutdown token for development (POST /shutdown)
+# SHUTDOWN_TOKEN=your-secret-token
+
