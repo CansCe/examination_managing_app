@@ -62,15 +62,25 @@ class _HelpdeskChatState extends State<HelpdeskChat> {
       }
 
       _chatService = ChatSocketService();
-      await _chatService!.connect(
-        userId: widget.studentId!,
-        userRole: widget.userRole ?? 'student',
-        targetUserId: _resolvedTargetId!,
-        targetUserRole: _resolvedTargetRole,
-      );
+      try {
+        await _chatService!.connect(
+          userId: widget.studentId!,
+          userRole: widget.userRole ?? 'student',
+          targetUserId: _resolvedTargetId!,
+          targetUserRole: _resolvedTargetRole,
+        );
 
-      // Check if connection succeeded
-      if (!_chatService!.isConnected) {
+        // Check if connection succeeded
+        if (!_chatService!.isConnected) {
+          if (!mounted) return;
+          setState(() { 
+            _isLoading = false;
+            _showInfoBanner = true;
+          });
+          return;
+        }
+      } catch (e) {
+        print('Error connecting to chat: $e');
         if (!mounted) return;
         setState(() { 
           _isLoading = false;

@@ -169,9 +169,15 @@ io.on('connection', (socket) => {
 
   // Join conversation room
   socket.on('join_conversation', ({ userId, targetUserId }) => {
+    if (!userId || !targetUserId) {
+      console.error(`  ✗ Invalid join_conversation: missing userId or targetUserId`);
+      return;
+    }
     const conversationId = [userId, targetUserId].sort().join(':');
     socket.join(conversationId);
     console.log(`  → ${socket.id} joined conversation: ${conversationId}`);
+    // Acknowledge join
+    socket.emit('joined_conversation', { conversationId });
   });
 
   // Leave conversation room

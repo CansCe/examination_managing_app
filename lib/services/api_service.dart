@@ -795,6 +795,37 @@ class ApiService {
     }
   }
 
+  /// Mark messages as read for a student
+  Future<bool> markChatMessagesAsRead(String studentId) async {
+    final encodedStudentId = _encodeChatUserId(studentId);
+    final uri = _buildChatUri('/api/chat/read/$encodedStudentId');
+    try {
+      final response = await _client.put(uri, headers: {
+        'accept': 'application/json',
+      });
+      if (response.statusCode == 200) {
+        final body = response.body.trim();
+        if (body.isEmpty) return false;
+        final decoded = json.decode(body) as Map<String, dynamic>;
+        return decoded['success'] == true;
+      }
+      throw ApiException('PUT /api/chat/read/:studentId failed', response.statusCode, response.body);
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      final errorMsg = e.toString();
+      if (errorMsg.contains('Connection refused') ||
+          errorMsg.contains('Failed host lookup') ||
+          errorMsg.contains('Network is unreachable')) {
+        throw ApiException(
+          'Chat service is not running. Please start the chat service at $_chatBaseUrl',
+          0,
+          errorMsg,
+        );
+      }
+      rethrow;
+    }
+  }
+
   /// Close conversation and delete its messages
   Future<bool> closeConversation({
     required String userId,

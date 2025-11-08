@@ -19,6 +19,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
   List<Student> _filteredStudents = []; // Filtered by search
   bool _isLoading = true;
   Map<String, int> _unreadMessageCounts = {}; // studentId -> count
+  Map<String, String> _lastMessages = {}; // studentId -> last message preview
   final TextEditingController _searchController = TextEditingController();
 
   @override
@@ -59,8 +60,38 @@ class _AdminChatPageState extends State<AdminChatPage> {
     });
 
     try {
-      // Get all students that have chat history
-      final studentIdsWithChat = await ChatService.getStudentsWithChatHistory();
+      // Get all students that have chat history (with last message info)
+      final api = ApiService();
+      final conversationsData = await api.getChatConversations();
+      api.close();
+      
+      // Extract student IDs and last messages
+      final studentIdsWithChat = <String>[];
+      final lastMessagesMap = <String, String>{};
+      
+      for (var conv in conversationsData) {
+        final studentId = (conv['studentId'] ?? (conv['student']?['id']))?.toString();
+        if (studentId != null) {
+          studentIdsWithChat.add(studentId);
+          // Get last message preview
+          if (conv['lastMessage'] != null) {
+            final lastMsg = conv['lastMessage'] as Map<String, dynamic>;
+            final messageText = lastMsg['message']?.toString() ?? '';
+            if (messageText.isNotEmpty) {
+              // Truncate to 50 chars for preview
+              final preview = messageText.length > 50 
+                  ? '${messageText.substring(0, 50)}...' 
+                  : messageText;
+              lastMessagesMap[studentId] = preview;
+            }
+          }
+        }
+      }
+      
+      print('📋 Students with chat history (raw): ${studentIdsWithChat.length}');
+      for (var id in studentIdsWithChat) {
+        print('  - $id (format: ${id.contains('-') ? 'UUID' : 'ObjectId'})');
+      }
       
       if (studentIdsWithChat.isEmpty) {
         if (mounted) {
@@ -74,19 +105,100 @@ class _AdminChatPageState extends State<AdminChatPage> {
         return;
       }
 
-      // Fetch all students and filter to only those with chat history
-      final allStudents = await AtlasService.findStudents(limit: 1000);
+      // Helper to decode UUID-encoded IDs to ObjectId format
+      // UUID format: 454d4150-6907-fcdc-6666-2850167405fd
+      // Where 454d4150 is the prefix "MAPI" in hex (4 bytes)
+      // The ObjectId is in the remaining parts: 6907fcdc66662850167405fd (24 hex chars)
+      String decodeChatUserId(String id) {
+        if (id.isEmpty) return id;
+        // If it's not a UUID, return as-is
+        if (!id.contains('-') || id.length != 36) {
+          return id;
+        }
+        
+        try {
+          final uuidParts = id.split('-');
+          if (uuidParts.length == 5) {
+            // Check if it starts with our prefix (454d4150 = "MAPI")
+            if (uuidParts[0].toLowerCase() == '454d4150') {
+              // Extract the ObjectId from parts 1-4 (skip the prefix)
+              // Parts 1-4: 6907-fcdc-6666-2850167405fd
+              // Join them: 6907fcdc66662850167405fd (should be 24 chars)
+              final hexString = uuidParts.sublist(1).join('');
+              if (hexString.length == 24) {
+                return hexString.toLowerCase();
+              } else {
+                print('⚠ Warning: Decoded hex string length is ${hexString.length}, expected 24');
+              }
+            }
+          }
+          return id; // Return original if decoding fails
+        } catch (e) {
+          print('Error decoding chat user ID: $e');
+          return id;
+        }
+      }
+
+      // Decode all student IDs from chat history
+      final decodedStudentIds = studentIdsWithChat.map((id) {
+        final decoded = decodeChatUserId(id);
+        print('  Decoded: $id -> $decoded');
+        return decoded;
+      }).toSet().toList();
+
+      // Fetch all students with pagination and filter to only those with chat history
+      // Backend has max limit of 100, so we'll fetch in batches
+      List<Student> allStudents = [];
+      int page = 0;
+      const int limit = 100; // Max allowed by backend
+      bool hasMore = true;
+      
+      while (hasMore) {
+        final batch = await AtlasService.findStudents(page: page, limit: limit);
+        if (batch.isEmpty) {
+          hasMore = false;
+        } else {
+          allStudents.addAll(batch);
+          // If we got fewer than the limit, we've reached the end
+          if (batch.length < limit) {
+            hasMore = false;
+          } else {
+            page++;
+          }
+        }
+      }
+      
+      print('📋 Fetched ${allStudents.length} total students from database');
+      
       final studentsWithChat = allStudents.where((student) {
-        return studentIdsWithChat.contains(student.id);
+        final matches = decodedStudentIds.contains(student.id) || studentIdsWithChat.contains(student.id);
+        if (matches) {
+          print('  ✓ Matched student: ${student.id} (${student.fullName})');
+        }
+        return matches;
       }).toList();
+      
+      print('📋 Found ${studentsWithChat.length} students with chat history');
 
       // Sort by last message time (most recent first)
       // For now, we'll keep the order as returned, but prioritize those with unread messages
+      
+      // Decode last message student IDs to match with student list
+      final decodedLastMessages = <String, String>{};
+      for (var entry in lastMessagesMap.entries) {
+        final decodedId = decodeChatUserId(entry.key);
+        decodedLastMessages[decodedId] = entry.value;
+        // Also keep original in case it's already decoded
+        if (decodedId != entry.key) {
+          decodedLastMessages[entry.key] = entry.value;
+        }
+      }
       
       if (mounted) {
         setState(() {
           _allStudents = studentsWithChat;
           _filteredStudents = studentsWithChat;
+          _lastMessages = decodedLastMessages;
         });
       }
       await _updateUnreadMessageCounts();
@@ -127,11 +239,74 @@ class _AdminChatPageState extends State<AdminChatPage> {
     try {
       final unreadMessages = await ChatService.getUnreadMessages();
       final Map<String, int> counts = {};
+      
+      print('📊 Updating unread message counts. Found ${unreadMessages.length} unread messages');
+      print('📋 Students in list: ${_allStudents.length}');
+      
+      // Helper to decode UUID-encoded IDs to ObjectId format (same as in _loadStudents)
+      String decodeChatUserId(String id) {
+        if (id.isEmpty) return id;
+        if (!id.contains('-') || id.length != 36) {
+          return id;
+        }
+        try {
+          final uuidParts = id.split('-');
+          if (uuidParts.length == 5 && uuidParts[0].toLowerCase() == '454d4150') {
+            final hexString = uuidParts.sublist(1).join('');
+            if (hexString.length == 24) {
+              return hexString.toLowerCase();
+            }
+          }
+          return id;
+        } catch (e) {
+          return id;
+        }
+      }
+      
       for (var msg in unreadMessages) {
         // Get student ID from the message (fromUserId if student sent it)
-        final studentId = msg.fromUserRole == 'student' ? msg.fromUserId : msg.toUserId;
+        String messageStudentId = msg.fromUserRole == 'student' ? msg.fromUserId : msg.toUserId;
+        print('  📨 Message from student ID: $messageStudentId (format: ${messageStudentId.contains('-') ? 'UUID' : 'ObjectId'})');
+        
+        // Decode if it's UUID-encoded
+        final decodedStudentId = decodeChatUserId(messageStudentId);
+        if (decodedStudentId != messageStudentId) {
+          print('    Decoded to: $decodedStudentId');
+        }
+        
+        // Try to find matching student in the list using both encoded and decoded IDs
+        Student? matchingStudent;
+        
+        // First, try direct match with decoded ID
+        try {
+          matchingStudent = _allStudents.firstWhere(
+            (s) => s.id == decodedStudentId,
+          );
+          print('    ✓ Match found with decoded ID: ${matchingStudent.id}');
+        } catch (e) {
+          // Try with original ID (in case it's already ObjectId)
+          try {
+            matchingStudent = _allStudents.firstWhere(
+              (s) => s.id == messageStudentId,
+            );
+            print('    ✓ Match found with original ID: ${matchingStudent.id}');
+          } catch (e2) {
+            print('    ⚠ No match found - student might not be in list yet');
+          }
+        }
+        
+        // Use the matching student ID if found, otherwise use the decoded ID
+        final studentId = matchingStudent?.id ?? decodedStudentId;
         counts[studentId] = (counts[studentId] ?? 0) + 1;
+        print('    📊 Count for $studentId: ${counts[studentId]}');
       }
+      
+      // Debug: Print final counts
+      print('📊 Final unread counts:');
+      counts.forEach((id, count) {
+        print('  - $id: $count');
+      });
+      
       if (mounted) {
         setState(() {
           _unreadMessageCounts = counts;
@@ -139,6 +314,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
       }
     } catch (e) {
       print('Error updating unread message counts: $e');
+      print('Stack trace: ${StackTrace.current}');
     }
   }
 
@@ -307,7 +483,30 @@ class _AdminChatPageState extends State<AdminChatPage> {
                                         student.fullName,
                                         style: const TextStyle(fontWeight: FontWeight.bold),
                                       ),
-                                      subtitle: Text(student.rollNumber),
+                                      subtitle: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Text(
+                                            student.rollNumber,
+                                            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                          ),
+                                          if (_lastMessages.containsKey(student.id))
+                                            Padding(
+                                              padding: const EdgeInsets.only(top: 4.0),
+                                              child: Text(
+                                                _lastMessages[student.id]!,
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  color: unreadCount > 0 ? Colors.blue[700] : Colors.grey[600],
+                                                  fontWeight: unreadCount > 0 ? FontWeight.w500 : FontWeight.normal,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                        ],
+                                      ),
                                       trailing: unreadCount > 0
                                           ? Container(
                                               width: 32,
@@ -470,25 +669,42 @@ class _AdminChatConversationPageState
   Future<void> _initializeChat() async {
     _chatService = ChatSocketService();
     
-    // Connect to chat
-    await _chatService!.connect(
-      userId: widget.adminId,
-      userRole: 'admin',
-      targetUserId: widget.student.id,
-      targetUserRole: 'student',
-    );
+    try {
+      // Connect to chat
+      await _chatService!.connect(
+        userId: widget.adminId,
+        userRole: 'admin',
+        targetUserId: widget.student.id,
+        targetUserRole: 'student',
+      );
 
-    // Check if connection succeeded
-    if (!_chatService!.isConnected) {
+      // Check if connection succeeded
+      if (!_chatService!.isConnected) {
+        if (mounted) {
+          setState(() {
+            _isLoadingMessages = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to connect to chat service. Please check server connection.'),
+              backgroundColor: Colors.red,
+              duration: Duration(seconds: 5),
+            ),
+          );
+        }
+        return;
+      }
+    } catch (e) {
+      print('Error connecting to chat: $e');
       if (mounted) {
         setState(() {
           _isLoadingMessages = false;
         });
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to connect to chat service. Please check server connection.'),
+          SnackBar(
+            content: Text('Failed to connect to chat service: $e'),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 5),
+            duration: const Duration(seconds: 5),
           ),
         );
       }
@@ -498,6 +714,7 @@ class _AdminChatConversationPageState
     // Listen for chat history
     _chatService!.historyStream.listen((messages) {
       if (mounted) {
+        print('📨 Received ${messages.length} messages in history stream');
         setState(() {
           _messages.clear();
           _messages.addAll(messages);
@@ -512,18 +729,26 @@ class _AdminChatConversationPageState
     // Listen for new messages
     _chatService!.messageStream.listen((message) {
       if (mounted) {
+        print('📨 Received new message via Socket.io: ${message.message} from ${message.fromUserRole}');
         setState(() {
-          // Only add if not already in the list (check by ID or by content+timestamp for optimistic messages)
-          final exists = _messages.any((m) => 
-            m.id == message.id ||
-            (m.message == message.message && 
-             m.fromUserId == message.fromUserId && 
-             (m.timestamp.difference(message.timestamp).inSeconds.abs() < 2))
+          // Check if message already exists by ID (most reliable)
+          final existsById = message.id.isNotEmpty && _messages.any((m) => m.id == message.id);
+          
+          // Also check by content+timestamp+fromUserId (for messages without ID or duplicate IDs)
+          final existsByContent = _messages.any((m) => 
+            m.message == message.message && 
+            m.fromUserId == message.fromUserId && 
+            m.fromUserRole == message.fromUserRole &&
+            m.timestamp.difference(message.timestamp).inSeconds.abs() < 3
           );
-          if (!exists) {
+          
+          if (!existsById && !existsByContent) {
+            print('  ✓ Adding new message to list');
             _messages.add(message);
             // Sort by timestamp to maintain order
             _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+          } else {
+            print('  ⚠ Message already exists, skipping (existsById: $existsById, existsByContent: $existsByContent)');
           }
         });
         _scrollToBottom();
@@ -537,7 +762,13 @@ class _AdminChatConversationPageState
 
   @override
   void dispose() {
-    _chatService?.dispose();
+    // Disconnect gracefully before disposing
+    _chatService?.disconnect().then((_) {
+      _chatService?.dispose();
+    }).catchError((e) {
+      print('Error disposing chat service: $e');
+      _chatService?.dispose();
+    });
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -693,12 +924,60 @@ class _AdminChatConversationPageState
                     itemCount: _messages.length,
                     itemBuilder: (context, index) {
                       final msg = _messages[index];
-                      final isMe = msg.fromUserId == widget.adminId && msg.fromUserRole == 'admin';
+                      
+                      // Determine if message is from admin (right side) or from student/teacher (left side)
+                      // Check by role first (most reliable), then by ID match
+                      final isFromAdmin = msg.fromUserRole == 'admin';
+                      
+                      // Also check ID match (normalize both to handle UUID/ObjectId differences)
+                      final msgFromUserId = msg.fromUserId;
+                      final adminId = widget.adminId;
+                      
+                      // Helper to normalize IDs for comparison
+                      String normalizeId(String id) {
+                        if (id.isEmpty) return id;
+                        // If it's a UUID, try to decode it
+                        if (id.contains('-') && id.length == 36) {
+                          try {
+                            final uuidParts = id.split('-');
+                            if (uuidParts.length == 5 && uuidParts[0].toLowerCase() == '454d4150') {
+                              final hexString = uuidParts.sublist(1).join('');
+                              if (hexString.length == 24) {
+                                return hexString.toLowerCase();
+                              }
+                            }
+                          } catch (e) {
+                            // If decoding fails, return original
+                          }
+                        }
+                        return id.toLowerCase();
+                      }
+                      
+                      final normalizedMsgId = normalizeId(msgFromUserId);
+                      final normalizedAdminId = normalizeId(adminId);
+                      final isIdMatch = normalizedMsgId == normalizedAdminId;
+                      
+                      // Message is from admin if role is admin OR if IDs match
+                      final isMe = isFromAdmin || (isIdMatch && msg.fromUserRole == 'admin');
+                      
+                      // Debug log for alignment issues
+                      if (index == 0 || index == _messages.length - 1) {
+                        print('📨 Message alignment check:');
+                        print('  Message fromUserId: $msgFromUserId (normalized: $normalizedMsgId)');
+                        print('  Admin ID: $adminId (normalized: $normalizedAdminId)');
+                        print('  Message role: ${msg.fromUserRole}');
+                        print('  isFromAdmin: $isFromAdmin, isIdMatch: $isIdMatch');
+                        print('  Final isMe: $isMe (will align ${isMe ? "RIGHT" : "LEFT"})');
+                      }
+                      
                       return Align(
                         alignment:
                             isMe ? Alignment.centerRight : Alignment.centerLeft,
                         child: Container(
-                          margin: const EdgeInsets.symmetric(vertical: 4),
+                          constraints: BoxConstraints(
+                            maxWidth: MediaQuery.of(context).size.width * 0.75,
+                          ),
+                          margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
                           padding: const EdgeInsets.symmetric(
                             horizontal: 12,
                             vertical: 8,
@@ -708,7 +987,7 @@ class _AdminChatConversationPageState
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                             children: [
                               Text(
                                 msg.message,

@@ -46,7 +46,27 @@ class _AdminStudentExamAssignmentPageState
     });
 
     try {
-      final allStudents = await AtlasService.findStudents(limit: 1000);
+      // Fetch all students with pagination (backend max limit is 100)
+      List<Student> allStudents = [];
+      int page = 0;
+      const int limit = 100; // Max allowed by backend
+      bool hasMore = true;
+      
+      while (hasMore) {
+        final batch = await AtlasService.findStudents(page: page, limit: limit);
+        if (batch.isEmpty) {
+          hasMore = false;
+        } else {
+          allStudents.addAll(batch);
+          // If we got fewer than the limit, we've reached the end
+          if (batch.length < limit) {
+            hasMore = false;
+          } else {
+            page++;
+          }
+        }
+      }
+      
       final assignedStudents =
           await AtlasService.getStudentsAssignedToExam(examId: widget.examId);
 

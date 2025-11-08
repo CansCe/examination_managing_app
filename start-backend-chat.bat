@@ -4,7 +4,7 @@ REM Usage: start-backend-chat.bat
 
 echo.
 echo ╔══════════════════════════════════════════════════════════╗
-echo ║     Starting CHAT SERVICE (Supabase)                    ║
+echo ║     Starting CHAT SERVICE                                ║
 echo ╚══════════════════════════════════════════════════════════╝
 echo.
 

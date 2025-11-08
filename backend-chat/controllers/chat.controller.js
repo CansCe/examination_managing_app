@@ -36,12 +36,13 @@ export const sendStudentMessage = async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing required fields' });
     }
 
-    const conversationId = [fromUserId, toUserId].sort().join(':');
+    // Use the IDs as-is for conversation_id to match query format
+    const conversationId = createConversationId(fromUserId, toUserId);
     const chatMessage = {
       conversation_id: conversationId,
-      from_user_id: decodeUserId(fromUserId),
+      from_user_id: fromUserId, // Store as-is (can be UUID or ObjectId)
       from_user_role: 'student',
-      to_user_id: decodeUserId(toUserId),
+      to_user_id: toUserId, // Store as-is (can be UUID or ObjectId)
       to_user_role: toUserRole || 'admin',
       message: message,
       is_read: false,
@@ -83,12 +84,13 @@ export const sendTeacherMessage = async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing required fields' });
     }
 
-    const conversationId = [fromUserId, toUserId].sort().join(':');
+    // Use the IDs as-is for conversation_id to match query format
+    const conversationId = createConversationId(fromUserId, toUserId);
     const chatMessage = {
       conversation_id: conversationId,
-      from_user_id: decodeUserId(fromUserId),
+      from_user_id: fromUserId, // Store as-is (can be UUID or ObjectId)
       from_user_role: 'teacher',
-      to_user_id: decodeUserId(toUserId),
+      to_user_id: toUserId, // Store as-is (can be UUID or ObjectId)
       to_user_role: toUserRole || 'student',
       message: message,
       is_read: false,
@@ -130,12 +132,13 @@ export const sendAdminMessage = async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing required fields' });
     }
 
-    const conversationId = [fromUserId, toUserId].sort().join(':');
+    // Use the IDs as-is for conversation_id to match query format
+    const conversationId = createConversationId(fromUserId, toUserId);
     const chatMessage = {
       conversation_id: conversationId,
-      from_user_id: decodeUserId(fromUserId),
+      from_user_id: fromUserId, // Store as-is (can be UUID or ObjectId)
       from_user_role: 'admin',
-      to_user_id: decodeUserId(toUserId),
+      to_user_id: toUserId, // Store as-is (can be UUID or ObjectId)
       to_user_role: toUserRole || 'student',
       message: message,
       is_read: false,
@@ -150,14 +153,14 @@ export const sendAdminMessage = async (req, res) => {
     // When an admin replies, mark all unread student messages as read for this student
     const updateResult = await db.collection('chat_messages').updateMany(
       {
-        from_user_id: decodeUserId(toUserId),
+        from_user_id: toUserId, // Match as-is (can be UUID or ObjectId)
         from_user_role: 'student',
         is_read: false
       },
       {
         $set: {
           is_read: true,
-          answered_by: decodeUserId(fromUserId),
+          answered_by: fromUserId, // Store as-is
           answered_at: new Date(),
           updatedAt: new Date()
         }
@@ -200,11 +203,14 @@ export const getConversation = async (req, res) => {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    // Create conversation ID (sorted)
+    // Create conversation ID (sorted) - try both UUID and ObjectId formats
     const conversationId = createConversationId(userId, targetUserId);
     
+    console.log(`  Querying conversation with ID: ${conversationId}`);
+    console.log(`  userId format: ${isValidUuid(userId) ? 'UUID' : isValidObjectId(userId) ? 'ObjectId' : 'Unknown'}`);
+    console.log(`  targetUserId format: ${isValidUuid(targetUserId) ? 'UUID' : isValidObjectId(targetUserId) ? 'ObjectId' : 'Unknown'}`);
+    
     // Try to find messages with this conversation ID
-    // Also try with decoded IDs if they're UUIDs
     let messages = await db.collection('chat_messages')
       .find({
         conversation_id: conversationId,
@@ -213,11 +219,51 @@ export const getConversation = async (req, res) => {
       .sort({ timestamp: 1 })
       .toArray();
 
-    // If no messages found and IDs are UUIDs, try with decoded ObjectIds
+    console.log(`  Found ${messages.length} messages with conversation ID: ${conversationId}`);
+
+    // If no messages found and IDs are UUIDs, try with ObjectId format (decoded)
     if (messages.length === 0 && isValidUuid(userId) && isValidUuid(targetUserId)) {
-      // Try to decode UUIDs back to ObjectIds (if they were encoded)
-      // For now, just return empty - messages will be created with the UUID format
-      // This handles the case where old messages used ObjectIds and new ones use UUIDs
+      // Try to decode UUIDs back to ObjectIds
+      // UUID format: 454d4150-XXXX-XXXX-XXXX-XXXXXXXXXXXX
+      // Extract ObjectId from UUID parts
+      try {
+        const decodeFromUuid = (uuid) => {
+          if (!isValidUuid(uuid)) return uuid;
+          const parts = uuid.split('-');
+          if (parts.length === 5 && parts[0].toLowerCase() === '454d4150') {
+            // Extract ObjectId from remaining parts
+            const hexString = parts.slice(1).join('');
+            if (hexString.length >= 24) {
+              return hexString.substring(0, 24);
+            }
+          }
+          return uuid;
+        };
+        
+        const decodedUserId = decodeFromUuid(userId);
+        const decodedTargetUserId = decodeFromUuid(targetUserId);
+        const decodedConversationId = createConversationId(decodedUserId, decodedTargetUserId);
+        
+        console.log(`  Trying decoded conversation ID: ${decodedConversationId}`);
+        
+        messages = await db.collection('chat_messages')
+          .find({
+            conversation_id: decodedConversationId,
+            timestamp: { $gte: thirtyDaysAgo }
+          })
+          .sort({ timestamp: 1 })
+          .toArray();
+        
+        console.log(`  Found ${messages.length} messages with decoded conversation ID`);
+      } catch (e) {
+        console.error('  Error decoding UUIDs:', e);
+      }
+    }
+    
+    // Also try the reverse: if IDs are ObjectIds, try with UUID format (encoded)
+    if (messages.length === 0 && isValidObjectId(userId) && isValidObjectId(targetUserId)) {
+      // This case is less likely since we encode before sending, but handle it anyway
+      console.log(`  IDs are ObjectIds, but no messages found. Messages might be stored with UUID format.`);
     }
 
     res.json({ success: true, data: messages || [] });
@@ -367,7 +413,7 @@ export const markAsRead = async (req, res) => {
 
     const result = await db.collection('chat_messages').updateMany(
       {
-        from_user_id: decodeUserId(studentId),
+        from_user_id: studentId, // Match as-is (can be UUID or ObjectId)
         from_user_role: 'student',
         is_read: false
       },
@@ -379,6 +425,26 @@ export const markAsRead = async (req, res) => {
         }
       }
     );
+
+    // Broadcast read status update via Socket.io
+    const io = getIO();
+    if (io && result.modifiedCount > 0) {
+      // Find conversations involving this student
+      const conversations = await db.collection('chat_messages').distinct('conversation_id', {
+        from_user_id: studentId,
+        from_user_role: 'student'
+      });
+      
+      conversations.forEach(conversationId => {
+        io.to(conversationId).emit('messages_read', {
+          conversationId,
+          count: result.modifiedCount,
+          studentId: studentId
+        });
+      });
+      
+      console.log(`  📖 Broadcasted read status for ${result.modifiedCount} messages in ${conversations.length} conversation(s)`);
+    }
 
     res.json({ success: true, message: 'Messages marked as read', count: result.modifiedCount });
   } catch (error) {
