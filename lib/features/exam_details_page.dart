@@ -28,12 +28,13 @@ class _ExamDetailsPageState extends State<ExamDetailsPage> {
   bool _canStartExam = false;
   String _examAvailabilityMessage = '';
   Timer? _availabilityTimer;
+  bool _shouldShowAvailabilityNotification = false;
 
   @override
   void initState() {
     super.initState();
     _calculateExamStartTime();
-    _checkExamAvailability();
+    _checkExamAvailability(suppressNotification: true);
     _loadQuestions();
     
     // Start timer to check availability every minute
@@ -42,6 +43,26 @@ class _ExamDetailsPageState extends State<ExamDetailsPage> {
         _checkExamAvailability();
       }
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Show notification after widget tree is built
+    if (_shouldShowAvailabilityNotification) {
+      _shouldShowAvailabilityNotification = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Exam is now available! You can start taking it.'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      });
+    }
   }
 
   @override
@@ -88,7 +109,7 @@ class _ExamDetailsPageState extends State<ExamDetailsPage> {
     }
   }
 
-  void _checkExamAvailability() {
+  void _checkExamAvailability({bool suppressNotification = false}) {
     final now = DateTime.now();
     
     if (_examStartDateTime == null) {
@@ -144,15 +165,23 @@ class _ExamDetailsPageState extends State<ExamDetailsPage> {
       }
     }
     
-    // If exam just became available, show a notification
-    if (!wasAvailable && _canStartExam && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Exam is now available! You can start taking it.'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 3),
-        ),
-      );
+    // If exam just became available, show a notification (but not during initState)
+    if (!wasAvailable && _canStartExam && mounted && !suppressNotification) {
+      // Use post-frame callback to ensure context is available
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Exam is now available! You can start taking it.'),
+              backgroundColor: Colors.green,
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+      });
+    } else if (!wasAvailable && _canStartExam && suppressNotification) {
+      // Mark that we should show notification after widget is built
+      _shouldShowAvailabilityNotification = true;
     }
   }
 

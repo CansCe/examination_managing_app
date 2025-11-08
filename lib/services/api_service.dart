@@ -29,6 +29,19 @@ class ApiService {
     return Uri.parse('$_chatBaseUrl$path').replace(queryParameters: query);
   }
 
+  /// Test chat service health (public method for connection testing)
+  Future<bool> testChatServiceHealth() async {
+    try {
+      final uri = _buildChatUri('/health');
+      final response = await _client.get(uri, headers: {
+        'accept': 'application/json',
+      });
+      return response.statusCode == 200;
+    } catch (e) {
+      return false;
+    }
+  }
+
   String _encodeChatUserId(String id) {
     if (id.isEmpty) return id;
     final trimmed = id.trim();
@@ -348,14 +361,24 @@ class ApiService {
     required String userId,
     required String targetUserId,
   }) async {
+    final encodedUserId = _encodeChatUserId(userId);
+    final encodedTargetUserId = _encodeChatUserId(targetUserId);
     final uri = _buildChatUri('/api/chat/conversation', {
-      'userId': _encodeChatUserId(userId),
-      'targetUserId': _encodeChatUserId(targetUserId),
+      'userId': encodedUserId,
+      'targetUserId': encodedTargetUserId,
     });
+    
+    print('GET $uri');
+    print('  Original userId: $userId -> Encoded: $encodedUserId');
+    print('  Original targetUserId: $targetUserId -> Encoded: $encodedTargetUserId');
+    
     try {
       final response = await _client.get(uri, headers: {
         'accept': 'application/json',
       });
+      
+      print('Response status: ${response.statusCode}');
+      
       if (response.statusCode == 200) {
         final body = response.body.trim();
         if (body.isEmpty) {
@@ -371,8 +394,19 @@ class ApiService {
               return messages;
             }
           }
+          // If success is false, log the error
+          if (decoded.containsKey('success') && decoded['success'] == false) {
+            final error = decoded['error'] ?? decoded['errors'] ?? 'Unknown error';
+            print('  Server error: $error');
+            throw ApiException(
+              'GET /api/chat/conversation failed: $error',
+              response.statusCode,
+              body,
+            );
+          }
           return [];
         } catch (e) {
+          if (e is ApiException) rethrow;
           throw ApiException(
             'GET /api/chat/conversation failed: Invalid JSON response',
             response.statusCode,
@@ -380,8 +414,19 @@ class ApiService {
           );
         }
       }
+      
+      // Try to parse error response
+      String errorMessage = 'Unknown error';
+      try {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        errorMessage = decoded['error'] ?? decoded['message'] ?? errorMessage;
+      } catch (_) {
+        errorMessage = response.body;
+      }
+      
+      print('  Error response: $errorMessage');
       throw ApiException(
-        'GET /api/chat/conversation failed',
+        'GET /api/chat/conversation failed: $errorMessage',
         response.statusCode,
         response.body,
       );
@@ -1048,16 +1093,20 @@ class ApiService {
   }
 
   /// Update exam status
-  Future<bool> updateExamStatus(String examId, String status) async {
+  Future<bool> updateExamStatus(String examId, String status, {DateTime? newDate}) async {
     final uri = _buildUri('/api/exams/$examId/status');
     try {
+      final bodyData = <String, dynamic>{'status': status};
+      if (newDate != null) {
+        bodyData['newDate'] = newDate.toIso8601String();
+      }
       final response = await _client.patch(
         uri,
         headers: {
           'content-type': 'application/json',
           'accept': 'application/json',
         },
-        body: json.encode({'status': status}),
+        body: json.encode(bodyData),
       );
       if (response.statusCode == 200) {
         final decoded = json.decode(response.body) as Map<String, dynamic>;
@@ -1416,7 +1465,7 @@ class ApiService {
           'isTimeUp': isTimeUp,
         }),
       );
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         final decoded = json.decode(response.body) as Map<String, dynamic>;
         if (decoded['success'] == true) {
           return decoded;

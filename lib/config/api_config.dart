@@ -4,7 +4,7 @@ class ApiConfig {
   // For Android emulator use http://10.0.2.2:3000
   static const String baseUrl = 'http://localhost:3000';
   
-  // Chat Service URL (Supabase backend)
+  // Chat Service URL (MongoDB + Socket.io WebSockets)
   // Change this when deploying the chat service separately.
   // For Android emulator use http://10.0.2.2:3001
   static const String chatBaseUrl = 'http://localhost:3001';

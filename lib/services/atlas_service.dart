@@ -561,10 +561,11 @@ class AtlasService {
   static Future<bool> updateExamStatus({
     required String examId,
     required String status,
+    DateTime? newDate,
   }) async {
     try {
       final api = ApiService();
-      final success = await api.updateExamStatus(examId, status);
+      final success = await api.updateExamStatus(examId, status, newDate: newDate);
       api.close();
       return success;
     } catch (e) {

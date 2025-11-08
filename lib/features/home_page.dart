@@ -1704,11 +1704,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _delayExam(Exam exam) {
-    // Only allow teachers to delay exams
-    if (widget.userRole != UserRole.teacher) {
+    // Only allow teachers and admins to delay exams
+    if (widget.userRole != UserRole.teacher && widget.userRole != UserRole.admin) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Access Denied: Only teachers can delay exams.'),
+          content: Text('Access Denied: Only teachers and admins can delay exams.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -1720,125 +1720,129 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delay Exam'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Select new date and time for the exam:'),
-            const SizedBox(height: 16),
-            ListTile(
-              title: const Text('Date'),
-              subtitle: Text(selectedDate?.toString().split(' ')[0] ?? 'Select date'),
-              onTap: () async {
-                final date = await showDatePicker(
-                  context: context,
-                  initialDate: exam.examDate,
-                  firstDate: DateTime.now(),
-                  lastDate: DateTime.now().add(const Duration(days: 365)),
-                );
-                if (date != null) {
-                  selectedDate = date;
-                  Navigator.pop(context);
-                  _delayExam(exam);
-                }
-              },
-            ),
-            ListTile(
-              title: const Text('Time'),
-              subtitle: Text(selectedTime?.format(context) ?? 'Select time'),
-              onTap: () async {
-                TimeOfDay initialTime;
-                try {
-                  if (exam.examTime.contains(':')) {
-                    final parts = exam.examTime.split(':');
-                    if (parts.length == 2) {
-                      initialTime = TimeOfDay(
-                        hour: int.parse(parts[0]),
-                        minute: int.parse(parts[1]),
-                      );
-                    } else {
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: const Text('Delay Exam'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text('Select new date and time for the exam:'),
+                const SizedBox(height: 16),
+                ListTile(
+                  title: const Text('Date'),
+                  subtitle: Text(selectedDate?.toString().split(' ')[0] ?? 'Select date'),
+                  onTap: () async {
+                    final date = await showDatePicker(
+                      context: context,
+                      initialDate: exam.examDate,
+                      firstDate: DateTime.now(),
+                      lastDate: DateTime.now().add(const Duration(days: 365)),
+                    );
+                    if (date != null) {
+                      setState(() {
+                        selectedDate = date;
+                      });
+                    }
+                  },
+                ),
+                ListTile(
+                  title: const Text('Time'),
+                  subtitle: Text(selectedTime?.format(context) ?? 'Select time'),
+                  onTap: () async {
+                    TimeOfDay initialTime;
+                    try {
+                      if (exam.examTime.contains(':')) {
+                        final parts = exam.examTime.split(':');
+                        if (parts.length == 2) {
+                          initialTime = TimeOfDay(
+                            hour: int.parse(parts[0]),
+                            minute: int.parse(parts[1]),
+                          );
+                        } else {
+                          initialTime = const TimeOfDay(hour: 9, minute: 0);
+                        }
+                      } else {
+                        initialTime = const TimeOfDay(hour: 9, minute: 0);
+                      }
+                    } catch (e) {
                       initialTime = const TimeOfDay(hour: 9, minute: 0);
                     }
-                  } else {
-                    initialTime = const TimeOfDay(hour: 9, minute: 0);
-                  }
-                } catch (e) {
-                  initialTime = const TimeOfDay(hour: 9, minute: 0);
-                }
 
-                final time = await showTimePicker(
-                  context: context,
-                  initialTime: initialTime,
-                );
-                if (time != null) {
-                  selectedTime = time;
-                  Navigator.pop(context);
-                  _delayExam(exam);
-                }
-              },
+                    final time = await showTimePicker(
+                      context: context,
+                      initialTime: initialTime,
+                    );
+                    if (time != null) {
+                      setState(() {
+                        selectedTime = time;
+                      });
+                    }
+                  },
+                ),
+              ],
             ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              if (selectedDate == null || selectedTime == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please select both date and time')),
-                );
-                return;
-              }
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  if (selectedDate == null || selectedTime == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Please select both date and time')),
+                    );
+                    return;
+                  }
 
-              final newDate = DateTime(
-                selectedDate!.year,
-                selectedDate!.month,
-                selectedDate!.day,
-                selectedTime!.hour,
-                selectedTime!.minute,
-              );
-
-              try {
-                final success = await AtlasService.updateExam(
-                  examId: exam.id.toString(),
-                  status: 'delayed',
-                  newDate: newDate,
-                );
-
-                if (success) {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Exam delayed successfully')),
+                  final newDate = DateTime(
+                    selectedDate!.year,
+                    selectedDate!.month,
+                    selectedDate!.day,
+                    selectedTime!.hour,
+                    selectedTime!.minute,
                   );
-                  _loadData(refresh: true);
-                } else {
-                  throw Exception('Failed to delay exam');
-                }
-              } catch (e) {
-                DialogHelper.showErrorDialog(
-                  context: context,
-                  title: 'Error Delaying Exam',
-                  message: 'An error occurred while delaying the exam: $e',
-                );
-              }
-            },
-            child: const Text('Delay'),
-          ),
-        ],
+
+                  try {
+                    final success = await AtlasService.updateExamStatus(
+                      examId: exam.id.toHexString(),
+                      status: 'delayed',
+                      newDate: newDate,
+                    );
+
+                    if (success) {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Exam delayed successfully')),
+                      );
+                      _loadData(refresh: true);
+                    } else {
+                      throw Exception('Failed to delay exam');
+                    }
+                  } catch (e) {
+                    DialogHelper.showErrorDialog(
+                      context: context,
+                      title: 'Error Delaying Exam',
+                      message: 'An error occurred while delaying the exam: $e',
+                    );
+                  }
+                },
+                child: const Text('Delay'),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
   void _cancelExam(Exam exam) {
-    // Only allow teachers to cancel exams
-    if (widget.userRole != UserRole.teacher) {
+    // Allow teachers and admins to cancel exams
+    if (widget.userRole != UserRole.teacher && widget.userRole != UserRole.admin) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Access Denied: Only teachers can cancel exams.'),
+          content: Text('Access Denied: Only teachers and admins can cancel exams.'),
           backgroundColor: Colors.red,
         ),
       );
@@ -1859,7 +1863,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             onPressed: () async {
               try {
                 final success = await AtlasService.updateExamStatus(
-                  examId: exam.id.toString(),
+                  examId: exam.id.toHexString(),
                   status: 'cancelled',
                 );
 

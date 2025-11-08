@@ -1,8 +1,17 @@
 import 'dart:async';
+import 'package:socket_io_client/socket_io_client.dart' as IO;
 import 'api_service.dart';
+import '../config/api_config.dart';
+
+class TimeoutException implements Exception {
+  final String message;
+  TimeoutException(this.message);
+  @override
+  String toString() => message;
+}
 
 class ChatMessage {
-  final String id; // Changed from ObjectId to String (UUID)
+  final String id;
   final String fromUserId;
   final String fromUserRole; // 'student', 'teacher', or 'admin'
   final String toUserId;
@@ -25,7 +34,7 @@ class ChatMessage {
   });
 
   factory ChatMessage.fromMap(Map<String, dynamic> map) {
-    // Handle both MongoDB format (_id) and Supabase format (id)
+    // Handle MongoDB format (_id) and other formats
     String messageId = map['id'] ?? map['_id']?.toString() ?? '';
     
     // Helper to convert any ID format to string
@@ -35,6 +44,23 @@ class ChatMessage {
       return '';
     }
 
+    // Handle timestamp - can be DateTime, String (ISO), or Map
+    DateTime parseTimestamp(dynamic timestamp) {
+      if (timestamp is DateTime) return timestamp;
+      if (timestamp is String) {
+        try {
+          return DateTime.parse(timestamp);
+        } catch (e) {
+          return DateTime.now();
+        }
+      }
+      if (timestamp is Map && timestamp.containsKey('\$date')) {
+        // MongoDB date format
+        return DateTime.fromMillisecondsSinceEpoch(timestamp['\$date'] as int);
+      }
+      return DateTime.now();
+    }
+
     return ChatMessage(
       id: messageId,
       fromUserId: convertToString(map['from_user_id'] ?? map['fromUserId']),
@@ -42,9 +68,7 @@ class ChatMessage {
       toUserId: convertToString(map['to_user_id'] ?? map['toUserId']),
       toUserRole: map['to_user_role'] ?? map['toUserRole'] ?? 'student',
       message: map['message'] ?? '',
-      timestamp: map['timestamp'] is DateTime 
-          ? map['timestamp'] 
-          : DateTime.parse(map['timestamp'] ?? DateTime.now().toIso8601String()),
+      timestamp: parseTimestamp(map['timestamp'] ?? map['createdAt']),
       isRead: map['is_read'] ?? map['isRead'] ?? false,
       conversationId: map['conversation_id'] ?? map['conversationId'],
     );
@@ -70,17 +94,19 @@ class ChatMessage {
 }
 
 class ChatSocketService {
-  dynamic _channel; // No longer using RealtimeChannel, kept for compatibility
+  IO.Socket? _socket;
   final StreamController<ChatMessage> _messageController = StreamController<ChatMessage>.broadcast();
   final StreamController<List<ChatMessage>> _historyController = StreamController<List<ChatMessage>>.broadcast();
   bool _isConnected = false;
   String? _conversationId;
+  String? _userId;
+  String? _targetUserId;
 
   Stream<ChatMessage> get messageStream => _messageController.stream;
   Stream<List<ChatMessage>> get historyStream => _historyController.stream;
-  bool get isConnected => _isConnected;
+  bool get isConnected => _isConnected && _socket?.connected == true;
 
-  /// Connect to the chat using REST API (Realtime disabled)
+  /// Connect to the chat using Socket.io WebSockets
   Future<void> connect({
     required String userId,
     required String userRole,
@@ -88,25 +114,113 @@ class ChatSocketService {
     required String targetUserRole,
   }) async {
     // Disconnect existing connection
-    if (_channel != null) {
+    if (_socket != null) {
       await disconnect();
     }
 
     final sortedIds = [userId, targetUserId]..sort();
     _conversationId = sortedIds.join(':');
+    _userId = userId;
+    _targetUserId = targetUserId;
     final conversationId = _conversationId!;
 
-    print('Connecting to chat service for conversation: $conversationId');
+    print('Connecting to chat service via Socket.io for conversation: $conversationId');
 
     try {
-      _isConnected = true;
-      print('✓ Connected to chat service (REST API)');
+      // Get chat service URL from API config
+      // Socket.io client uses HTTP/HTTPS URL, not ws://
+      final chatBaseUrl = ApiConfig.chatBaseUrl;
+
+      // Use Completer to wait for connection
+      final completer = Completer<void>();
+      bool connectionEstablished = false;
+
+      // Create Socket.io connection
+      _socket = IO.io(
+        chatBaseUrl,
+        IO.OptionBuilder()
+          .setTransports(['websocket', 'polling'])
+          .enableAutoConnect()
+          .build(),
+      );
+
+      // Connection event handlers
+      _socket!.onConnect((_) {
+        print('✓ Connected to chat service via Socket.io');
+        _isConnected = true;
+        connectionEstablished = true;
+        
+        // Join conversation room
+        _socket!.emit('join_conversation', {
+          'userId': userId,
+          'targetUserId': targetUserId,
+        });
+
+        // Load chat history
+        _loadChatHistory(userId, targetUserId);
+
+        // Complete the future if not already completed
+        if (!completer.isCompleted) {
+          completer.complete();
+        }
+      });
+
+      _socket!.onDisconnect((_) {
+        print('✗ Disconnected from chat service');
+        _isConnected = false;
+      });
+
+      _socket!.onConnectError((error) {
+        print('✗ Socket.io connection error: $error');
+        _isConnected = false;
+        if (!completer.isCompleted) {
+          completer.completeError(error);
+        }
+      });
+
+      _socket!.onError((error) {
+        print('✗ Socket.io error: $error');
+        _isConnected = false;
+      });
+
+      // Listen for new messages
+      _socket!.on('message_received', (data) {
+        try {
+          final message = ChatMessage.fromMap(data as Map<String, dynamic>);
+          _messageController.add(message);
+        } catch (e) {
+          print('Error parsing received message: $e');
+        }
+      });
+
+      // Listen for messages being marked as read
+      _socket!.on('messages_read', (data) {
+        print('Messages marked as read: $data');
+        // Could emit an event to update UI if needed
+      });
+
+      // Connect and wait for connection to establish
+      _socket!.connect();
       
-      // Load chat history
-      await _loadChatHistory(userId, targetUserId);
-      
-      // Start polling for new messages every 3 seconds
-      _startPolling(userId, targetUserId);
+      // Wait for connection with timeout
+      try {
+        await completer.future.timeout(
+          const Duration(seconds: 10),
+          onTimeout: () {
+            if (!connectionEstablished) {
+              throw TimeoutException('Connection timeout after 10 seconds');
+            }
+          },
+        );
+      } catch (e) {
+        _isConnected = false;
+        if (_socket != null) {
+          _socket!.disconnect();
+          _socket!.dispose();
+          _socket = null;
+        }
+        rethrow;
+      }
     } catch (e) {
       _isConnected = false;
       print('✗ Error connecting to chat service: $e');
@@ -114,80 +228,29 @@ class ChatSocketService {
     }
   }
 
-  Timer? _pollingTimer;
-  DateTime? _lastMessageTimestamp; // Track last message timestamp to avoid duplicates
-  final Set<String> _seenMessageIds = {}; // Track all seen message IDs
-  
-  void _startPolling(String userId, String targetUserId) {
-    // Stop any existing polling
-    _pollingTimer?.cancel();
-    
-    // Poll every 3 seconds for new messages
-    _pollingTimer = Timer.periodic(const Duration(seconds: 3), (timer) async {
-      if (!_isConnected) {
-        timer.cancel();
-        return;
-      }
-      
-      try {
-        final api = ApiService();
-        final messages = await api.getChatMessages(
-          userId: userId,
-          targetUserId: targetUserId,
-        );
-        final chatMessages = messages
-            .map((m) => ChatMessage.fromMap(m))
-            .toList();
-        
-        // Only add new messages that we haven't seen before
-        for (final msg in chatMessages) {
-          // Skip if we've already seen this message
-          if (_seenMessageIds.contains(msg.id)) {
-            continue;
-          }
-          
-          // Only add messages that are newer than the last one we saw
-          if (_lastMessageTimestamp == null || 
-              msg.timestamp.isAfter(_lastMessageTimestamp!)) {
-            _messageController.add(msg);
-            _seenMessageIds.add(msg.id);
-            _lastMessageTimestamp = msg.timestamp;
-          }
-        }
-        
-        api.close();
-      } catch (e) {
-        print('Error polling for messages: $e');
-      }
-    });
-  }
-
   /// Load chat history from REST API
   Future<void> _loadChatHistory(String userId, String targetUserId) async {
+    final api = ApiService();
     try {
-      final api = ApiService();
+      print('Loading chat history for userId: $userId, targetUserId: $targetUserId');
       final messages = await api.getChatMessages(
         userId: userId,
         targetUserId: targetUserId,
       );
+      print('Received ${messages.length} messages from chat service');
       final chatMessages = messages
           .map((m) => ChatMessage.fromMap(m))
           .toList();
       _historyController.add(chatMessages);
-      
-      // Set last message timestamp and track seen IDs for polling
-      if (chatMessages.isNotEmpty) {
-        _lastMessageTimestamp = chatMessages.last.timestamp;
-        _seenMessageIds.addAll(chatMessages.map((m) => m.id));
-      }
-      
-      api.close();
     } catch (e) {
       print('Error loading chat history: $e');
+      // Don't rethrow - allow connection to continue even if history fails
+    } finally {
+      api.close();
     }
   }
 
-  /// Send a message via REST API
+  /// Send a message via REST API (Socket.io will broadcast it)
   Future<void> sendMessage({
     required String message,
     required String fromUserId,
@@ -226,6 +289,7 @@ class ChatSocketService {
       }
 
       // Convert response to ChatMessage and add to stream
+      // The Socket.io server will also broadcast it, but we add it here for immediate UI update
       final chatMessage = ChatMessage.fromMap(response);
       _messageController.add(chatMessage);
     } catch (e) {
@@ -236,26 +300,33 @@ class ChatSocketService {
     }
   }
 
-  /// Mark messages as read (using REST API)
+  /// Mark messages as read
   Future<void> markAsRead(String userId, String targetUserId) async {
     // Note: This would require a REST API endpoint for marking messages as read
-    // For now, we'll leave this as a placeholder since the backend has PUT /api/chat/read/:studentId
-    // but it's designed for admin marking student messages as read
+    // For now, we'll leave this as a placeholder
     print('Mark as read not yet implemented via REST API');
   }
 
   /// Disconnect from chat
   Future<void> disconnect() async {
-    _pollingTimer?.cancel();
-    _pollingTimer = null;
-    if (_channel != null) {
-      _channel = null;
+    if (_socket != null) {
+      if (_conversationId != null && _userId != null && _targetUserId != null) {
+        _socket!.emit('leave_conversation', {
+          'userId': _userId,
+          'targetUserId': _targetUserId,
+        });
+      }
+      _socket!.disconnect();
+      _socket!.dispose();
+      _socket = null;
     }
     _isConnected = false;
     _conversationId = null;
+    _userId = null;
+    _targetUserId = null;
   }
 
-  /// Get messages via REST API (fallback when Realtime is not available)
+  /// Get messages via REST API (fallback when WebSocket is not available)
   Future<List<ChatMessage>> getMessages({
     required String userId,
     required String targetUserId,
@@ -340,7 +411,7 @@ class ChatService {
     throw UnimplementedError('Use ChatSocketService instead');
   }
 
-  // Temporary compatibility methods used by AdminChatPage
+  // Methods used by AdminChatPage
   static Future<List<ChatMessage>> getUnreadMessages() async {
     try {
       final api = ApiService();

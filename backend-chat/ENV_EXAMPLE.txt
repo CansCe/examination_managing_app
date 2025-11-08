@@ -1,15 +1,17 @@
-# Chat Service - Supabase Configuration
-# Copy this file to .env and fill in your Supabase credentials
+# Chat Service - MongoDB Configuration
+# Copy this file to .env and fill in your MongoDB credentials
 
-# Supabase Project URL (from Supabase Dashboard > Settings > API)
-SUPABASE_URL=https://your-project-id.supabase.co
+# MongoDB Connection URI (same as backend-api)
+# Format: mongodb://username:password@host:port/database
+# Example: mongodb://localhost:27017/exam_management
+# For MongoDB Atlas: mongodb+srv://username:password@cluster.mongodb.net/database
+MONGODB_URI=mongodb://localhost:27017/exam_management
 
-# Supabase Service Role Key (from Supabase Dashboard > Settings > API)
-# WARNING: This key has admin privileges. Never expose it in client-side code.
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key-here
+# MongoDB Database Name (optional, defaults to 'exam_management')
+MONGODB_DB=exam_management
 
-# Optional: Default Admin ID (UUID format)
-# DEFAULT_ADMIN_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+# Optional: Default Admin ID (MongoDB ObjectId format)
+# DEFAULT_ADMIN_ID=507f1f77bcf86cd799439011
 
 # Server Configuration
 PORT=3001
@@ -20,4 +22,3 @@ ALLOWED_ORIGINS=http://localhost:8080,http://localhost:3000,http://localhost:300
 
 # Optional: Shutdown token for development (POST /shutdown)
 # SHUTDOWN_TOKEN=your-secret-token
-

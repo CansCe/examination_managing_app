@@ -467,16 +467,33 @@ class _AdminChatConversationPageState
     );
   }
 
-  void _initializeChat() {
+  Future<void> _initializeChat() async {
     _chatService = ChatSocketService();
     
     // Connect to chat
-    _chatService!.connect(
+    await _chatService!.connect(
       userId: widget.adminId,
       userRole: 'admin',
       targetUserId: widget.student.id,
       targetUserRole: 'student',
     );
+
+    // Check if connection succeeded
+    if (!_chatService!.isConnected) {
+      if (mounted) {
+        setState(() {
+          _isLoadingMessages = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to connect to chat service. Please check server connection.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 5),
+          ),
+        );
+      }
+      return;
+    }
 
     // Listen for chat history
     _chatService!.historyStream.listen((messages) {

@@ -62,12 +62,22 @@ class _HelpdeskChatState extends State<HelpdeskChat> {
       }
 
       _chatService = ChatSocketService();
-      _chatService!.connect(
+      await _chatService!.connect(
         userId: widget.studentId!,
         userRole: widget.userRole ?? 'student',
         targetUserId: _resolvedTargetId!,
         targetUserRole: _resolvedTargetRole,
       );
+
+      // Check if connection succeeded
+      if (!_chatService!.isConnected) {
+        if (!mounted) return;
+        setState(() { 
+          _isLoading = false;
+          _showInfoBanner = true;
+        });
+        return;
+      }
 
       _chatService!.historyStream.listen((messages) {
         if (!mounted) return;
@@ -99,9 +109,18 @@ class _HelpdeskChatState extends State<HelpdeskChat> {
         });
         _scrollToBottom();
       });
-    } catch (_) {
+      
+      // Set loading to false after connection attempt
+      if (mounted) {
+        setState(() { _isLoading = false; });
+      }
+    } catch (e) {
+      print('Error in _resolveAndConnect: $e');
       if (!mounted) return;
-      setState(() { _isLoading = false; });
+      setState(() { 
+        _isLoading = false;
+        _showInfoBanner = true;
+      });
     }
   }
 
@@ -297,7 +316,66 @@ class _HelpdeskChatState extends State<HelpdeskChat> {
                               );
                             },
                           ),
-                        if (_showInfoBanner)
+                        if (_chatService != null && !_chatService!.isConnected)
+                          Align(
+                            alignment: Alignment.topCenter,
+                            child: Container(
+                              margin: const EdgeInsets.all(12),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.red[100],
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.red[300]!),
+                              ),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(Icons.error_outline, color: Colors.red[700], size: 20),
+                                      const SizedBox(width: 8),
+                                      const Expanded(
+                                        child: Text(
+                                          'Disconnected - Chat service not available',
+                                          style: TextStyle(
+                                            color: Colors.red,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    'Make sure backend-chat service is running on port 3001',
+                                    style: TextStyle(
+
+                                      fontSize: 12,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  ElevatedButton.icon(
+                                    onPressed: () async {
+                                      setState(() {
+                                        _isLoading = true;
+                                      });
+                                      await _resolveAndConnect();
+                                    },
+                                    icon: const Icon(Icons.refresh, size: 16),
+                                    label: const Text('Retry Connection'),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.red[700],
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        if (_showInfoBanner && (_chatService == null || _chatService!.isConnected))
                           Align(
                             alignment: Alignment.topCenter,
                             child: Container(
