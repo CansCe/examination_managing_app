@@ -61,6 +61,7 @@ Or use the build scripts:
 
 ### 🚀 Deployment Guides
 
+- **[DEPLOYING_SERVER.md](DEPLOYING_SERVER.md)** - **Complete server deployment and troubleshooting guide** ⭐
 - **[SERVER_PROVIDERS_GUIDE.md](SERVER_PROVIDERS_GUIDE.md)** - **Where to get a server** (DigitalOcean, Vultr, AWS, etc.) ⭐
 - **[AWS_EC2_DEPLOYMENT.md](AWS_EC2_DEPLOYMENT.md)** - **Complete AWS EC2 deployment guide** ⭐
 - **[LAPTOP_VS_SERVER_IP.md](LAPTOP_VS_SERVER_IP.md)** - **Laptop IP vs Server IP - Understanding the difference** ⭐

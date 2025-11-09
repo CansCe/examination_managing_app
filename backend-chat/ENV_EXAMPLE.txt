@@ -18,7 +18,9 @@ PORT=3001
 NODE_ENV=development
 
 # CORS Configuration (comma-separated origins)
-ALLOWED_ORIGINS=http://localhost:8080,http://localhost:3000,http://localhost:3001
+# Include your server domains for production deployment
+# For production, add: https://exam-app-api.duckdns.org,https://backend-chat.duckdns.org,http://exam-app-api.duckdns.org,http://backend-chat.duckdns.org
+ALLOWED_ORIGINS=http://localhost:8080,http://localhost:3000,http://localhost:3001,https://exam-app-api.duckdns.org,https://backend-chat.duckdns.org,http://exam-app-api.duckdns.org,http://backend-chat.duckdns.org
 
 # Optional: Shutdown token for development (POST /shutdown)
 # SHUTDOWN_TOKEN=your-secret-token
