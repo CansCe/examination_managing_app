@@ -61,6 +61,13 @@ Or use the build scripts:
 
 ### 🚀 Deployment Guides
 
+- **[SERVER_PROVIDERS_GUIDE.md](SERVER_PROVIDERS_GUIDE.md)** - **Where to get a server** (DigitalOcean, Vultr, AWS, etc.) ⭐
+- **[AWS_EC2_DEPLOYMENT.md](AWS_EC2_DEPLOYMENT.md)** - **Complete AWS EC2 deployment guide** ⭐
+- **[LAPTOP_VS_SERVER_IP.md](LAPTOP_VS_SERVER_IP.md)** - **Laptop IP vs Server IP - Understanding the difference** ⭐
+- **[SERVER_DEPLOYMENT_WITH_DOMAINS.md](SERVER_DEPLOYMENT_WITH_DOMAINS.md)** - **Complete server deployment with DuckDNS domains** ⭐
+- **[DOCKER_EXPOSE_PORTS.md](DOCKER_EXPOSE_PORTS.md)** - **How to expose Docker containers to public internet** ⭐
+- **[DOCKER_EXPOSE_PUBLIC_URL.md](DOCKER_EXPOSE_PUBLIC_URL.md)** - Make Docker containers accessible via public URL (Nginx)
+- **[DEDICATED_SERVER_DOCKER_DEPLOYMENT.md](DEDICATED_SERVER_DOCKER_DEPLOYMENT.md)** - Docker on your own dedicated server/hardware
 - **[DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)** - **Master deployment guide** (Docker + DNS + Domain setup)
 - **[PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md)** - Complete guide for deploying to a dedicated server
 - **[DOCKER_DEPLOYMENT.md](DOCKER_DEPLOYMENT.md)** - Local development with Docker

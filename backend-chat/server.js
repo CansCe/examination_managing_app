@@ -15,23 +15,29 @@ console.log('\n╔════════════════════�
 console.log('║     CHAT SERVICE - Starting...                           ║');
 console.log('╚══════════════════════════════════════════════════════════╝\n');
 
-// Verify .env file exists
+// Check if running in Docker (environment variables provided at runtime via docker-compose)
+// In Docker, .env files are loaded from host via docker-compose env_file, not copied into image
+const isDocker = process.env.DOCKER_CONTAINER === 'true' || 
+                 process.env.MONGODB_URI !== undefined; // If MONGODB_URI is set, assume Docker or env vars provided
+
+// Verify .env file exists (only for non-Docker/local development)
 const envPath = join(__dirname, '.env');
-if (!existsSync(envPath)) {
-  console.error('╔══════════════════════════════════════════════════════════╗');
-  console.error('║      CHAT SERVICE - Configuration Error                  ║');
-  console.error('╚══════════════════════════════════════════════════════════╝');
-  console.error(`\n✗ .env file not found at: ${envPath}`);
-  console.error('✗ Service: CHAT SERVICE (backend-chat)');
-  console.error('✗ Database: MongoDB');
-  console.error('\n📝 Solution:');
-  console.error('   1. Copy ENV_EXAMPLE.txt to .env');
-  console.error('   2. Fill in your MONGODB_URI');
-  console.error('   3. Restart the service\n');
-  process.exit(1);
+if (!existsSync(envPath) && !isDocker) {
+  console.warn('╔══════════════════════════════════════════════════════════╗');
+  console.warn('║      CHAT SERVICE - Configuration Warning                ║');
+  console.warn('╚══════════════════════════════════════════════════════════╝');
+  console.warn(`\n⚠ .env file not found at: ${envPath}`);
+  console.warn('⚠ Service: CHAT SERVICE (backend-chat)');
+  console.warn('\n💡 This is OK if:');
+  console.warn('   - Running in Docker (env vars provided via docker-compose)');
+  console.warn('   - Environment variables are set in the system');
+  console.warn('\n📝 Otherwise, create .env file:');
+  console.warn('   1. Copy ENV_EXAMPLE.txt to .env');
+  console.warn('   2. Fill in your MONGODB_URI');
+  console.warn('   3. Restart the service\n');
 }
 
-// Verify MongoDB URI is loaded
+// Verify MongoDB URI is loaded (required in all cases)
 if (!process.env.MONGODB_URI) {
   console.error('╔══════════════════════════════════════════════════════════╗');
   console.error('║     CHAT SERVICE - Configuration Error                   ║');
@@ -40,8 +46,14 @@ if (!process.env.MONGODB_URI) {
   console.error('✗ Service: CHAT SERVICE (backend-chat)');
   console.error('✗ Database: MongoDB');
   console.error('\n📝 Solution:');
-  console.error('   Add MONGODB_URI to backend-chat/.env');
-  console.error('   Use the same MongoDB URI as backend-api\n');
+  if (isDocker) {
+    console.error('   For Docker: Add MONGODB_URI to docker-compose.yml or backend-chat/.env file');
+    console.error('   (docker-compose loads .env file from host at runtime)');
+  } else {
+    console.error('   For local: Add MONGODB_URI to backend-chat/.env');
+    console.error('   Use the same MongoDB URI as backend-api');
+  }
+  console.error('');
   process.exit(1);
 }
 

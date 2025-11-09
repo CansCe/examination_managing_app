@@ -1,10 +1,46 @@
-node_modules
-npm-debug.log
+# Environment files (should NOT be in Docker image)
 .env
 .env.local
+.env.*.local
+*.env
+default.env
+ENV_EXAMPLE.txt
+
+# Dependencies (will be installed in container)
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Git files
 .git
 .gitignore
-README.md
-*.md
-.DS_Store
 
+# IDE files
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Documentation
+*.md
+README.md
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs
+
+# Test files
+test
+tests
+*.test.js
+*.spec.js
+
+# Build files
+dist
+build
+*.map

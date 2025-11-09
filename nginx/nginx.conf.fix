@@ -1,0 +1,23 @@
+# Fix for server_names_hash_bucket_size error
+# Add these lines to your main nginx.conf file in the http block
+
+# For Linux: /etc/nginx/nginx.conf
+# For Windows: C:\nginx\conf\nginx.conf
+
+http {
+    # Increase hash bucket size for long domain names
+    # Default is 32, increase to 64 or 128 for longer domain names
+    server_names_hash_bucket_size 64;
+    
+    # Optional: Increase max size if you have many server blocks
+    # server_names_hash_max_size 512;
+    
+    # ... rest of your configuration ...
+    include /etc/nginx/conf.d/*.conf;
+    include /etc/nginx/sites-enabled/*;
+}
+
+# After making changes:
+# 1. Test: sudo nginx -t (Linux) or C:\nginx\nginx.exe -t (Windows)
+# 2. Reload: sudo systemctl reload nginx (Linux) or C:\nginx\nginx.exe -s reload (Windows)
+
