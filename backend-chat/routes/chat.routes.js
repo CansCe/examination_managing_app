@@ -8,6 +8,7 @@ import {
   markAsRead,
   getAllConversations,
   getUnreadMessages,
+  getUnreadCount,
   getDefaultAdmin,
   closeConversation,
   createOrUpdateConversation,
@@ -46,6 +47,7 @@ router.post('/admin',
 router.get('/conversation', getConversation);
 router.get('/conversations', getAllConversations);
 router.get('/unread', getUnreadMessages);
+router.get('/unread/count', getUnreadCount);
 router.get('/default-admin', getDefaultAdmin);
 router.get('/conversation/:userId/:targetUserId/metadata', getConversationMetadata);
 router.post('/conversation', createOrUpdateConversation);

@@ -27,7 +27,7 @@ services:
       retries: 3
       start_period: 5s
 
-  # Chat Service (Supabase)
+  # Chat Service (MongoDB + Socket.io)
   chat:
     build:
       context: ./backend-chat
@@ -36,8 +36,8 @@ services:
     ports:
       - "3001:3001"
     environment:
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - MONGODB_URI=${MONGODB_URI}
+      - MONGODB_DB=${MONGODB_DB:-exam_management}
       - PORT=3001
       - NODE_ENV=${NODE_ENV:-production}
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:8080,http://localhost:3000,http://localhost:3001}

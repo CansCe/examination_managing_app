@@ -91,13 +91,15 @@ export const sendTeacherMessage = async (req, res) => {
       from_user_id: fromUserId, // Store as-is (can be UUID or ObjectId)
       from_user_role: 'teacher',
       to_user_id: toUserId, // Store as-is (can be UUID or ObjectId)
-      to_user_role: toUserRole || 'student',
+      to_user_role: toUserRole || 'admin', // Default to 'admin' for teacher messages (teachers usually message admins)
       message: message,
       is_read: false,
       timestamp: new Date(),
       createdAt: new Date(),
       updatedAt: new Date()
     };
+    
+    console.log(`📤 Teacher message: from ${fromUserId} to ${toUserId} (role: ${toUserRole || 'admin'})`);
 
     const result = await db.collection('chat_messages').insertOne(chatMessage);
     const insertedMessage = await db.collection('chat_messages').findOne({ _id: result.insertedId });
@@ -150,11 +152,15 @@ export const sendAdminMessage = async (req, res) => {
     const result = await db.collection('chat_messages').insertOne(chatMessage);
     const insertedMessage = await db.collection('chat_messages').findOne({ _id: result.insertedId });
 
-    // When an admin replies, mark all unread student messages as read for this student
+    // When an admin replies, mark all unread messages as read (from both students and teachers)
     const updateResult = await db.collection('chat_messages').updateMany(
       {
         from_user_id: toUserId, // Match as-is (can be UUID or ObjectId)
-        from_user_role: 'student',
+        $or: [
+          { from_user_role: 'student' },
+          { from_user_role: 'teacher' }
+        ],
+        to_user_role: 'admin',
         is_read: false
       },
       {
@@ -166,6 +172,8 @@ export const sendAdminMessage = async (req, res) => {
         }
       }
     );
+    
+    console.log(`  📖 Admin replied: Marked ${updateResult.modifiedCount} messages as read from ${toUserRole || 'user'}`);
 
     // Broadcast message via Socket.io
     const io = getIO();
@@ -220,6 +228,30 @@ export const getConversation = async (req, res) => {
       .toArray();
 
     console.log(`  Found ${messages.length} messages with conversation ID: ${conversationId}`);
+    if (messages.length > 0) {
+      console.log(`  Message roles in conversation: ${messages.map(m => `${m.from_user_role}->${m.to_user_role}`).join(', ')}`);
+    }
+
+    // If no messages found, try alternative conversation ID (reverse order)
+    // This handles cases where messages were stored with different ID order
+    if (messages.length === 0) {
+      const reverseConversationId = createConversationId(targetUserId, userId);
+      if (reverseConversationId !== conversationId) {
+        console.log(`  Trying reverse conversation ID: ${reverseConversationId}`);
+        const reverseMessages = await db.collection('chat_messages')
+          .find({
+            conversation_id: reverseConversationId,
+            timestamp: { $gte: thirtyDaysAgo }
+          })
+          .sort({ timestamp: 1 })
+          .toArray();
+        
+        if (reverseMessages.length > 0) {
+          console.log(`  Found ${reverseMessages.length} messages with reverse conversation ID`);
+          messages = reverseMessages;
+        }
+      }
+    }
 
     // If no messages found and IDs are UUIDs, try with ObjectId format (decoded)
     if (messages.length === 0 && isValidUuid(userId) && isValidUuid(targetUserId)) {
@@ -255,17 +287,93 @@ export const getConversation = async (req, res) => {
           .toArray();
         
         console.log(`  Found ${messages.length} messages with decoded conversation ID`);
+        if (messages.length > 0) {
+          console.log(`  Message roles: ${messages.map(m => `${m.from_user_role}->${m.to_user_role}`).join(', ')}`);
+        }
       } catch (e) {
         console.error('  Error decoding UUIDs:', e);
       }
     }
     
-    // Also try the reverse: if IDs are ObjectIds, try with UUID format (encoded)
-    if (messages.length === 0 && isValidObjectId(userId) && isValidObjectId(targetUserId)) {
-      // This case is less likely since we encode before sending, but handle it anyway
-      console.log(`  IDs are ObjectIds, but no messages found. Messages might be stored with UUID format.`);
+    // Fallback: Query by user IDs directly if conversation ID didn't work
+    // This handles cases where ID encoding causes conversation ID mismatches
+    if (messages.length === 0) {
+      console.log(`  ⚠ No messages found with conversation ID, trying direct user ID query as fallback...`);
+      
+      // Query for messages between these two specific users
+      // Try all combinations: user1->user2, user2->user1, and their encoded/decoded variants
+      const directMessages = await db.collection('chat_messages')
+        .find({
+          $or: [
+            // Direct matches
+            { from_user_id: userId, to_user_id: targetUserId },
+            { from_user_id: targetUserId, to_user_id: userId },
+          ],
+          timestamp: { $gte: thirtyDaysAgo }
+        })
+        .sort({ timestamp: 1 })
+        .toArray();
+      
+      console.log(`  Direct query found ${directMessages.length} messages`);
+      
+      if (directMessages.length > 0) {
+        console.log(`  ✅ Found ${directMessages.length} messages with direct user ID query`);
+        messages = directMessages;
+      } else {
+        console.log(`  ❌ No messages found with direct query`);
+        console.log(`  Trying broader search with all messages involving these users...`);
+        
+        // Broader search: find all messages where either user is involved
+        const allUserMessages = await db.collection('chat_messages')
+          .find({
+            $or: [
+              { from_user_id: userId },
+              { from_user_id: targetUserId },
+              { to_user_id: userId },
+              { to_user_id: targetUserId }
+            ],
+            timestamp: { $gte: thirtyDaysAgo }
+          })
+          .sort({ timestamp: 1 })
+          .toArray();
+        
+        console.log(`  Found ${allUserMessages.length} total messages involving these users`);
+        
+        // Filter to only messages between the two specific users
+        const filteredMessages = allUserMessages.filter(msg => {
+          const fromId = msg.from_user_id?.toString() || '';
+          const toId = msg.to_user_id?.toString() || '';
+          const userIdStr = userId.toString();
+          const targetUserIdStr = targetUserId.toString();
+          
+          // Message is between our two users if both from and to match our users
+          const isBetweenUsers = (
+            (fromId === userIdStr || fromId === targetUserIdStr) &&
+            (toId === userIdStr || toId === targetUserIdStr) &&
+            fromId !== toId
+          );
+          
+          if (isBetweenUsers) {
+            console.log(`    ✓ Message between users: ${fromId} -> ${toId} (${msg.from_user_role} -> ${msg.to_user_role})`);
+          }
+          
+          return isBetweenUsers;
+        });
+        
+        if (filteredMessages.length > 0) {
+          console.log(`  ✅ Found ${filteredMessages.length} messages after filtering`);
+          messages = filteredMessages;
+        } else {
+          console.log(`  ❌ No messages found even after filtering`);
+        }
+      }
     }
 
+    console.log(`  📋 Final result: ${messages.length} messages found for conversation`);
+    if (messages.length > 0) {
+      console.log(`  Message roles: ${messages.map(m => `${m.from_user_role}->${m.to_user_role}`).join(', ')}`);
+    }
+    
     res.json({ success: true, data: messages || [] });
   } catch (error) {
     console.error('Get conversation error:', error);
@@ -293,11 +401,18 @@ export const getAllConversations = async (req, res) => {
     messages.forEach(msg => {
       const convId = msg.conversation_id;
       if (!conversationsMap.has(convId)) {
+        // Determine if this is a student or teacher conversation
+        const isStudentConv = msg.from_user_role === 'student' || msg.to_user_role === 'student';
+        const isTeacherConv = msg.from_user_role === 'teacher' || msg.to_user_role === 'teacher';
+        
         conversationsMap.set(convId, {
           conversationId: convId,
           lastMessage: msg,
-          studentId: msg.from_user_role === 'student' ? msg.from_user_id : 
-                    (msg.to_user_role === 'student' ? msg.to_user_id : null)
+          studentId: isStudentConv ? (msg.from_user_role === 'student' ? msg.from_user_id : msg.to_user_id) : null,
+          teacherId: isTeacherConv ? (msg.from_user_role === 'teacher' ? msg.from_user_id : msg.to_user_id) : null,
+          userRole: isStudentConv ? 'student' : (isTeacherConv ? 'teacher' : null),
+          userId: isStudentConv ? (msg.from_user_role === 'student' ? msg.from_user_id : msg.to_user_id) :
+                  (isTeacherConv ? (msg.from_user_role === 'teacher' ? msg.from_user_id : msg.to_user_id) : null)
         });
       }
     });
@@ -305,11 +420,14 @@ export const getAllConversations = async (req, res) => {
     // Count unread messages per conversation
     const conversations = await Promise.all(
       Array.from(conversationsMap.values()).map(async (conv) => {
-        if (!conv.studentId) return null;
+        // Skip if neither studentId nor teacherId (shouldn't happen, but safety check)
+        if (!conv.userId) return null;
 
+        // Count unread messages from the user (student or teacher) to admin
         const unreadCount = await db.collection('chat_messages').countDocuments({
           conversation_id: conv.conversationId,
-          from_user_role: 'student',
+          from_user_role: conv.userRole, // 'student' or 'teacher'
+          to_user_role: 'admin',
           is_read: false
         });
 
@@ -333,18 +451,56 @@ export const getUnreadMessages = async (req, res) => {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
+    // Get unread messages from both students and teachers (sent to admin)
     const unread = await db.collection('chat_messages')
       .find({
-        from_user_role: 'student',
-        is_read: false,
+        $or: [
+          { from_user_role: 'student', is_read: false },
+          { from_user_role: 'teacher', is_read: false }
+        ],
+        to_user_role: 'admin', // Only messages sent to admin
         timestamp: { $gte: thirtyDaysAgo }
       })
       .sort({ timestamp: -1 })
       .toArray();
 
+    console.log(`📊 Found ${unread.length} unread messages (students: ${unread.filter(m => m.from_user_role === 'student').length}, teachers: ${unread.filter(m => m.from_user_role === 'teacher').length})`);
+
     res.json({ success: true, data: unread || [] });
   } catch (error) {
     console.error('Get unread messages error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+};
+
+// Get unread message count for a specific user (student or teacher)
+export const getUnreadCount = async (req, res) => {
+  try {
+    const { userId, userRole } = req.query;
+    const db = getDatabase();
+
+    if (!userId || !userRole) {
+      return res.status(400).json({ success: false, error: 'Missing userId or userRole' });
+    }
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    // Get unread messages sent TO this user (from admin)
+    // For students/teachers, we want messages from admin that are unread
+    const count = await db.collection('chat_messages').countDocuments({
+      to_user_id: userId,
+      to_user_role: userRole,
+      from_user_role: 'admin',
+      is_read: false,
+      timestamp: { $gte: thirtyDaysAgo }
+    });
+
+    console.log(`📊 Unread count for ${userRole} ${userId}: ${count}`);
+
+    res.json({ success: true, count: count || 0 });
+  } catch (error) {
+    console.error('Get unread count error:', error);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 };
@@ -404,17 +560,22 @@ export const getDefaultAdmin = async (req, res) => {
 
 export const markAsRead = async (req, res) => {
   try {
-    const { studentId } = req.params;
+    const { studentId } = req.params; // This can be studentId or teacherId
     const db = getDatabase();
 
     if (!studentId) {
-      return res.status(400).json({ success: false, error: 'Missing studentId' });
+      return res.status(400).json({ success: false, error: 'Missing studentId/teacherId' });
     }
 
+    // Mark messages as read for both students and teachers (whoever sent messages to admin)
     const result = await db.collection('chat_messages').updateMany(
       {
         from_user_id: studentId, // Match as-is (can be UUID or ObjectId)
-        from_user_role: 'student',
+        $or: [
+          { from_user_role: 'student' },
+          { from_user_role: 'teacher' }
+        ],
+        to_user_role: 'admin', // Only messages sent to admin
         is_read: false
       },
       {
@@ -429,17 +590,20 @@ export const markAsRead = async (req, res) => {
     // Broadcast read status update via Socket.io
     const io = getIO();
     if (io && result.modifiedCount > 0) {
-      // Find conversations involving this student
+      // Find conversations involving this user (student or teacher)
       const conversations = await db.collection('chat_messages').distinct('conversation_id', {
         from_user_id: studentId,
-        from_user_role: 'student'
+        $or: [
+          { from_user_role: 'student' },
+          { from_user_role: 'teacher' }
+        ]
       });
       
       conversations.forEach(conversationId => {
         io.to(conversationId).emit('messages_read', {
           conversationId,
           count: result.modifiedCount,
-          studentId: studentId
+          userId: studentId // Generic userId (can be student or teacher)
         });
       });
       
