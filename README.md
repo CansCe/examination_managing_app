@@ -116,4 +116,4 @@ See `lib/config/api_config.dart` for configuration options.
 
 ## License
 
-[Your License Here]
+Not yet needed
