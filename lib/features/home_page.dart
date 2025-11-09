@@ -5,7 +5,6 @@ import '../services/index.dart';
 import '../config/routes.dart'; // For AppRoutes.login
 import '../models/index.dart';
 import '../features/index.dart';
-import '../features/questions/question_bank_page.dart';
 import '../utils/dialog_helper.dart';
 
 final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
@@ -838,11 +837,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(12),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black,
             blurRadius: 8,
-            offset: const Offset(0, 4),
+            offset: Offset(0, 4),
           ),
         ],
       ),
@@ -870,7 +869,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           const SizedBox(height: 16),
           if (_nearestUpcomingExam != null) ...[
             Card(
-              color: Colors.white.withOpacity(0.95),
+              color: Colors.white,
               child: InkWell(
                 onTap: () => _navigateToExamDetails(_nearestUpcomingExam!),
                 child: Padding(
@@ -933,9 +932,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               ),
             ),
           ] else ...[
-            Card(
-              color: Colors.white.withOpacity(0.95),
-              child: const Padding(
+            const Card(
+              color: Colors.white,
+              child: Padding(
                 padding: EdgeInsets.all(16),
                 child: Text(
                   'No upcoming exams',

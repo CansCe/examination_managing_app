@@ -1,6 +1,6 @@
 import { getDatabase, ObjectId } from '../config/database.js';
 import { validationResult } from 'express-validator';
-import { isValidUuid, isValidObjectId, toObjectId } from '../utils/supabase-helpers.js';
+import { isValidUuid, isValidObjectId, toObjectId, sanitizeUserId, sanitizeUserRole } from '../utils/supabase-helpers.js';
 import { getIO } from '../config/socket.js';
 
 // Helper to decode UUID back to MongoDB ObjectId if needed
@@ -84,22 +84,35 @@ export const sendTeacherMessage = async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing required fields' });
     }
 
-    // Use the IDs as-is for conversation_id to match query format
-    const conversationId = createConversationId(fromUserId, toUserId);
+    // SECURITY: Sanitize user IDs before using in database operations
+    const sanitizedFromUserId = sanitizeUserId(fromUserId);
+    const sanitizedToUserId = sanitizeUserId(toUserId);
+    const sanitizedToUserRole = toUserRole ? sanitizeUserRole(toUserRole) : 'admin';
+
+    if (!sanitizedFromUserId) {
+      return res.status(400).json({ success: false, error: 'Invalid fromUserId format' });
+    }
+
+    if (!sanitizedToUserId) {
+      return res.status(400).json({ success: false, error: 'Invalid toUserId format' });
+    }
+
+    // Use sanitized IDs for conversation_id
+    const conversationId = createConversationId(sanitizedFromUserId, sanitizedToUserId);
     const chatMessage = {
       conversation_id: conversationId,
-      from_user_id: fromUserId, // Store as-is (can be UUID or ObjectId)
+      from_user_id: sanitizedFromUserId, // Sanitized user ID
       from_user_role: 'teacher',
-      to_user_id: toUserId, // Store as-is (can be UUID or ObjectId)
-      to_user_role: toUserRole || 'admin', // Default to 'admin' for teacher messages (teachers usually message admins)
-      message: message,
+      to_user_id: sanitizedToUserId, // Sanitized user ID
+      to_user_role: sanitizedToUserRole || 'admin', // Default to 'admin' for teacher messages (teachers usually message admins)
+      message: message.trim().substring(0, 5000), // Limit message length and trim
       is_read: false,
       timestamp: new Date(),
       createdAt: new Date(),
       updatedAt: new Date()
     };
     
-    console.log(`📤 Teacher message: from ${fromUserId} to ${toUserId} (role: ${toUserRole || 'admin'})`);
+    console.log(`📤 Teacher message: from ${sanitizedFromUserId} to ${sanitizedToUserId} (role: ${sanitizedToUserRole || 'admin'})`);
 
     const result = await db.collection('chat_messages').insertOne(chatMessage);
     const insertedMessage = await db.collection('chat_messages').findOne({ _id: result.insertedId });
@@ -134,15 +147,28 @@ export const sendAdminMessage = async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing required fields' });
     }
 
-    // Use the IDs as-is for conversation_id to match query format
-    const conversationId = createConversationId(fromUserId, toUserId);
+    // SECURITY: Sanitize user IDs before using in database operations
+    const sanitizedFromUserId = sanitizeUserId(fromUserId);
+    const sanitizedToUserId = sanitizeUserId(toUserId);
+    const sanitizedToUserRole = toUserRole ? sanitizeUserRole(toUserRole) : 'student';
+
+    if (!sanitizedFromUserId) {
+      return res.status(400).json({ success: false, error: 'Invalid fromUserId format' });
+    }
+
+    if (!sanitizedToUserId) {
+      return res.status(400).json({ success: false, error: 'Invalid toUserId format' });
+    }
+
+    // Use sanitized IDs for conversation_id
+    const conversationId = createConversationId(sanitizedFromUserId, sanitizedToUserId);
     const chatMessage = {
       conversation_id: conversationId,
-      from_user_id: fromUserId, // Store as-is (can be UUID or ObjectId)
+      from_user_id: sanitizedFromUserId, // Sanitized user ID
       from_user_role: 'admin',
-      to_user_id: toUserId, // Store as-is (can be UUID or ObjectId)
-      to_user_role: toUserRole || 'student',
-      message: message,
+      to_user_id: sanitizedToUserId, // Sanitized user ID
+      to_user_role: sanitizedToUserRole || 'student',
+      message: message.trim().substring(0, 5000), // Limit message length and trim
       is_read: false,
       timestamp: new Date(),
       createdAt: new Date(),
@@ -153,28 +179,37 @@ export const sendAdminMessage = async (req, res) => {
     const insertedMessage = await db.collection('chat_messages').findOne({ _id: result.insertedId });
 
     // When an admin replies, mark all unread messages as read (from both students and teachers)
-    const updateResult = await db.collection('chat_messages').updateMany(
-      {
-        from_user_id: toUserId, // Match as-is (can be UUID or ObjectId)
-        $or: [
-          { from_user_role: 'student' },
-          { from_user_role: 'teacher' }
-        ],
-        to_user_role: 'admin',
-        is_read: false
-      },
-      {
-        $set: {
-          is_read: true,
-          answered_by: fromUserId, // Store as-is
-          answered_at: new Date(),
-          updatedAt: new Date()
-        }
+    // Note: sanitizedToUserId and sanitizedFromUserId are already validated above
+    let updateResult = { modifiedCount: 0 };
+    if (sanitizedToUserId && sanitizedFromUserId) {
+      try {
+        updateResult = await db.collection('chat_messages').updateMany(
+          {
+            from_user_id: sanitizedToUserId, // Sanitized user ID
+            $or: [
+              { from_user_role: 'student' },
+              { from_user_role: 'teacher' }
+            ],
+            to_user_role: 'admin',
+            is_read: false
+          },
+          {
+            $set: {
+              is_read: true,
+              answered_by: sanitizedFromUserId, // Sanitized user ID
+              answered_at: new Date(),
+              updatedAt: new Date()
+            }
+          }
+        );
+        
+        console.log(`  📖 Admin replied: Marked ${updateResult.modifiedCount} messages as read from ${sanitizedToUserRole || 'user'}`);
+      } catch (updateError) {
+        console.error('  ⚠️ Error marking messages as read:', updateError);
+        // Continue even if marking as read fails (message was already sent)
       }
-    );
+    }
     
-    console.log(`  📖 Admin replied: Marked ${updateResult.modifiedCount} messages as read from ${toUserRole || 'user'}`);
-
     // Broadcast message via Socket.io
     const io = getIO();
     if (io) {
@@ -182,7 +217,7 @@ export const sendAdminMessage = async (req, res) => {
         ...insertedMessage,
         id: insertedMessage._id.toString()
       });
-      // Notify about read status update
+      // Notify about read status update (only if we successfully updated)
       if (updateResult.modifiedCount > 0) {
         io.to(conversationId).emit('messages_read', {
           conversationId,
@@ -207,16 +242,28 @@ export const getConversation = async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing userId or targetUserId' });
     }
 
+    // SECURITY: Sanitize user inputs before using in database queries
+    const sanitizedUserId = sanitizeUserId(userId);
+    const sanitizedTargetUserId = sanitizeUserId(targetUserId);
+
+    if (!sanitizedUserId) {
+      return res.status(400).json({ success: false, error: 'Invalid userId format' });
+    }
+
+    if (!sanitizedTargetUserId) {
+      return res.status(400).json({ success: false, error: 'Invalid targetUserId format' });
+    }
+
     // Only return messages from the last 30 days
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    // Create conversation ID (sorted) - try both UUID and ObjectId formats
-    const conversationId = createConversationId(userId, targetUserId);
+    // Create conversation ID (sorted) - use sanitized IDs
+    const conversationId = createConversationId(sanitizedUserId, sanitizedTargetUserId);
     
     console.log(`  Querying conversation with ID: ${conversationId}`);
-    console.log(`  userId format: ${isValidUuid(userId) ? 'UUID' : isValidObjectId(userId) ? 'ObjectId' : 'Unknown'}`);
-    console.log(`  targetUserId format: ${isValidUuid(targetUserId) ? 'UUID' : isValidObjectId(targetUserId) ? 'ObjectId' : 'Unknown'}`);
+    console.log(`  userId format: ${isValidUuid(sanitizedUserId) ? 'UUID' : isValidObjectId(sanitizedUserId) ? 'ObjectId' : 'Unknown'}`);
+    console.log(`  targetUserId format: ${isValidUuid(sanitizedTargetUserId) ? 'UUID' : isValidObjectId(sanitizedTargetUserId) ? 'ObjectId' : 'Unknown'}`);
     
     // Try to find messages with this conversation ID
     let messages = await db.collection('chat_messages')
@@ -235,7 +282,7 @@ export const getConversation = async (req, res) => {
     // If no messages found, try alternative conversation ID (reverse order)
     // This handles cases where messages were stored with different ID order
     if (messages.length === 0) {
-      const reverseConversationId = createConversationId(targetUserId, userId);
+      const reverseConversationId = createConversationId(sanitizedTargetUserId, sanitizedUserId);
       if (reverseConversationId !== conversationId) {
         console.log(`  Trying reverse conversation ID: ${reverseConversationId}`);
         const reverseMessages = await db.collection('chat_messages')
@@ -254,7 +301,7 @@ export const getConversation = async (req, res) => {
     }
 
     // If no messages found and IDs are UUIDs, try with ObjectId format (decoded)
-    if (messages.length === 0 && isValidUuid(userId) && isValidUuid(targetUserId)) {
+    if (messages.length === 0 && isValidUuid(sanitizedUserId) && isValidUuid(sanitizedTargetUserId)) {
       // Try to decode UUIDs back to ObjectIds
       // UUID format: 454d4150-XXXX-XXXX-XXXX-XXXXXXXXXXXX
       // Extract ObjectId from UUID parts
@@ -266,15 +313,25 @@ export const getConversation = async (req, res) => {
             // Extract ObjectId from remaining parts
             const hexString = parts.slice(1).join('');
             if (hexString.length >= 24) {
-              return hexString.substring(0, 24);
+              const decoded = hexString.substring(0, 24);
+              // SECURITY: Sanitize decoded ID before using
+              return sanitizeUserId(decoded) || uuid;
             }
           }
           return uuid;
         };
         
-        const decodedUserId = decodeFromUuid(userId);
-        const decodedTargetUserId = decodeFromUuid(targetUserId);
-        const decodedConversationId = createConversationId(decodedUserId, decodedTargetUserId);
+        const decodedUserId = decodeFromUuid(sanitizedUserId);
+        const decodedTargetUserId = decodeFromUuid(sanitizedTargetUserId);
+        // SECURITY: Sanitize decoded IDs
+        const sanitizedDecodedUserId = sanitizeUserId(decodedUserId);
+        const sanitizedDecodedTargetUserId = sanitizeUserId(decodedTargetUserId);
+        
+        if (!sanitizedDecodedUserId || !sanitizedDecodedTargetUserId) {
+          throw new Error('Invalid decoded user IDs');
+        }
+        
+        const decodedConversationId = createConversationId(sanitizedDecodedUserId, sanitizedDecodedTargetUserId);
         
         console.log(`  Trying decoded conversation ID: ${decodedConversationId}`);
         
@@ -301,13 +358,13 @@ export const getConversation = async (req, res) => {
       console.log(`  ⚠ No messages found with conversation ID, trying direct user ID query as fallback...`);
       
       // Query for messages between these two specific users
-      // Try all combinations: user1->user2, user2->user1, and their encoded/decoded variants
+      // SECURITY: Use sanitized IDs
       const directMessages = await db.collection('chat_messages')
         .find({
           $or: [
-            // Direct matches
-            { from_user_id: userId, to_user_id: targetUserId },
-            { from_user_id: targetUserId, to_user_id: userId },
+            // Direct matches with sanitized IDs
+            { from_user_id: sanitizedUserId, to_user_id: sanitizedTargetUserId },
+            { from_user_id: sanitizedTargetUserId, to_user_id: sanitizedUserId },
           ],
           timestamp: { $gte: thirtyDaysAgo }
         })
@@ -324,13 +381,14 @@ export const getConversation = async (req, res) => {
         console.log(`  Trying broader search with all messages involving these users...`);
         
         // Broader search: find all messages where either user is involved
+        // SECURITY: Use sanitized IDs
         const allUserMessages = await db.collection('chat_messages')
           .find({
             $or: [
-              { from_user_id: userId },
-              { from_user_id: targetUserId },
-              { to_user_id: userId },
-              { to_user_id: targetUserId }
+              { from_user_id: sanitizedUserId },
+              { from_user_id: sanitizedTargetUserId },
+              { to_user_id: sanitizedUserId },
+              { to_user_id: sanitizedTargetUserId }
             ],
             timestamp: { $gte: thirtyDaysAgo }
           })
@@ -343,8 +401,8 @@ export const getConversation = async (req, res) => {
         const filteredMessages = allUserMessages.filter(msg => {
           const fromId = msg.from_user_id?.toString() || '';
           const toId = msg.to_user_id?.toString() || '';
-          const userIdStr = userId.toString();
-          const targetUserIdStr = targetUserId.toString();
+          const userIdStr = sanitizedUserId.toString();
+          const targetUserIdStr = sanitizedTargetUserId.toString();
           
           // Message is between our two users if both from and to match our users
           const isBetweenUsers = (
@@ -483,20 +541,32 @@ export const getUnreadCount = async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing userId or userRole' });
     }
 
+    // SECURITY: Sanitize user inputs before using in database query
+    const sanitizedUserId = sanitizeUserId(userId);
+    const sanitizedUserRole = sanitizeUserRole(userRole);
+
+    if (!sanitizedUserId) {
+      return res.status(400).json({ success: false, error: 'Invalid userId format' });
+    }
+
+    if (!sanitizedUserRole) {
+      return res.status(400).json({ success: false, error: 'Invalid userRole. Must be student, teacher, or admin' });
+    }
+
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     // Get unread messages sent TO this user (from admin)
-    // For students/teachers, we want messages from admin that are unread
+    // SECURITY: Use sanitized values to prevent NoSQL injection
     const count = await db.collection('chat_messages').countDocuments({
-      to_user_id: userId,
-      to_user_role: userRole,
+      to_user_id: sanitizedUserId, // Sanitized user ID
+      to_user_role: sanitizedUserRole, // Sanitized user role
       from_user_role: 'admin',
       is_read: false,
       timestamp: { $gte: thirtyDaysAgo }
     });
 
-    console.log(`📊 Unread count for ${userRole} ${userId}: ${count}`);
+    console.log(`📊 Unread count for ${sanitizedUserRole} ${sanitizedUserId}: ${count}`);
 
     res.json({ success: true, count: count || 0 });
   } catch (error) {
@@ -567,10 +637,17 @@ export const markAsRead = async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing studentId/teacherId' });
     }
 
+    // SECURITY: Sanitize user ID before using in database query
+    const sanitizedStudentId = sanitizeUserId(studentId);
+    if (!sanitizedStudentId) {
+      return res.status(400).json({ success: false, error: 'Invalid studentId/teacherId format' });
+    }
+
     // Mark messages as read for both students and teachers (whoever sent messages to admin)
+    // SECURITY: Use sanitized ID to prevent NoSQL injection
     const result = await db.collection('chat_messages').updateMany(
       {
-        from_user_id: studentId, // Match as-is (can be UUID or ObjectId)
+        from_user_id: sanitizedStudentId, // Sanitized user ID
         $or: [
           { from_user_role: 'student' },
           { from_user_role: 'teacher' }
@@ -591,8 +668,9 @@ export const markAsRead = async (req, res) => {
     const io = getIO();
     if (io && result.modifiedCount > 0) {
       // Find conversations involving this user (student or teacher)
+      // SECURITY: Use sanitized ID
       const conversations = await db.collection('chat_messages').distinct('conversation_id', {
-        from_user_id: studentId,
+        from_user_id: sanitizedStudentId, // Sanitized user ID
         $or: [
           { from_user_role: 'student' },
           { from_user_role: 'teacher' }
@@ -603,7 +681,7 @@ export const markAsRead = async (req, res) => {
         io.to(conversationId).emit('messages_read', {
           conversationId,
           count: result.modifiedCount,
-          userId: studentId // Generic userId (can be student or teacher)
+          userId: sanitizedStudentId // Sanitized user ID
         });
       });
       

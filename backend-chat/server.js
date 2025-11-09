@@ -61,6 +61,7 @@ import { connectDatabase, closeDatabase, getDatabase } from './config/database.j
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import chatRoutes from './routes/chat.routes.js';
 import { setIO } from './config/socket.js';
+import { healthLimiter } from './middleware/rateLimiter.js';
 
 const app = express();
 const httpServer = createServer(app);
@@ -109,8 +110,8 @@ if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('combined'));
 }
 
-// Health check endpoint
-app.get('/health', async (req, res) => {
+// Health check endpoint with rate limiting
+app.get('/health', healthLimiter, async (req, res) => {
   try {
     const db = await connectDatabase();
     await db.collection('chat_messages').findOne({}, { projection: { _id: 1 } });
