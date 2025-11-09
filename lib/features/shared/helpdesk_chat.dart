@@ -295,7 +295,43 @@ class _HelpdeskChatState extends State<HelpdeskChat> {
                             itemCount: _messages.length,
                             itemBuilder: (context, index) {
                               final msg = _messages[index];
-                              final isUser = msg.fromUserId == widget.studentId;
+                              
+                              // Determine if message is from current user (student/teacher)
+                              // Check by role first (most reliable), then by ID
+                              final currentUserRole = widget.userRole ?? 'student';
+                              final isFromCurrentUser = msg.fromUserRole == currentUserRole;
+                              
+                              // Also check ID match (handle encoding differences)
+                              final msgFromUserId = msg.fromUserId.toString();
+                              final currentUserId = widget.studentId.toString();
+                              
+                              // Helper to normalize IDs for comparison
+                              String normalizeId(String id) {
+                                if (id.isEmpty) return id;
+                                // If it's a UUID, try to decode it
+                                if (id.contains('-') && id.length == 36) {
+                                  try {
+                                    final uuidParts = id.split('-');
+                                    if (uuidParts.length == 5 && uuidParts[0].toLowerCase() == '454d4150') {
+                                      final hexString = uuidParts.sublist(1).join('');
+                                      if (hexString.length == 24) {
+                                        return hexString.toLowerCase();
+                                      }
+                                    }
+                                  } catch (e) {
+                                    // If decoding fails, return original
+                                  }
+                                }
+                                return id.toLowerCase();
+                              }
+                              
+                              final normalizedMsgId = normalizeId(msgFromUserId);
+                              final normalizedCurrentId = normalizeId(currentUserId);
+                              final isIdMatch = normalizedMsgId == normalizedCurrentId;
+                              
+                              // Message is from current user if role matches OR if IDs match
+                              final isUser = isFromCurrentUser || isIdMatch;
+                              
                               return Align(
                                 alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
                                 child: Container(
@@ -306,7 +342,7 @@ class _HelpdeskChatState extends State<HelpdeskChat> {
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         msg.message,

@@ -518,6 +518,43 @@ class ApiService {
     }
   }
 
+  /// Get unread message count for a specific user (student or teacher)
+  Future<int> getUnreadChatCount({
+    required String userId,
+    required String userRole,
+  }) async {
+    final encodedUserId = _encodeChatUserId(userId);
+    final uri = _buildChatUri('/api/chat/unread/count', {
+      'userId': encodedUserId,
+      'userRole': userRole,
+    });
+    try {
+      final response = await _client.get(uri, headers: {
+        'accept': 'application/json',
+      });
+      if (response.statusCode == 200) {
+        final body = response.body.trim();
+        if (body.isEmpty) return 0;
+        final decoded = json.decode(body) as Map<String, dynamic>;
+        if (decoded['success'] == true && decoded['count'] != null) {
+          return (decoded['count'] as num).toInt();
+        }
+        return 0;
+      }
+      throw ApiException('GET /api/chat/unread/count failed', response.statusCode, response.body);
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      final errorMsg = e.toString();
+      if (errorMsg.contains('Connection refused') ||
+          errorMsg.contains('Failed host lookup') ||
+          errorMsg.contains('Network is unreachable')) {
+        // Return 0 if service is unavailable (don't show error for count)
+        return 0;
+      }
+      rethrow;
+    }
+  }
+
   /// Send a student message
   Future<Map<String, dynamic>> sendStudentMessage({
     required String fromUserId,

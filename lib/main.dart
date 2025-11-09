@@ -2,8 +2,12 @@
 import 'package:flutter/material.dart';
 import 'config/route_generator.dart'; // Ensure this path is correct
 import 'config/routes.dart';          // Ensure this path is correct
+import 'config/api_config.dart';      // API configuration
 
-void main() {
+void main() async {
+  // Ensure Flutter bindings are initialized
+  WidgetsFlutterBinding.ensureInitialized();
+
   // Add error handling for keyboard events
   FlutterError.onError = (FlutterErrorDetails details) {
     // Filter out keyboard-related errors
@@ -17,6 +21,15 @@ void main() {
     // Let other errors through
     FlutterError.presentError(details);
   };
+
+  // Initialize API configuration (auto-discovers available endpoints)
+  try {
+    await ApiConfig.initialize();
+    print('✅ API Configuration initialized successfully');
+  } catch (e) {
+    print('⚠️ Error initializing API configuration: $e');
+    print('   App will use fallback URLs');
+  }
 
   runApp(const MyApp());
 }

@@ -60,19 +60,44 @@ class _AdminChatPageState extends State<AdminChatPage> {
     });
 
     try {
-      // Get all students that have chat history (with last message info)
+      // Get all conversations (students and teachers) with last message info
       final api = ApiService();
       final conversationsData = await api.getChatConversations();
       api.close();
       
-      // Extract student IDs and last messages
+      // Extract user IDs (students and teachers) and last messages
       final studentIdsWithChat = <String>[];
+      final teacherIdsWithChat = <String>[];
       final lastMessagesMap = <String, String>{};
+      final userRoleMap = <String, String>{}; // userId -> 'student' or 'teacher'
       
       for (var conv in conversationsData) {
-        final studentId = (conv['studentId'] ?? (conv['student']?['id']))?.toString();
+        // Check for studentId first (backward compatibility)
+        final studentId = conv['studentId']?.toString();
+        final teacherId = conv['teacherId']?.toString();
+        final userId = conv['userId']?.toString();
+        final userRole = conv['userRole']?.toString(); // 'student' or 'teacher'
+        
+        String? contactId;
         if (studentId != null) {
-          studentIdsWithChat.add(studentId);
+          contactId = studentId;
+          userRoleMap[contactId] = 'student';
+          studentIdsWithChat.add(contactId);
+        } else if (teacherId != null) {
+          contactId = teacherId;
+          userRoleMap[contactId] = 'teacher';
+          teacherIdsWithChat.add(contactId);
+        } else if (userId != null && userRole != null) {
+          contactId = userId;
+          userRoleMap[contactId] = userRole;
+          if (userRole == 'student') {
+            studentIdsWithChat.add(contactId);
+          } else if (userRole == 'teacher') {
+            teacherIdsWithChat.add(contactId);
+          }
+        }
+        
+        if (contactId != null) {
           // Get last message preview
           if (conv['lastMessage'] != null) {
             final lastMsg = conv['lastMessage'] as Map<String, dynamic>;
@@ -82,18 +107,16 @@ class _AdminChatPageState extends State<AdminChatPage> {
               final preview = messageText.length > 50 
                   ? '${messageText.substring(0, 50)}...' 
                   : messageText;
-              lastMessagesMap[studentId] = preview;
+              lastMessagesMap[contactId] = preview;
             }
           }
         }
       }
       
-      print('📋 Students with chat history (raw): ${studentIdsWithChat.length}');
-      for (var id in studentIdsWithChat) {
-        print('  - $id (format: ${id.contains('-') ? 'UUID' : 'ObjectId'})');
-      }
+      print('📋 Students with chat: ${studentIdsWithChat.length}');
+      print('📋 Teachers with chat: ${teacherIdsWithChat.length}');
       
-      if (studentIdsWithChat.isEmpty) {
+      if (studentIdsWithChat.isEmpty && teacherIdsWithChat.isEmpty) {
         if (mounted) {
           setState(() {
             _allStudents = [];
@@ -142,34 +165,69 @@ class _AdminChatPageState extends State<AdminChatPage> {
       // Decode all student IDs from chat history
       final decodedStudentIds = studentIdsWithChat.map((id) {
         final decoded = decodeChatUserId(id);
-        print('  Decoded: $id -> $decoded');
+        print('  Decoded student: $id -> $decoded');
+        return decoded;
+      }).toSet().toList();
+      
+      // Decode all teacher IDs from chat history
+      final decodedTeacherIds = teacherIdsWithChat.map((id) {
+        final decoded = decodeChatUserId(id);
+        print('  Decoded teacher: $id -> $decoded');
         return decoded;
       }).toSet().toList();
 
       // Fetch all students with pagination and filter to only those with chat history
       // Backend has max limit of 100, so we'll fetch in batches
       List<Student> allStudents = [];
-      int page = 0;
-      const int limit = 100; // Max allowed by backend
-      bool hasMore = true;
-      
-      while (hasMore) {
-        final batch = await AtlasService.findStudents(page: page, limit: limit);
-        if (batch.isEmpty) {
-          hasMore = false;
-        } else {
-          allStudents.addAll(batch);
-          // If we got fewer than the limit, we've reached the end
-          if (batch.length < limit) {
+      if (studentIdsWithChat.isNotEmpty) {
+        int page = 0;
+        const int limit = 100; // Max allowed by backend
+        bool hasMore = true;
+        
+        while (hasMore) {
+          final batch = await AtlasService.findStudents(page: page, limit: limit);
+          if (batch.isEmpty) {
             hasMore = false;
           } else {
-            page++;
+            allStudents.addAll(batch);
+            // If we got fewer than the limit, we've reached the end
+            if (batch.length < limit) {
+              hasMore = false;
+            } else {
+              page++;
+            }
           }
         }
+        
+        print('📋 Fetched ${allStudents.length} total students from database');
       }
       
-      print('📋 Fetched ${allStudents.length} total students from database');
+      // Fetch all teachers with pagination and filter to only those with chat history
+      List<Teacher> allTeachers = [];
+      if (teacherIdsWithChat.isNotEmpty) {
+        int page = 0;
+        const int limit = 100; // Max allowed by backend
+        bool hasMore = true;
+        
+        while (hasMore) {
+          final batch = await AtlasService.findTeachers(page: page, limit: limit);
+          if (batch.isEmpty) {
+            hasMore = false;
+          } else {
+            allTeachers.addAll(batch);
+            // If we got fewer than the limit, we've reached the end
+            if (batch.length < limit) {
+              hasMore = false;
+            } else {
+              page++;
+            }
+          }
+        }
+        
+        print('📋 Fetched ${allTeachers.length} total teachers from database');
+      }
       
+      // Filter students with chat history
       final studentsWithChat = allStudents.where((student) {
         final matches = decodedStudentIds.contains(student.id) || studentIdsWithChat.contains(student.id);
         if (matches) {
@@ -178,12 +236,44 @@ class _AdminChatPageState extends State<AdminChatPage> {
         return matches;
       }).toList();
       
-      print('📋 Found ${studentsWithChat.length} students with chat history');
+      // Filter teachers with chat history and convert to Student objects for compatibility
+      // We'll create minimal Student objects from teachers for the UI
+      final teachersAsStudents = allTeachers.where((teacher) {
+        final teacherIdHex = teacher.id.toHexString();
+        // Check if teacher ID matches (in original or decoded form)
+        final matches = teacherIdsWithChat.contains(teacherIdHex) || 
+                       decodedTeacherIds.contains(teacherIdHex) ||
+                       teacherIdsWithChat.any((id) => decodeChatUserId(id) == teacherIdHex) ||
+                       decodedTeacherIds.contains(teacherIdHex);
+        if (matches) {
+          print('  ✓ Matched teacher: ${teacher.id.toHexString()} (${teacher.fullName})');
+        }
+        return matches;
+      }).map((teacher) {
+        // Create a Student-like object from Teacher for UI compatibility
+        // The conversation page will use the ID, so this works
+        return Student(
+          id: teacher.id.toHexString(),
+          firstName: teacher.firstName,
+          lastName: teacher.lastName,
+          email: teacher.email,
+          className: teacher.department, // Use department as className for teachers
+          rollNumber: 'Teacher', // Mark as teacher
+          phoneNumber: '',
+          address: '',
+          assignedExams: [],
+        );
+      }).toList();
+      
+      // Combine students and teachers (as students)
+      final allContactsWithChat = [...studentsWithChat, ...teachersAsStudents];
+      
+      print('📋 Found ${studentsWithChat.length} students and ${teachersAsStudents.length} teachers with chat history');
 
       // Sort by last message time (most recent first)
       // For now, we'll keep the order as returned, but prioritize those with unread messages
       
-      // Decode last message student IDs to match with student list
+      // Decode last message user IDs to match with contact list
       final decodedLastMessages = <String, String>{};
       for (var entry in lastMessagesMap.entries) {
         final decodedId = decodeChatUserId(entry.key);
@@ -192,18 +282,20 @@ class _AdminChatPageState extends State<AdminChatPage> {
         if (decodedId != entry.key) {
           decodedLastMessages[entry.key] = entry.value;
         }
+        // Also store for all user IDs (students + teachers)
+        decodedLastMessages[entry.key] = entry.value;
       }
       
       if (mounted) {
         setState(() {
-          _allStudents = studentsWithChat;
-          _filteredStudents = studentsWithChat;
+          _allStudents = allContactsWithChat;
+          _filteredStudents = allContactsWithChat;
           _lastMessages = decodedLastMessages;
         });
       }
       await _updateUnreadMessageCounts();
       
-      // Sort by unread count (students with unread messages first)
+      // Sort by unread count (contacts with unread messages first)
       if (mounted) {
         setState(() {
           _allStudents.sort((a, b) {
@@ -264,41 +356,76 @@ class _AdminChatPageState extends State<AdminChatPage> {
       }
       
       for (var msg in unreadMessages) {
-        // Get student ID from the message (fromUserId if student sent it)
-        String messageStudentId = msg.fromUserRole == 'student' ? msg.fromUserId : msg.toUserId;
-        print('  📨 Message from student ID: $messageStudentId (format: ${messageStudentId.contains('-') ? 'UUID' : 'ObjectId'})');
+        // Get user ID from the message (fromUserId if student/teacher sent it to admin)
+        // Messages sent to admin have from_user_role = 'student' or 'teacher'
+        final isFromStudent = msg.fromUserRole == 'student';
+        final isFromTeacher = msg.fromUserRole == 'teacher';
         
-        // Decode if it's UUID-encoded
-        final decodedStudentId = decodeChatUserId(messageStudentId);
-        if (decodedStudentId != messageStudentId) {
-          print('    Decoded to: $decodedStudentId');
+        // Only count messages sent TO admin (from students or teachers)
+        if (!isFromStudent && !isFromTeacher) {
+          print('  ⏭ Skipping message from ${msg.fromUserRole} (not from student/teacher)');
+          continue;
         }
         
-        // Try to find matching student in the list using both encoded and decoded IDs
-        Student? matchingStudent;
+        // Only count messages where to_user_role is 'admin'
+        if (msg.toUserRole != 'admin') {
+          print('  ⏭ Skipping message to ${msg.toUserRole} (not to admin)');
+          continue;
+        }
         
-        // First, try direct match with decoded ID
+        String messageUserId = msg.fromUserId; // The user who sent the message
+        final userRole = isFromStudent ? 'student' : 'teacher';
+        
+        print('  📨 Message from $userRole ID: $messageUserId (format: ${messageUserId.contains('-') ? 'UUID' : 'ObjectId'})');
+        
+        // Decode if it's UUID-encoded
+        final decodedUserId = decodeChatUserId(messageUserId);
+        if (decodedUserId != messageUserId) {
+          print('    Decoded to: $decodedUserId');
+        }
+        
+        // Try to find matching contact in the list using both encoded and decoded IDs
+        Student? matchingContact;
+        
+        // Try multiple matching strategies
         try {
-          matchingStudent = _allStudents.firstWhere(
-            (s) => s.id == decodedStudentId,
+          // Strategy 1: Direct match with decoded ID (case-insensitive)
+          matchingContact = _allStudents.firstWhere(
+            (s) => s.id.toLowerCase() == decodedUserId.toLowerCase() || 
+                   s.id.toLowerCase() == messageUserId.toLowerCase(),
           );
-          print('    ✓ Match found with decoded ID: ${matchingStudent.id}');
+          print('    ✓ Match found with decoded ID: ${matchingContact.id} (${matchingContact.rollNumber})');
         } catch (e) {
-          // Try with original ID (in case it's already ObjectId)
           try {
-            matchingStudent = _allStudents.firstWhere(
-              (s) => s.id == messageStudentId,
+            // Strategy 2: Match with original ID
+            matchingContact = _allStudents.firstWhere(
+              (s) => s.id.toLowerCase() == messageUserId.toLowerCase(),
             );
-            print('    ✓ Match found with original ID: ${matchingStudent.id}');
+            print('    ✓ Match found with original ID: ${matchingContact.id} (${matchingContact.rollNumber})');
           } catch (e2) {
-            print('    ⚠ No match found - student might not be in list yet');
+            try {
+              // Strategy 3: Match by checking if decoded ID matches any contact's decoded ID
+              matchingContact = _allStudents.firstWhere(
+                (s) {
+                  final sDecoded = decodeChatUserId(s.id);
+                  return sDecoded.toLowerCase() == decodedUserId.toLowerCase() ||
+                         sDecoded.toLowerCase() == messageUserId.toLowerCase();
+                },
+              );
+              print('    ✓ Match found with cross-decoded ID: ${matchingContact.id} (${matchingContact.rollNumber})');
+            } catch (e3) {
+              print('    ⚠ No match found - $userRole might not be in list yet');
+              print('      Message ID: $messageUserId (decoded: $decodedUserId)');
+              print('      Available contacts: ${_allStudents.length} (${_allStudents.where((s) => s.rollNumber == 'Teacher').length} teachers)');
+              // Still add to counts so it shows up when the contact is loaded
+            }
           }
         }
         
-        // Use the matching student ID if found, otherwise use the decoded ID
-        final studentId = matchingStudent?.id ?? decodedStudentId;
-        counts[studentId] = (counts[studentId] ?? 0) + 1;
-        print('    📊 Count for $studentId: ${counts[studentId]}');
+        // Use the matching contact ID if found, otherwise use the decoded ID
+        final contactId = matchingContact?.id ?? decodedUserId;
+        counts[contactId] = (counts[contactId] ?? 0) + 1;
+        print('    📊 Count for $contactId ($userRole): ${counts[contactId]}');
       }
       
       // Debug: Print final counts
@@ -488,7 +615,9 @@ class _AdminChatPageState extends State<AdminChatPage> {
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
                                           Text(
-                                            student.rollNumber,
+                                            student.rollNumber == 'Teacher' 
+                                                ? 'Teacher • ${student.className}' // Show department for teachers
+                                                : student.rollNumber,
                                             style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                                           ),
                                           if (_lastMessages.containsKey(student.id))
@@ -544,13 +673,16 @@ class _AdminChatPageState extends State<AdminChatPage> {
 
 class AdminChatConversationPage extends StatefulWidget {
   final String adminId;
-  final Student student;
+  final Student student; // Can be a Student or Teacher (converted to Student for UI)
 
   const AdminChatConversationPage({
     Key? key,
     required this.adminId,
     required this.student,
   }) : super(key: key);
+  
+  // Determine if this is a teacher (check if rollNumber is 'Teacher')
+  bool get isTeacher => student.rollNumber == 'Teacher';
 
   @override
   State<AdminChatConversationPage> createState() =>
@@ -670,12 +802,21 @@ class _AdminChatConversationPageState
     _chatService = ChatSocketService();
     
     try {
+      // Determine target user role (student or teacher)
+      // Teachers are marked with rollNumber = 'Teacher'
+      final targetUserRole = widget.isTeacher ? 'teacher' : 'student';
+      
+      print('🔗 Connecting to chat:');
+      print('  Admin ID: ${widget.adminId}');
+      print('  Target ID: ${widget.student.id}');
+      print('  Target Role: $targetUserRole');
+      
       // Connect to chat
       await _chatService!.connect(
         userId: widget.adminId,
         userRole: 'admin',
         targetUserId: widget.student.id,
-        targetUserRole: 'student',
+        targetUserRole: targetUserRole,
       );
 
       // Check if connection succeeded
@@ -752,8 +893,8 @@ class _AdminChatConversationPageState
           }
         });
         _scrollToBottom();
-        // Mark as read if from student
-        if (message.fromUserRole == 'student') {
+        // Mark as read if from student or teacher
+        if (message.fromUserRole == 'student' || message.fromUserRole == 'teacher') {
           _chatService?.markAsRead(widget.adminId, widget.student.id);
         }
       }
@@ -780,13 +921,16 @@ class _AdminChatConversationPageState
     final text = _messageController.text.trim();
     _messageController.clear();
 
+    // Determine target user role (student or teacher)
+    final targetUserRole = widget.isTeacher ? 'teacher' : 'student';
+    
     // Optimistically add message to UI immediately (like Messenger)
     final tempMessage = ChatMessage(
       id: _uuid.v4(), // Generate UUID for temporary message
       fromUserId: widget.adminId,
       fromUserRole: 'admin',
       toUserId: widget.student.id,
-      toUserRole: 'student',
+      toUserRole: targetUserRole,
       message: text,
       timestamp: DateTime.now(),
       isRead: true, // Admin messages are considered read by admin
@@ -800,13 +944,18 @@ class _AdminChatConversationPageState
     _scrollToBottom();
 
     try {
+      // Determine target user role (student or teacher)
+      final targetUserRole = widget.isTeacher ? 'teacher' : 'student';
+      
+      print('📤 Sending message to $targetUserRole: ${widget.student.id}');
+      
       // Send via WebSocket - the server will broadcast it back, and we'll update the temp message with real ID
       _chatService!.sendMessage(
         message: text,
         fromUserId: widget.adminId,
         fromUserRole: 'admin',
         toUserId: widget.student.id,
-        toUserRole: 'student',
+        toUserRole: targetUserRole,
       );
       // Don't remove the message - let the WebSocket update it with the real server message
       // The duplicate check in messageStream listener will handle it
@@ -848,7 +997,9 @@ class _AdminChatConversationPageState
           children: [
             Text(widget.student.fullName),
             Text(
-              widget.student.rollNumber,
+              widget.isTeacher 
+                  ? 'Teacher • ${widget.student.className}' // Show department for teachers
+                  : widget.student.rollNumber, // Show roll number for students
               style: const TextStyle(fontSize: 12),
             ),
           ],

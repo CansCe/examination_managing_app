@@ -50,6 +50,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   // Separate lists for students: upcoming and past exams
   Exam? _nearestUpcomingExam;
   List<Exam> _pastExams = [];
+  // Unread message count for chat badge
+  int _unreadMessageCount = 0;
+  //Timer? _unreadMessageTimer;
 
   @override
   void initState() {
