@@ -595,16 +595,22 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ],
                   ],
                 ),
-          floatingActionButton: FloatingActionButton(
-            onPressed: () {
-              if (widget.userRole == UserRole.teacher) {
-                _loadTeacherData();
-              } else {
-                _loadData(refresh: true);
-              }
-            },
-            child: const Icon(Icons.refresh),
-          ),
+          floatingActionButton: widget.userRole == UserRole.admin && _tabController.index == 1
+              ? FloatingActionButton.extended(
+                  onPressed: _showAddStudentDialog,
+                  icon: const Icon(Icons.person_add),
+                  label: const Text('Add Student'),
+                )
+              : FloatingActionButton(
+                  onPressed: () {
+                    if (widget.userRole == UserRole.teacher) {
+                      _loadTeacherData();
+                    } else {
+                      _loadData(refresh: true);
+                    }
+                  },
+                  child: const Icon(Icons.refresh),
+                ),
         ),
       ],
     );
@@ -1142,9 +1148,26 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       '${student.className} - ${student.rollNumber}',
                       overflow: TextOverflow.ellipsis,
                     ),
-                    trailing: Text(
-                      student.email,
-                      overflow: TextOverflow.ellipsis,
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Chat button
+                        IconButton(
+                          icon: const Icon(Icons.chat),
+                          onPressed: () => _startChatWithStudent(student),
+                          tooltip: 'Start Chat',
+                          color: Colors.blue,
+                        ),
+                        const SizedBox(width: 8),
+                        // Email text
+                        Flexible(
+                          child: Text(
+                            student.email,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 );
@@ -1174,16 +1197,30 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Flexible(
-                          child: Text(
-                            student.fullName,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                student.fullName,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 2,
+                              ),
                             ),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 2,
-                          ),
+                            // Chat button
+                            IconButton(
+                              icon: const Icon(Icons.chat, size: 20),
+                              onPressed: () => _startChatWithStudent(student),
+                              tooltip: 'Start Chat',
+                              color: Colors.blue,
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 4),
                         Flexible(
@@ -1331,10 +1368,238 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       arguments: {
         'exam': exam,
         'studentId': widget.studentId,
+        'userRole': widget.userRole,
         'onExamUpdated': () => _loadData(refresh: true),
         'onExamDeleted': () => _loadData(refresh: true),
       },
+    ).then((result) {
+      // Refresh data if exam was deleted
+      if (result == true) {
+        _loadData(refresh: true);
+      }
+    });
+  }
+
+  void _startChatWithStudent(Student student) {
+    // Only allow admin to chat with students
+    if (widget.userRole != UserRole.admin) {
+      return;
+    }
+
+    final adminId = widget.adminId ?? widget.studentId ?? widget.teacherId ?? widget.username;
+    if (adminId == null || adminId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to start chat: Admin ID not found'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AdminChatConversationPage(
+          adminId: adminId,
+          student: student,
+        ),
+      ),
     );
+  }
+
+  void _showAddStudentDialog() {
+    final formKey = GlobalKey<FormState>();
+    final fullNameController = TextEditingController();
+    final emailController = TextEditingController();
+    final studentIdController = TextEditingController();
+    final classNameController = TextEditingController();
+    final phoneController = TextEditingController();
+    final addressController = TextEditingController();
+    bool isSubmitting = false;
+
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Add New Student'),
+              content: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: fullNameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Full Name *',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Full name is required';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: emailController,
+                        decoration: const InputDecoration(
+                          labelText: 'Email *',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.emailAddress,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Email is required';
+                          }
+                          if (!value.contains('@')) {
+                            return 'Please enter a valid email';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: studentIdController,
+                        decoration: const InputDecoration(
+                          labelText: 'Student ID / Roll Number *',
+                          border: OutlineInputBorder(),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Student ID is required';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: classNameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Class Name',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: phoneController,
+                        decoration: const InputDecoration(
+                          labelText: 'Phone Number',
+                          border: OutlineInputBorder(),
+                        ),
+                        keyboardType: TextInputType.phone,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: addressController,
+                        decoration: const InputDecoration(
+                          labelText: 'Address',
+                          border: OutlineInputBorder(),
+                        ),
+                        maxLines: 2,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () {
+                          Navigator.of(context).pop();
+                        },
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: isSubmitting
+                      ? null
+                      : () async {
+                          if (formKey.currentState!.validate()) {
+                            setDialogState(() {
+                              isSubmitting = true;
+                            });
+
+                            try {
+                              final student = await AtlasService.createStudent(
+                                fullName: fullNameController.text.trim(),
+                                email: emailController.text.trim(),
+                                studentId: studentIdController.text.trim(),
+                                className: classNameController.text.trim().isEmpty
+                                    ? null
+                                    : classNameController.text.trim(),
+                                phoneNumber: phoneController.text.trim().isEmpty
+                                    ? null
+                                    : phoneController.text.trim(),
+                                address: addressController.text.trim().isEmpty
+                                    ? null
+                                    : addressController.text.trim(),
+                              );
+
+                              if (student != null && mounted) {
+                                Navigator.of(context).pop();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Student added successfully'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                                // Refresh student list
+                                _currentPage = 0;
+                                _students.clear();
+                                _loadData(refresh: true);
+                              } else {
+                                setDialogState(() {
+                                  isSubmitting = false;
+                                });
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Failed to add student'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              setDialogState(() {
+                                isSubmitting = false;
+                              });
+                              if (mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Error: $e'),
+                                    backgroundColor: Colors.red,
+                                  ),
+                                );
+                              }
+                            }
+                          }
+                        },
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Add Student'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    ).then((_) {
+      // Clean up controllers
+      fullNameController.dispose();
+      emailController.dispose();
+      studentIdController.dispose();
+      classNameController.dispose();
+      phoneController.dispose();
+      addressController.dispose();
+    });
   }
 
   void _showSettingsDialog(BuildContext context) {

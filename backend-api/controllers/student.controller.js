@@ -69,8 +69,14 @@ export const createStudent = async (req, res) => {
     }
 
     const db = getDatabase();
+    
+    // Handle both studentId and rollNumber - use studentId as rollNumber if rollNumber not provided
+    const rollNumber = req.body.rollNumber || req.body.studentId || '';
+    
     const studentData = {
       ...req.body,
+      rollNumber: rollNumber, // Ensure rollNumber is set
+      studentId: req.body.studentId || rollNumber, // Ensure studentId is set
       _id: new ObjectId(),
       assignedExams: req.body.assignedExams?.map(id => 
         typeof id === 'string' ? new ObjectId(id) : id

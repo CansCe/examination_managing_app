@@ -9,11 +9,13 @@ import '../services/index.dart';
 class ExamDetailsPage extends StatefulWidget {
   final Exam exam;
   final String? studentId; // Student ID for submitting exam
+  final UserRole? userRole; // User role to determine if delete button should be shown
 
   const ExamDetailsPage({
     Key? key,
     required this.exam,
     this.studentId,
+    this.userRole,
   }) : super(key: key);
 
   @override
@@ -292,6 +294,82 @@ class _ExamDetailsPageState extends State<ExamDetailsPage> {
     );
   }
 
+  Future<void> _deleteExam() async {
+    // Show confirmation dialog
+    final confirmDelete = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Delete Exam'),
+          content: Text('Are you sure you want to delete "${widget.exam.title}"? This action cannot be undone.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+              ),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmDelete != true) {
+      return;
+    }
+
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      final examId = widget.exam.id.toHexString();
+      final success = await AtlasService.deleteExam(examId);
+
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Exam deleted successfully'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        // Navigate back
+        Navigator.of(context).pop(true);
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to delete exam'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error deleting exam: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  bool get _canDeleteExam {
+    return widget.userRole == UserRole.admin || widget.userRole == UserRole.teacher;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -304,192 +382,208 @@ class _ExamDetailsPageState extends State<ExamDetailsPage> {
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(_error!, style: const TextStyle(color: Colors.red)),
-                      const SizedBox(height: 16),
-                      ElevatedButton(
-                        onPressed: _loadQuestions,
-                        child: const Text('Retry'),
+      body: Stack(
+        children: [
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _error != null
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(_error!, style: const TextStyle(color: Colors.red)),
+                          const SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: _loadQuestions,
+                            child: const Text('Retry'),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
-                )
-              : SingleChildScrollView(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Exam Details
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  widget.exam.title,
-                                  style: Theme.of(context).textTheme.headlineSmall,
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  widget.exam.description,
-                                  style: Theme.of(context).textTheme.bodyLarge,
-                                ),
-                                const SizedBox(height: 16),
-                                Wrap(
-                                  spacing: 8.0,
-                                  runSpacing: 8.0,
+                    )
+                  : SingleChildScrollView(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Exam Details
+                            Card(
+                              child: Padding(
+                                padding: const EdgeInsets.all(16.0),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    _buildInfoChip(
-                                      Icons.subject,
-                                      'Subject: ${widget.exam.subject}',
+                                    Text(
+                                      widget.exam.title,
+                                      style: Theme.of(context).textTheme.headlineSmall,
                                     ),
-                                    _buildInfoChip(
-                                      Icons.timer,
-                                      'Duration: ${widget.exam.duration} minutes',
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      widget.exam.description,
+                                      style: Theme.of(context).textTheme.bodyLarge,
                                     ),
-                                    _buildInfoChip(
-                                      Icons.people,
-                                      'Max Students: ${widget.exam.maxStudents}',
+                                    const SizedBox(height: 16),
+                                    Wrap(
+                                      spacing: 8.0,
+                                      runSpacing: 8.0,
+                                      children: [
+                                        _buildInfoChip(
+                                          Icons.subject,
+                                          'Subject: ${widget.exam.subject}',
+                                        ),
+                                        _buildInfoChip(
+                                          Icons.timer,
+                                          'Duration: ${widget.exam.duration} minutes',
+                                        ),
+                                        _buildInfoChip(
+                                          Icons.people,
+                                          'Max Students: ${widget.exam.maxStudents}',
+                                        ),
+                                        _buildInfoChip(
+                                          Icons.speed,
+                                          'Difficulty: ${widget.exam.difficulty}',
+                                        ),
+                                        _buildInfoChip(
+                                          Icons.question_mark,
+                                          'Questions: ${_questions.length}',
+                                        ),
+                                        if (_examStartDateTime != null)
+                                          _buildInfoChip(
+                                            Icons.access_time,
+                                            'Start Time: ${_examStartDateTime!.toString().split(' ')[1].substring(0, 5)}',
+                                          ),
+                                        if (_examStartDateTime != null)
+                                          _buildInfoChip(
+                                            Icons.calendar_today,
+                                            'Date: ${widget.exam.examDate.toString().split(' ')[0]}',
+                                          ),
+                                      ],
                                     ),
-                                    _buildInfoChip(
-                                      Icons.speed,
-                                      'Difficulty: ${widget.exam.difficulty}',
-                                    ),
-                                    _buildInfoChip(
-                                      Icons.question_mark,
-                                      'Questions: ${_questions.length}',
-                                    ),
-                                    if (_examStartDateTime != null)
-                                      _buildInfoChip(
-                                        Icons.access_time,
-                                        'Start Time: ${_examStartDateTime!.toString().split(' ')[1].substring(0, 5)}',
+                                    const SizedBox(height: 24),
+                                    // Exam availability status
+                                    if (!_canStartExam && _examAvailabilityMessage.isNotEmpty)
+                                      Card(
+                                        color: _examAvailabilityMessage.contains('finished') || 
+                                               _examAvailabilityMessage.contains('no longer available')
+                                            ? Colors.red.withOpacity(0.1)
+                                            : Colors.orange.withOpacity(0.1),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(12.0),
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                _examAvailabilityMessage.contains('finished') || 
+                                                _examAvailabilityMessage.contains('no longer available')
+                                                    ? Icons.block
+                                                    : Icons.access_time,
+                                                color: _examAvailabilityMessage.contains('finished') || 
+                                                       _examAvailabilityMessage.contains('no longer available')
+                                                    ? Colors.red[700]
+                                                    : Colors.orange[700],
+                                              ),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: Text(
+                                                  _examAvailabilityMessage,
+                                                  style: TextStyle(
+                                                    color: _examAvailabilityMessage.contains('finished') || 
+                                                           _examAvailabilityMessage.contains('no longer available')
+                                                        ? Colors.red[900]
+                                                        : Colors.orange[900],
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                       ),
-                                    if (_examStartDateTime != null)
-                                      _buildInfoChip(
-                                        Icons.calendar_today,
-                                        'Date: ${widget.exam.examDate.toString().split(' ')[0]}',
+                                    if (_canStartExam && _examAvailabilityMessage.isNotEmpty)
+                                      Card(
+                                        color: Colors.green.withOpacity(0.1),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(12.0),
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.check_circle, color: Colors.green[700]),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: Text(
+                                                  _examAvailabilityMessage,
+                                                  style: TextStyle(
+                                                    color: Colors.green[900],
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    const SizedBox(height: 16),
+                                    SizedBox(
+                                      width: double.infinity,
+                                      child: ElevatedButton.icon(
+                                        onPressed: _canStartExam && !_isLoading && _questions.isNotEmpty
+                                            ? _startExam
+                                            : null,
+                                        icon: const Icon(Icons.play_arrow),
+                                        label: const Text('Start Exam'),
+                                        style: ElevatedButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(vertical: 16),
+                                          disabledBackgroundColor: Colors.grey,
+                                        ),
+                                      ),
+                                    ),
+                                    if (!_canStartExam && !_examAvailabilityMessage.contains('finished'))
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 8.0),
+                                        child: Text(
+                                          'Please wait until the exam start time to begin.',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.grey[600],
+                                            fontStyle: FontStyle.italic,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                    if (_examAvailabilityMessage.contains('finished'))
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 8.0),
+                                        child: Text(
+                                          'This exam is no longer available. The exam time has ended.',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.red[700],
+                                            fontStyle: FontStyle.italic,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
                                       ),
                                   ],
                                 ),
-                                const SizedBox(height: 24),
-                                // Exam availability status
-                                if (!_canStartExam && _examAvailabilityMessage.isNotEmpty)
-                                  Card(
-                                    color: _examAvailabilityMessage.contains('finished') || 
-                                           _examAvailabilityMessage.contains('no longer available')
-                                        ? Colors.red.withOpacity(0.1)
-                                        : Colors.orange.withOpacity(0.1),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(12.0),
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            _examAvailabilityMessage.contains('finished') || 
-                                            _examAvailabilityMessage.contains('no longer available')
-                                                ? Icons.block
-                                                : Icons.access_time,
-                                            color: _examAvailabilityMessage.contains('finished') || 
-                                                   _examAvailabilityMessage.contains('no longer available')
-                                                ? Colors.red[700]
-                                                : Colors.orange[700],
-                                          ),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: Text(
-                                              _examAvailabilityMessage,
-                                              style: TextStyle(
-                                                color: _examAvailabilityMessage.contains('finished') || 
-                                                       _examAvailabilityMessage.contains('no longer available')
-                                                    ? Colors.red[900]
-                                                    : Colors.orange[900],
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                if (_canStartExam && _examAvailabilityMessage.isNotEmpty)
-                                  Card(
-                                    color: Colors.green.withOpacity(0.1),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(12.0),
-                                      child: Row(
-                                        children: [
-                                          Icon(Icons.check_circle, color: Colors.green[700]),
-                                          const SizedBox(width: 12),
-                                          Expanded(
-                                            child: Text(
-                                              _examAvailabilityMessage,
-                                              style: TextStyle(
-                                                color: Colors.green[900],
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                const SizedBox(height: 16),
-                                SizedBox(
-                                  width: double.infinity,
-                                  child: ElevatedButton.icon(
-                                    onPressed: _canStartExam && !_isLoading && _questions.isNotEmpty
-                                        ? _startExam
-                                        : null,
-                                    icon: const Icon(Icons.play_arrow),
-                                    label: const Text('Start Exam'),
-                                    style: ElevatedButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(vertical: 16),
-                                      disabledBackgroundColor: Colors.grey,
-                                    ),
-                                  ),
-                                ),
-                                if (!_canStartExam && !_examAvailabilityMessage.contains('finished'))
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 8.0),
-                                    child: Text(
-                                      'Please wait until the exam start time to begin.',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey[600],
-                                        fontStyle: FontStyle.italic,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ),
-                                if (_examAvailabilityMessage.contains('finished'))
-                                  Padding(
-                                    padding: const EdgeInsets.only(top: 8.0),
-                                    child: Text(
-                                      'This exam is no longer available. The exam time has ended.',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.red[700],
-                                        fontStyle: FontStyle.italic,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                  ),
-                              ],
+                              ),
                             ),
-                          ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
-                  ),
-                ),
+          // Delete button in bottom right (only for admin and teacher)
+          if (_canDeleteExam)
+            Positioned(
+              bottom: 16,
+              right: 16,
+              child: FloatingActionButton(
+                onPressed: _isLoading ? null : _deleteExam,
+                backgroundColor: Colors.red,
+                child: const Icon(Icons.delete, color: Colors.white),
+                tooltip: 'Delete Exam',
+              ),
+            ),
+        ],
+      ),
     );
   }
 

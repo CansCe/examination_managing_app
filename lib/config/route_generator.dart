@@ -58,10 +58,12 @@ class RouteGenerator {
           final Function() onExamUpdated = args['onExamUpdated'] as Function();
           final Function() onExamDeleted = args['onExamDeleted'] as Function();
           final String? studentId = args['studentId'] as String?;
+          final UserRole? userRole = args['userRole'] as UserRole?;
           return MaterialPageRoute(
             builder: (_) => ExamDetailsPage(
               exam: exam,
               studentId: studentId,
+              userRole: userRole,
               // onExamUpdated: onExamUpdated,
               // onExamDeleted: onExamDeleted,
             ),

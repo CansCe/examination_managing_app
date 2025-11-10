@@ -21,11 +21,11 @@ NC='\033[0m' # No Color
 
 # Default values
 PLATFORM="${1:-android}"
-API_URL="${2:-https://api.yourdomain.com}"
-CHAT_URL="${3:-https://chat.yourdomain.com}"
+API_URL="${2:-http://exam-app-api.duckdns.org}"
+CHAT_URL="${3:-http://backend-chat.duckdns.org}"
 
 echo -e "${BLUE}╔══════════════════════════════════════════════════════════╗${NC}"
-echo -e "${BLUE}║     Production Build Script                            ║${NC}"
+echo -e "${BLUE}║     Production Build Script                              ║${NC}"
 echo -e "${BLUE}╚══════════════════════════════════════════════════════════╝${NC}"
 echo ""
 echo -e "${GREEN}Platform:${NC} $PLATFORM"

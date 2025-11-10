@@ -704,6 +704,50 @@ class AtlasService {
     }
   }
 
+  // Delete exam
+  static Future<bool> deleteExam(String examId) async {
+    try {
+      final api = ApiService();
+      final success = await api.deleteExam(examId);
+      api.close();
+      return success;
+    } catch (e) {
+      print("Error deleting exam: $e");
+      rethrow;
+    }
+  }
+
+  // Create student
+  static Future<Student?> createStudent({
+    required String fullName,
+    required String email,
+    required String studentId,
+    String? className,
+    String? phoneNumber,
+    String? address,
+  }) async {
+    try {
+      final api = ApiService();
+      final studentData = await api.createStudent(
+        fullName: fullName,
+        email: email,
+        studentId: studentId,
+        className: className,
+        phoneNumber: phoneNumber,
+        address: address,
+      );
+      api.close();
+      
+      if (studentData != null) {
+        return Student.fromJson(studentData);
+      }
+      return null;
+    } catch (e) {
+      print("Error creating student: $e");
+      rethrow;
+    }
+  }
+
   // Get students assigned to an exam
   static Future<List<Student>> getStudentsAssignedToExam({
     required String examId,

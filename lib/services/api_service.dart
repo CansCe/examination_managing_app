@@ -1160,6 +1160,37 @@ class ApiService {
     }
   }
 
+  /// Delete exam
+  Future<bool> deleteExam(String examId) async {
+    final uri = _buildUri('/api/exams/$examId');
+    try {
+      final response = await _client.delete(
+        uri,
+        headers: {
+          'accept': 'application/json',
+        },
+      );
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        return decoded['success'] == true;
+      }
+      throw ApiException('DELETE /api/exams failed', response.statusCode, response.body);
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      final errorMsg = e.toString();
+      if (errorMsg.contains('Connection refused') ||
+          errorMsg.contains('Failed host lookup') ||
+          errorMsg.contains('Network is unreachable')) {
+        throw ApiException(
+          'Main API service is not running. Please start the main API at $_baseUrl',
+          0,
+          errorMsg,
+        );
+      }
+      rethrow;
+    }
+  }
+
   /// Update exam status
   Future<bool> updateExamStatus(String examId, String status, {DateTime? newDate}) async {
     final uri = _buildUri('/api/exams/$examId/status');
@@ -1257,6 +1288,58 @@ class ApiService {
   Future<List<Map<String, dynamic>>> getStudentsAssignedToExam(String examId) async {
     final uri = _buildUri('/api/exams/$examId/students');
     return _getPaginatedData(uri, operation: 'GET /api/exams/students');
+  }
+
+  /// Create a new student
+  Future<Map<String, dynamic>?> createStudent({
+    required String fullName,
+    required String email,
+    required String studentId,
+    String? className,
+    String? phoneNumber,
+    String? address,
+  }) async {
+    final uri = _buildUri('/api/students');
+    try {
+      final response = await _client.post(
+        uri,
+        headers: {
+          'content-type': 'application/json',
+          'accept': 'application/json',
+        },
+        body: json.encode({
+          'fullName': fullName,
+          'email': email,
+          'studentId': studentId,
+          'rollNumber': studentId, // Also set rollNumber to match studentId
+          'className': className,
+          'phoneNumber': phoneNumber,
+          'address': address,
+          'assignedExams': [],
+        }),
+      );
+      if (response.statusCode == 201) {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        if (decoded['success'] == true && decoded['data'] != null) {
+          return decoded['data'] as Map<String, dynamic>;
+        }
+        return null;
+      }
+      throw ApiException('POST /api/students failed', response.statusCode, response.body);
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      final errorMsg = e.toString();
+      if (errorMsg.contains('Connection refused') ||
+          errorMsg.contains('Failed host lookup') ||
+          errorMsg.contains('Network is unreachable')) {
+        throw ApiException(
+          'Main API service is not running. Please start the main API at $_baseUrl',
+          0,
+          errorMsg,
+        );
+      }
+      rethrow;
+    }
   }
 
   /// Fetch teachers list

@@ -42,13 +42,30 @@ class Student {
         }).toList();
       }
 
+      // Handle both firstName/lastName and fullName formats
+      String firstName = '';
+      String lastName = '';
+      if (map['fullName'] != null) {
+        final fullName = map['fullName'].toString();
+        final nameParts = fullName.split(' ');
+        firstName = nameParts.isNotEmpty ? nameParts[0] : '';
+        lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
+      } else {
+        firstName = map['firstName']?.toString() ?? '';
+        lastName = map['lastName']?.toString() ?? '';
+      }
+
+      // Handle both rollNumber and studentId
+      final rollNumber = map['rollNumber']?.toString() ?? 
+                         map['studentId']?.toString() ?? '';
+
       return Student(
         id: map['_id']?.toString() ?? '',
-        firstName: map['firstName']?.toString() ?? '',
-        lastName: map['lastName']?.toString() ?? '',
+        firstName: firstName,
+        lastName: lastName,
         email: map['email']?.toString() ?? '',
-        className: map['class']?.toString() ?? '',
-        rollNumber: map['rollNumber']?.toString() ?? '',
+        className: map['class']?.toString() ?? map['className']?.toString() ?? '',
+        rollNumber: rollNumber,
         phoneNumber: map['phoneNumber']?.toString() ?? '',
         address: map['address']?.toString() ?? '',
         assignedExams: parsedAssignedExams,
@@ -59,6 +76,8 @@ class Student {
       rethrow;
     }
   }
+
+  factory Student.fromJson(Map<String, dynamic> json) => Student.fromMap(json);
 
   Map<String, dynamic> toMap() {
     return {

@@ -23,7 +23,15 @@ router.post('/',
   [
     body('fullName').notEmpty().withMessage('Full name is required'),
     body('email').isEmail().withMessage('Valid email is required'),
-    body('studentId').notEmpty().withMessage('Student ID is required')
+    body('studentId').optional().notEmpty().withMessage('Student ID cannot be empty if provided'),
+    body('rollNumber').optional().notEmpty().withMessage('Roll number cannot be empty if provided'),
+    // At least one of studentId or rollNumber must be provided
+    body().custom((value) => {
+      if (!value.studentId && !value.rollNumber) {
+        throw new Error('Either studentId or rollNumber is required');
+      }
+      return true;
+    })
   ],
   createStudent
 );

@@ -33,7 +33,7 @@ A comprehensive exam management application with Flutter frontend and Node.js ba
 
 For deploying to a dedicated server and building the mobile app:
 
-**See [PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md) for complete guide.**
+**See [docs/PRODUCTION_DEPLOYMENT.md](docs/PRODUCTION_DEPLOYMENT.md) for complete guide.**
 
 **Quick Build:**
 ```bash
@@ -61,24 +61,24 @@ Or use the build scripts:
 
 ### 🚀 Deployment Guides
 
-- **[DEPLOYING_SERVER.md](DEPLOYING_SERVER.md)** - **Complete server deployment and troubleshooting guide** ⭐
-- **[SERVER_PROVIDERS_GUIDE.md](SERVER_PROVIDERS_GUIDE.md)** - **Where to get a server** (DigitalOcean, Vultr, AWS, etc.) ⭐
-- **[AWS_EC2_DEPLOYMENT.md](AWS_EC2_DEPLOYMENT.md)** - **Complete AWS EC2 deployment guide** ⭐
-- **[LAPTOP_VS_SERVER_IP.md](LAPTOP_VS_SERVER_IP.md)** - **Laptop IP vs Server IP - Understanding the difference** ⭐
-- **[SERVER_DEPLOYMENT_WITH_DOMAINS.md](SERVER_DEPLOYMENT_WITH_DOMAINS.md)** - **Complete server deployment with DuckDNS domains** ⭐
-- **[DOCKER_EXPOSE_PORTS.md](DOCKER_EXPOSE_PORTS.md)** - **How to expose Docker containers to public internet** ⭐
-- **[DOCKER_EXPOSE_PUBLIC_URL.md](DOCKER_EXPOSE_PUBLIC_URL.md)** - Make Docker containers accessible via public URL (Nginx)
-- **[DEDICATED_SERVER_DOCKER_DEPLOYMENT.md](DEDICATED_SERVER_DOCKER_DEPLOYMENT.md)** - Docker on your own dedicated server/hardware
-- **[DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)** - **Master deployment guide** (Docker + DNS + Domain setup)
-- **[PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md)** - Complete guide for deploying to a dedicated server
-- **[DOCKER_DEPLOYMENT.md](DOCKER_DEPLOYMENT.md)** - Local development with Docker
-- **[DOMAIN_SETUP_GUIDE.md](DOMAIN_SETUP_GUIDE.md)** - How to get domain names and safer alternatives
-- **[QUICK_DOMAIN_SETUP.md](QUICK_DOMAIN_SETUP.md)** - Quick 5-minute domain setup guide
-- **[AUTO_DISCOVERY_SETUP.md](AUTO_DISCOVERY_SETUP.md)** - Auto-discovery API setup guide
+- **[docs/DEPLOYING_SERVER.md](docs/DEPLOYING_SERVER.md)** - **Complete server deployment and troubleshooting guide** ⭐
+- **[docs/SERVER_PROVIDERS_GUIDE.md](docs/SERVER_PROVIDERS_GUIDE.md)** - **Where to get a server** (DigitalOcean, Vultr, AWS, etc.) ⭐
+- **[docs/AWS_EC2_DEPLOYMENT.md](docs/AWS_EC2_DEPLOYMENT.md)** - **Complete AWS EC2 deployment guide** ⭐
+- **[docs/LAPTOP_VS_SERVER_IP.md](docs/LAPTOP_VS_SERVER_IP.md)** - **Laptop IP vs Server IP - Understanding the difference** ⭐
+- **[docs/SERVER_DEPLOYMENT_WITH_DOMAINS.md](docs/SERVER_DEPLOYMENT_WITH_DOMAINS.md)** - **Complete server deployment with DuckDNS domains** ⭐
+- **[docs/DOCKER_EXPOSE_PORTS.md](docs/DOCKER_EXPOSE_PORTS.md)** - **How to expose Docker containers to public internet** ⭐
+- **[docs/DOCKER_EXPOSE_PUBLIC_URL.md](docs/DOCKER_EXPOSE_PUBLIC_URL.md)** - Make Docker containers accessible via public URL (Nginx)
+- **[docs/DEDICATED_SERVER_DOCKER_DEPLOYMENT.md](docs/DEDICATED_SERVER_DOCKER_DEPLOYMENT.md)** - Docker on your own dedicated server/hardware
+- **[docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md)** - **Master deployment guide** (Docker + DNS + Domain setup)
+- **[docs/PRODUCTION_DEPLOYMENT.md](docs/PRODUCTION_DEPLOYMENT.md)** - Complete guide for deploying to a dedicated server
+- **[docs/DOCKER_DEPLOYMENT.md](docs/DOCKER_DEPLOYMENT.md)** - Local development with Docker
+- **[docs/DOMAIN_SETUP_GUIDE.md](docs/DOMAIN_SETUP_GUIDE.md)** - How to get domain names and safer alternatives
+- **[docs/QUICK_DOMAIN_SETUP.md](docs/QUICK_DOMAIN_SETUP.md)** - Quick 5-minute domain setup guide
+- **[docs/AUTO_DISCOVERY_SETUP.md](docs/AUTO_DISCOVERY_SETUP.md)** - Auto-discovery API setup guide
 
 ### 📚 Other Guides
 
-- **[CHAT_IMPLEMENTATION.md](CHAT_IMPLEMENTATION.md)** - Chat service documentation
+- **[docs/CHAT_IMPLEMENTATION.md](docs/CHAT_IMPLEMENTATION.md)** - Chat service documentation
 
 ## Project Structure
 
@@ -91,6 +91,7 @@ exam_management_app/
 │   └── services/          # API and service classes
 ├── backend-api/           # Main API service (MongoDB)
 ├── backend-chat/          # Chat service (MongoDB + Socket.io)
+├── docs/                  # Documentation files (.md)
 ├── docker-compose.yml     # Docker configuration
 └── build-production.sh    # Production build script
 ```
@@ -112,7 +113,7 @@ The app automatically discovers available API endpoints on first launch:
 2. Add your domain URLs to the `_defaultApiUrls` and `_defaultChatUrls` lists
 3. Build the app normally (no special flags needed)
 
-See [AUTO_DISCOVERY_SETUP.md](AUTO_DISCOVERY_SETUP.md) for detailed instructions.
+See [docs/AUTO_DISCOVERY_SETUP.md](docs/AUTO_DISCOVERY_SETUP.md) for detailed instructions.
 
 ### Manual Configuration (Optional)
 

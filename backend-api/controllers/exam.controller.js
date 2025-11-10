@@ -245,13 +245,34 @@ export const deleteExam = async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid exam ID' });
     }
 
-    const result = await db.collection('exams').deleteOne({ _id: new ObjectId(id) });
+    const examObjectId = new ObjectId(id);
+
+    // Delete the exam
+    const result = await db.collection('exams').deleteOne({ _id: examObjectId });
 
     if (result.deletedCount === 0) {
       return res.status(404).json({ success: false, error: 'Exam not found' });
     }
 
-    res.json({ success: true, message: 'Exam deleted successfully' });
+    // Clean up related data: Remove exam from student_exams collection
+    const studentExamsResult = await db.collection('student_exams').deleteMany({ 
+      examId: examObjectId 
+    });
+    console.log(`Deleted ${studentExamsResult.deletedCount} student exam assignments`);
+
+    // Also remove exam from students' assignedExams arrays
+    const studentsUpdateResult = await db.collection('students').updateMany(
+      { assignedExams: examObjectId },
+      { $pull: { assignedExams: examObjectId } }
+    );
+    console.log(`Removed exam from ${studentsUpdateResult.modifiedCount} students' assignedExams arrays`);
+
+    res.json({ 
+      success: true, 
+      message: 'Exam deleted successfully',
+      deletedAssignments: studentExamsResult.deletedCount,
+      updatedStudents: studentsUpdateResult.modifiedCount
+    });
   } catch (error) {
     console.error('Delete exam error:', error);
     res.status(500).json({ success: false, error: 'Internal server error' });

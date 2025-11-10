@@ -10,12 +10,12 @@
 
 param(
     [string]$Platform = "android",
-    [string]$ApiUrl = "https://api.yourdomain.com",
-    [string]$ChatUrl = "https://chat.yourdomain.com"
+    [string]$ApiUrl = "http://exam-app-api.duckdns.org",
+    [string]$ChatUrl = "http://backend-chat.duckdns.org"
 )
 
 Write-Host "`n╔══════════════════════════════════════════════════════════╗" -ForegroundColor Cyan
-Write-Host "║     Production Build Script                            ║" -ForegroundColor Cyan
+Write-Host "║     Production Build Script                              ║" -ForegroundColor Cyan
 Write-Host "╚══════════════════════════════════════════════════════════╝`n" -ForegroundColor Cyan
 
 Write-Host "Platform: $Platform" -ForegroundColor Green
