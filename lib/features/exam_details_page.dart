@@ -380,6 +380,12 @@ class _ExamDetailsPageState extends State<ExamDetailsPage> {
             icon: const Icon(Icons.refresh),
             onPressed: _loadQuestions,
           ),
+          if (_canDeleteExam)
+            IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: _deleteExam,
+              tooltip: 'Delete Exam',
+            ),
         ],
       ),
       body: Stack(

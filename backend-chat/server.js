@@ -101,9 +101,18 @@ app.use(helmet());
 
 // CORS configuration
 // Parse and trim ALLOWED_ORIGINS from environment variable
+// Always include localhost for faster local development
+const defaultOrigins = [
+  'http://localhost:8080',
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://127.0.0.1:8080',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:3001',
+];
 const allowedOrigins = process.env.ALLOWED_ORIGINS 
-  ? process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())
-  : ['http://localhost:8080', 'http://localhost:3000', 'http://localhost:3001'];
+  ? [...defaultOrigins, ...process.env.ALLOWED_ORIGINS.split(',').map(origin => origin.trim())]
+  : defaultOrigins;
 
 // Log allowed origins in development
 if (process.env.NODE_ENV !== 'production') {
@@ -112,8 +121,10 @@ if (process.env.NODE_ENV !== 'production') {
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+    // Always allow localhost for faster local development
+    if (!origin || origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
+      return callback(null, true);
+    }
     
     // Check if origin is in allowed list
     if (allowedOrigins.indexOf(origin) !== -1) {

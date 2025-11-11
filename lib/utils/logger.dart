@@ -67,9 +67,8 @@ class Logger {
         warning(message, tag);
         break;
       case LogLevel.error:
-        error(message, error, stackTrace, tag);
+        Logger.error(message, error, stackTrace, tag);
         break;
     }
   }
 }
-

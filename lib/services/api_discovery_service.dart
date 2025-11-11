@@ -17,22 +17,22 @@ class ApiDiscoveryService {
   // 2. Use addCustomApiUrls() at runtime
   // 3. Domains are tried in order (first one that responds is used)
   static final List<String> _defaultApiUrls = [
+    // Local development, try out local routes first before trying to connect to the internet
+    'http://localhost:3000',
+    'http://10.0.2.2:3000', // Android emulator
     // Production domains (HTTPS first, then HTTP fallback)
     'https://exam-app-api.duckdns.org',
     'http://exam-app-api.duckdns.org',
-    // Local development (for testing)
-    'http://localhost:3000',
-    'http://10.0.2.2:3000', // Android emulator
   ];
 
   // List of potential Chat domains to try
   static final List<String> _defaultChatUrls = [
+    // Local development, try out local routes first before trying to connect to the internet
+    'http://localhost:3001',
+    'http://10.0.2.2:3001', // Android emulator
     // Production domains (HTTPS first, then HTTP fallback)
     'https://backend-chat.duckdns.org',
     'http://backend-chat.duckdns.org',
-    // Local development
-    'http://localhost:3001',
-    'http://10.0.2.2:3001', // Android emulator
   ];
 
   /// Discover available API URL by trying multiple endpoints

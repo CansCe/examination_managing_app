@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'package:socket_io_client/socket_io_client.dart' as IO;
+import 'package:socket_io_client/socket_io_client.dart' as _io;
 import 'api_service.dart';
 import '../config/api_config.dart';
-
+import '../../utils/index.dart';
 class TimeoutException implements Exception {
   final String message;
   TimeoutException(this.message);
@@ -94,7 +94,8 @@ class ChatMessage {
 }
 
 class ChatSocketService {
-  IO.Socket? _socket;
+  _io.Socket? _socket;
+  Timer? _pingTimer;
   final StreamController<ChatMessage> _messageController = StreamController<ChatMessage>.broadcast();
   final StreamController<List<ChatMessage>> _historyController = StreamController<List<ChatMessage>>.broadcast();
   bool _isConnected = false;
@@ -145,9 +146,9 @@ class ChatSocketService {
       bool connectionEstablished = false;
 
       // Create Socket.io connection with automatic reconnection
-      _socket = IO.io(
+      _socket = _io.io(
         chatBaseUrl,
-        IO.OptionBuilder()
+        _io.OptionBuilder()
           .setTransports(['websocket', 'polling'])
           .enableAutoConnect()
           .enableReconnection() // Enable automatic reconnection

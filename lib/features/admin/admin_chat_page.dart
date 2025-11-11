@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../../services/index.dart';
 import '../../models/index.dart';
-
+import '../../utils/index.dart';
 const _uuid = Uuid();
 
 class AdminChatPage extends StatefulWidget {
@@ -467,105 +467,6 @@ class _AdminChatPageState extends State<AdminChatPage> {
     });
   }
 
-  Future<void> _editStudent(Student student) async {
-    final nameController = TextEditingController(text: student.fullName);
-    final emailController = TextEditingController(text: student.email);
-    final rollNumberController = TextEditingController(text: student.rollNumber);
-    final classNameController = TextEditingController(text: student.className);
-    final phoneController = TextEditingController(text: student.phoneNumber);
-    final addressController = TextEditingController(text: student.address);
-
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Student'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Full Name'),
-              ),
-              TextField(
-                controller: emailController,
-                decoration: const InputDecoration(labelText: 'Email'),
-                keyboardType: TextInputType.emailAddress,
-              ),
-              TextField(
-                controller: rollNumberController,
-                decoration: const InputDecoration(labelText: 'Roll Number'),
-              ),
-              TextField(
-                controller: classNameController,
-                decoration: const InputDecoration(labelText: 'Class Name'),
-              ),
-              TextField(
-                controller: phoneController,
-                decoration: const InputDecoration(labelText: 'Phone Number'),
-                keyboardType: TextInputType.phone,
-              ),
-              TextField(
-                controller: addressController,
-                decoration: const InputDecoration(labelText: 'Address'),
-                maxLines: 2,
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              try {
-                // Split full name into first and last name
-                final nameParts = nameController.text.trim().split(' ');
-                final firstName = nameParts.isNotEmpty ? nameParts.first : '';
-                final lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
-
-                final api = ApiService();
-                final success = await api.updateStudent(
-                  studentId: student.id,
-                  fullName: nameController.text.trim(),
-                  email: emailController.text.trim(),
-                  phoneNumber: phoneController.text.trim(),
-                  className: classNameController.text.trim(),
-                  rollNumber: rollNumberController.text.trim(),
-                  address: addressController.text.trim(),
-                );
-                api.close();
-
-                if (mounted) {
-                  Navigator.pop(context);
-                  if (success) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Student updated successfully')),
-                    );
-                    _loadStudents(); // Refresh list
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Failed to update student')),
-                    );
-                  }
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: $e')),
-                  );
-                }
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -734,20 +635,8 @@ class _AdminChatPageState extends State<AdminChatPage> {
                                             ),
                                         ],
                                       ),
-                                      trailing: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          IconButton(
-                                            icon: const Icon(Icons.edit, size: 20),
-                                            onPressed: () => _editStudent(student),
-                                            tooltip: 'Edit Student',
-                                            color: Colors.blue,
-                                            padding: EdgeInsets.zero,
-                                            constraints: const BoxConstraints(),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          if (unreadCount > 0)
-                                            Container(
+                                      trailing: unreadCount > 0
+                                          ? Container(
                                               width: 32,
                                               height: 32,
                                               alignment: Alignment.center,
@@ -765,10 +654,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
                                                 textAlign: TextAlign.center,
                                               ),
                                             )
-                                          else
-                                            const Icon(Icons.chevron_right, color: Colors.grey),
-                                        ],
-                                      ),
+                                          : const Icon(Icons.chevron_right, color: Colors.grey),
                                       onTap: () => _navigateToChat(student),
                                     ),
                                   );

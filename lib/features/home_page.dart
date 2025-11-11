@@ -542,6 +542,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           builder: (context) => AdminTeacherListPage(adminId: adminId ?? ''),
                         ),
                       );
+                    } else if (value == 'addStudent') {
+                      _showAddStudentDialog();
                     }
                   },
                   itemBuilder: (context) => [
@@ -562,6 +564,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           Icon(Icons.people, size: 20),
                           SizedBox(width: 8),
                           Text('Teachers'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'addStudent',
+                      child: Row(
+                        children: [
+                          Icon(Icons.person_add, size: 20),
+                          SizedBox(width: 8),
+                          Text('Add Student'),
                         ],
                       ),
                     ),
@@ -628,22 +640,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ],
                   ],
                 ),
-          floatingActionButton: widget.userRole == UserRole.admin && _tabController.index == 1
-              ? FloatingActionButton.extended(
-                  onPressed: _showAddStudentDialog,
-                  icon: const Icon(Icons.person_add),
-                  label: const Text('Add Student'),
-                )
-              : FloatingActionButton(
-                  onPressed: () {
-                    if (widget.userRole == UserRole.teacher) {
-                      _loadTeacherData();
-                    } else {
-                      _loadData(refresh: true);
-                    }
-                  },
-                  child: const Icon(Icons.refresh),
-                ),
+          floatingActionButton: FloatingActionButton(
+            onPressed: () {
+              if (widget.userRole == UserRole.teacher) {
+                _loadTeacherData();
+              } else {
+                _loadData(refresh: true);
+              }
+            },
+            child: const Icon(Icons.refresh),
+          ),
         ),
       ],
     );
@@ -1184,7 +1190,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        // Chat button
+                        if (widget.userRole == UserRole.admin)
+                          IconButton(
+                            icon: const Icon(Icons.edit),
+                            onPressed: () => _editStudent(student),
+                            tooltip: 'Edit Student',
+                            color: Colors.blue,
+                          ),
                         IconButton(
                           icon: const Icon(Icons.chat),
                           onPressed: () => _startChatWithStudent(student),
@@ -1244,14 +1256,28 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                 maxLines: 2,
                               ),
                             ),
-                            // Chat button
-                            IconButton(
-                              icon: const Icon(Icons.chat, size: 20),
-                              onPressed: () => _startChatWithStudent(student),
-                              tooltip: 'Start Chat',
-                              color: Colors.blue,
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(),
+                            // Action buttons
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                if (widget.userRole == UserRole.admin)
+                                  IconButton(
+                                    icon: const Icon(Icons.edit, size: 20),
+                                    onPressed: () => _editStudent(student),
+                                    tooltip: 'Edit Student',
+                                    color: Colors.blue,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                  ),
+                                IconButton(
+                                  icon: const Icon(Icons.chat, size: 20),
+                                  onPressed: () => _startChatWithStudent(student),
+                                  tooltip: 'Start Chat',
+                                  color: Colors.blue,
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -1411,6 +1437,103 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         _loadData(refresh: true);
       }
     });
+  }
+
+  Future<void> _editStudent(Student student) async {
+    final nameController = TextEditingController(text: student.fullName);
+    final emailController = TextEditingController(text: student.email);
+    final rollNumberController = TextEditingController(text: student.rollNumber);
+    final classNameController = TextEditingController(text: student.className);
+    final phoneController = TextEditingController(text: student.phoneNumber);
+    final addressController = TextEditingController(text: student.address);
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Student'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: 'Full Name'),
+              ),
+              TextField(
+                controller: emailController,
+                decoration: const InputDecoration(labelText: 'Email'),
+                keyboardType: TextInputType.emailAddress,
+              ),
+              TextField(
+                controller: rollNumberController,
+                decoration: const InputDecoration(labelText: 'Roll Number'),
+              ),
+              TextField(
+                controller: classNameController,
+                decoration: const InputDecoration(labelText: 'Class Name'),
+              ),
+              TextField(
+                controller: phoneController,
+                decoration: const InputDecoration(labelText: 'Phone Number'),
+                keyboardType: TextInputType.phone,
+              ),
+              TextField(
+                controller: addressController,
+                decoration: const InputDecoration(labelText: 'Address'),
+                maxLines: 2,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                final api = ApiService();
+                final success = await api.updateStudent(
+                  studentId: student.id,
+                  fullName: nameController.text.trim(),
+                  email: emailController.text.trim(),
+                  phoneNumber: phoneController.text.trim(),
+                  className: classNameController.text.trim(),
+                  rollNumber: rollNumberController.text.trim(),
+                  address: addressController.text.trim(),
+                );
+                api.close();
+
+                if (mounted) {
+                  Navigator.pop(context);
+                  if (success) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Student updated successfully')),
+                    );
+                    // Refresh student list
+                    _currentPage = 0;
+                    _students.clear();
+                    _loadData(refresh: true);
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Failed to update student')),
+                    );
+                  }
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $e')),
+                  );
+                }
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _startChatWithStudent(Student student) {
