@@ -113,8 +113,8 @@ class _AdminChatPageState extends State<AdminChatPage> {
         }
       }
       
-      print('📋 Students with chat: ${studentIdsWithChat.length}');
-      print('📋 Teachers with chat: ${teacherIdsWithChat.length}');
+      print('Students with chat: ${studentIdsWithChat.length}');
+      print('Teachers with chat: ${teacherIdsWithChat.length}');
       
       if (studentIdsWithChat.isEmpty && teacherIdsWithChat.isEmpty) {
         if (mounted) {
@@ -151,7 +151,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
               if (hexString.length == 24) {
                 return hexString.toLowerCase();
               } else {
-                print('⚠ Warning: Decoded hex string length is ${hexString.length}, expected 24');
+                print('Warning: Decoded hex string length is ${hexString.length}, expected 24');
               }
             }
           }
@@ -199,7 +199,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
           }
         }
         
-        print('📋 Fetched ${allStudents.length} total students from database');
+        print('Fetched ${allStudents.length} total students from database');
       }
       
       // Fetch all teachers with pagination and filter to only those with chat history
@@ -224,14 +224,14 @@ class _AdminChatPageState extends State<AdminChatPage> {
           }
         }
         
-        print('📋 Fetched ${allTeachers.length} total teachers from database');
+        print('Fetched ${allTeachers.length} total teachers from database');
       }
       
       // Filter students with chat history
       final studentsWithChat = allStudents.where((student) {
         final matches = decodedStudentIds.contains(student.id) || studentIdsWithChat.contains(student.id);
         if (matches) {
-          print('  ✓ Matched student: ${student.id} (${student.fullName})');
+          print('  Matched student: ${student.id} (${student.fullName})');
         }
         return matches;
       }).toList();
@@ -246,7 +246,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
                        teacherIdsWithChat.any((id) => decodeChatUserId(id) == teacherIdHex) ||
                        decodedTeacherIds.contains(teacherIdHex);
         if (matches) {
-          print('  ✓ Matched teacher: ${teacher.id.toHexString()} (${teacher.fullName})');
+          print('  Matched teacher: ${teacher.id.toHexString()} (${teacher.fullName})');
         }
         return matches;
       }).map((teacher) {
@@ -268,7 +268,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
       // Combine students and teachers (as students)
       final allContactsWithChat = [...studentsWithChat, ...teachersAsStudents];
       
-      print('📋 Found ${studentsWithChat.length} students and ${teachersAsStudents.length} teachers with chat history');
+      print('Found ${studentsWithChat.length} students and ${teachersAsStudents.length} teachers with chat history');
 
       // Sort by last message time (most recent first)
       // For now, we'll keep the order as returned, but prioritize those with unread messages
@@ -332,8 +332,8 @@ class _AdminChatPageState extends State<AdminChatPage> {
       final unreadMessages = await ChatService.getUnreadMessages();
       final Map<String, int> counts = {};
       
-      print('📊 Updating unread message counts. Found ${unreadMessages.length} unread messages');
-      print('📋 Students in list: ${_allStudents.length}');
+      print('Updating unread message counts. Found ${unreadMessages.length} unread messages');
+      print('Students in list: ${_allStudents.length}');
       
       // Helper to decode UUID-encoded IDs to ObjectId format (same as in _loadStudents)
       String decodeChatUserId(String id) {
@@ -363,20 +363,20 @@ class _AdminChatPageState extends State<AdminChatPage> {
         
         // Only count messages sent TO admin (from students or teachers)
         if (!isFromStudent && !isFromTeacher) {
-          print('  ⏭ Skipping message from ${msg.fromUserRole} (not from student/teacher)');
+          print('  Skipping message from ${msg.fromUserRole} (not from student/teacher)');
           continue;
         }
         
         // Only count messages where to_user_role is 'admin'
         if (msg.toUserRole != 'admin') {
-          print('  ⏭ Skipping message to ${msg.toUserRole} (not to admin)');
+          print('  Skipping message to ${msg.toUserRole} (not to admin)');
           continue;
         }
         
         String messageUserId = msg.fromUserId; // The user who sent the message
         final userRole = isFromStudent ? 'student' : 'teacher';
         
-        print('  📨 Message from $userRole ID: $messageUserId (format: ${messageUserId.contains('-') ? 'UUID' : 'ObjectId'})');
+        print('  Message from $userRole ID: $messageUserId (format: ${messageUserId.contains('-') ? 'UUID' : 'ObjectId'})');
         
         // Decode if it's UUID-encoded
         final decodedUserId = decodeChatUserId(messageUserId);
@@ -394,14 +394,14 @@ class _AdminChatPageState extends State<AdminChatPage> {
             (s) => s.id.toLowerCase() == decodedUserId.toLowerCase() || 
                    s.id.toLowerCase() == messageUserId.toLowerCase(),
           );
-          print('    ✓ Match found with decoded ID: ${matchingContact.id} (${matchingContact.rollNumber})');
+          print('    Match found with decoded ID: ${matchingContact.id} (${matchingContact.rollNumber})');
         } catch (e) {
           try {
             // Strategy 2: Match with original ID
             matchingContact = _allStudents.firstWhere(
               (s) => s.id.toLowerCase() == messageUserId.toLowerCase(),
             );
-            print('    ✓ Match found with original ID: ${matchingContact.id} (${matchingContact.rollNumber})');
+            print('    Match found with original ID: ${matchingContact.id} (${matchingContact.rollNumber})');
           } catch (e2) {
             try {
               // Strategy 3: Match by checking if decoded ID matches any contact's decoded ID
@@ -412,9 +412,9 @@ class _AdminChatPageState extends State<AdminChatPage> {
                          sDecoded.toLowerCase() == messageUserId.toLowerCase();
                 },
               );
-              print('    ✓ Match found with cross-decoded ID: ${matchingContact.id} (${matchingContact.rollNumber})');
+              print('    Match found with cross-decoded ID: ${matchingContact.id} (${matchingContact.rollNumber})');
             } catch (e3) {
-              print('    ⚠ No match found - $userRole might not be in list yet');
+              print('    No match found - $userRole might not be in list yet');
               print('      Message ID: $messageUserId (decoded: $decodedUserId)');
               print('      Available contacts: ${_allStudents.length} (${_allStudents.where((s) => s.rollNumber == 'Teacher').length} teachers)');
               // Still add to counts so it shows up when the contact is loaded
@@ -425,11 +425,11 @@ class _AdminChatPageState extends State<AdminChatPage> {
         // Use the matching contact ID if found, otherwise use the decoded ID
         final contactId = matchingContact?.id ?? decodedUserId;
         counts[contactId] = (counts[contactId] ?? 0) + 1;
-        print('    📊 Count for $contactId ($userRole): ${counts[contactId]}');
+        print('    Count for $contactId ($userRole): ${counts[contactId]}');
       }
       
       // Debug: Print final counts
-      print('📊 Final unread counts:');
+      print('Final unread counts:');
       counts.forEach((id, count) {
         print('  - $id: $count');
       });
@@ -806,7 +806,7 @@ class _AdminChatConversationPageState
       // Teachers are marked with rollNumber = 'Teacher'
       final targetUserRole = widget.isTeacher ? 'teacher' : 'student';
       
-      print('🔗 Connecting to chat:');
+      print('Connecting to chat:');
       print('  Admin ID: ${widget.adminId}');
       print('  Target ID: ${widget.student.id}');
       print('  Target Role: $targetUserRole');
@@ -855,7 +855,7 @@ class _AdminChatConversationPageState
     // Listen for chat history
     _chatService!.historyStream.listen((messages) {
       if (mounted) {
-        print('📨 Received ${messages.length} messages in history stream');
+        print('Received ${messages.length} messages in history stream');
         setState(() {
           _messages.clear();
           _messages.addAll(messages);
@@ -867,10 +867,15 @@ class _AdminChatConversationPageState
       }
     });
 
-    // Listen for new messages
+    // Listen for new messages - REAL-TIME LIVE FEED
     _chatService!.messageStream.listen((message) {
       if (mounted) {
-        print('📨 Received new message via Socket.io: ${message.message} from ${message.fromUserRole}');
+        print('REAL-TIME: Received new message via Socket.io');
+        print('   From: ${message.fromUserRole} ${message.fromUserId}');
+        print('   To: ${message.toUserRole} ${message.toUserId}');
+        print('   Message: ${message.message.substring(0, 50)}${message.message.length > 50 ? '...' : ''}');
+        print('   Timestamp: ${message.timestamp}');
+        
         setState(() {
           // Check if message already exists by ID (most reliable)
           final existsById = message.id.isNotEmpty && _messages.any((m) => m.id == message.id);
@@ -884,19 +889,25 @@ class _AdminChatConversationPageState
           );
           
           if (!existsById && !existsByContent) {
-            print('  ✓ Adding new message to list');
+            print('  Adding new message to UI immediately - LIVE FEED');
             _messages.add(message);
             // Sort by timestamp to maintain order
             _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+            print('  Message displayed on screen - Total messages: ${_messages.length}');
           } else {
-            print('  ⚠ Message already exists, skipping (existsById: $existsById, existsByContent: $existsByContent)');
+            print('  Message already exists, skipping (existsById: $existsById, existsByContent: $existsByContent)');
           }
         });
+        
+        // Immediately scroll to bottom to show new message
         _scrollToBottom();
+        
         // Mark as read if from student or teacher
         if (message.fromUserRole == 'student' || message.fromUserRole == 'teacher') {
           _chatService?.markAsRead(widget.adminId, widget.student.id);
         }
+      } else {
+        print('  Widget not mounted, skipping message update');
       }
     });
   }
@@ -947,7 +958,7 @@ class _AdminChatConversationPageState
       // Determine target user role (student or teacher)
       final targetUserRole = widget.isTeacher ? 'teacher' : 'student';
       
-      print('📤 Sending message to $targetUserRole: ${widget.student.id}');
+      print('Sending message to $targetUserRole: ${widget.student.id}');
       
       // Send via WebSocket - the server will broadcast it back, and we'll update the temp message with real ID
       _chatService!.sendMessage(
@@ -986,6 +997,53 @@ class _AdminChatConversationPageState
         );
       }
     });
+  }
+
+  /// Refresh messages manually (pull to refresh)
+  Future<void> _refreshMessages() async {
+    if (_chatService == null) return;
+    
+    try {
+      // Reload chat history
+      if (widget.adminId.isNotEmpty && widget.student.id.isNotEmpty) {
+        // If disconnected, try to reconnect
+        if (!_chatService!.isConnected) {
+          print('Not connected, attempting to reconnect...');
+          await _chatService!.connect(
+            userId: widget.adminId,
+            userRole: 'admin',
+            targetUserId: widget.student.id,
+            targetUserRole: widget.isTeacher ? 'teacher' : 'student',
+          );
+        }
+        
+        // Manually reload history
+        final api = ApiService();
+        final messages = await api.getChatMessages(
+          userId: widget.adminId,
+          targetUserId: widget.student.id,
+        );
+        api.close();
+        
+        if (mounted) {
+          setState(() {
+            _messages.clear();
+            _messages.addAll(
+              messages.map((m) => ChatMessage.fromMap(m)).toList()
+            );
+            _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+          });
+          _scrollToBottom();
+        }
+      }
+    } catch (e) {
+      print('Error refreshing messages: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to refresh messages: $e')),
+        );
+      }
+    }
   }
 
   @override
@@ -1066,13 +1124,38 @@ class _AdminChatConversationPageState
       ),
       body: Column(
         children: [
+          // Connection status indicator
+          if (_chatService != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: _chatService!.isConnected ? Colors.green[50] : Colors.orange[50],
+              child: Row(
+                children: [
+                  Icon(
+                    _chatService!.isConnected ? Icons.wifi : Icons.wifi_off,
+                    size: 16,
+                    color: _chatService!.isConnected ? Colors.green : Colors.orange,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _chatService!.isConnected ? 'Connected' : 'Disconnected - Reconnecting...',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _chatService!.isConnected ? Colors.green[700] : Colors.orange[700],
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Expanded(
             child: _isLoadingMessages
                 ? const Center(child: CircularProgressIndicator())
-                : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _messages.length,
+                : RefreshIndicator(
+                    onRefresh: _refreshMessages,
+                    child: ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.all(16),
+                      itemCount: _messages.length,
                     itemBuilder: (context, index) {
                       final msg = _messages[index];
                       
@@ -1113,7 +1196,7 @@ class _AdminChatConversationPageState
                       
                       // Debug log for alignment issues
                       if (index == 0 || index == _messages.length - 1) {
-                        print('📨 Message alignment check:');
+                        print('Message alignment check:');
                         print('  Message fromUserId: $msgFromUserId (normalized: $normalizedMsgId)');
                         print('  Admin ID: $adminId (normalized: $normalizedAdminId)');
                         print('  Message role: ${msg.fromUserRole}');
@@ -1157,6 +1240,7 @@ class _AdminChatConversationPageState
                         ),
                       );
                     },
+                    ),
                   ),
           ),
           Padding(

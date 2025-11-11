@@ -54,13 +54,25 @@ export const sendStudentMessage = async (req, res) => {
     const result = await db.collection('chat_messages').insertOne(chatMessage);
     const insertedMessage = await db.collection('chat_messages').findOne({ _id: result.insertedId });
 
-    // Broadcast message via Socket.io
+    // Broadcast message via Socket.io to all clients in the conversation room
     const io = getIO();
     if (io) {
-      io.to(conversationId).emit('message_received', {
+      const messagePayload = {
         ...insertedMessage,
         id: insertedMessage._id.toString()
-      });
+      };
+      
+      // Broadcast to the conversation room (both sender and receiver should be in this room)
+      io.to(conversationId).emit('message_received', messagePayload);
+      
+      // Also try reverse conversation ID in case clients joined with different order
+      const reverseConversationId = createConversationId(toUserId, fromUserId);
+      if (reverseConversationId !== conversationId) {
+        io.to(reverseConversationId).emit('message_received', messagePayload);
+      }
+      
+      console.log(`Broadcasted student message to conversation room: ${conversationId} (and ${reverseConversationId})`);
+      console.log(`   Message: ${message.substring(0, 50)}${message.length > 50 ? '...' : ''}`);
     }
 
     res.status(201).json({ success: true, data: insertedMessage });
@@ -112,18 +124,30 @@ export const sendTeacherMessage = async (req, res) => {
       updatedAt: new Date()
     };
     
-    console.log(`📤 Teacher message: from ${sanitizedFromUserId} to ${sanitizedToUserId} (role: ${sanitizedToUserRole || 'admin'})`);
+    console.log(`Teacher message: from ${sanitizedFromUserId} to ${sanitizedToUserId} (role: ${sanitizedToUserRole || 'admin'})`);
 
     const result = await db.collection('chat_messages').insertOne(chatMessage);
     const insertedMessage = await db.collection('chat_messages').findOne({ _id: result.insertedId });
 
-    // Broadcast message via Socket.io
+    // Broadcast message via Socket.io to all clients in the conversation room
     const io = getIO();
     if (io) {
-      io.to(conversationId).emit('message_received', {
+      const messagePayload = {
         ...insertedMessage,
         id: insertedMessage._id.toString()
-      });
+      };
+      
+      // Broadcast to the conversation room (both sender and receiver should be in this room)
+      io.to(conversationId).emit('message_received', messagePayload);
+      
+      // Also try reverse conversation ID in case clients joined with different order
+      const reverseConversationId = createConversationId(sanitizedToUserId, sanitizedFromUserId);
+      if (reverseConversationId !== conversationId) {
+        io.to(reverseConversationId).emit('message_received', messagePayload);
+      }
+      
+      console.log(`Broadcasted teacher message to conversation room: ${conversationId} (and ${reverseConversationId})`);
+      console.log(`   Message: ${message.substring(0, 50)}${message.length > 50 ? '...' : ''}`);
     }
 
     res.status(201).json({ success: true, data: insertedMessage });
@@ -203,26 +227,45 @@ export const sendAdminMessage = async (req, res) => {
           }
         );
         
-        console.log(`  📖 Admin replied: Marked ${updateResult.modifiedCount} messages as read from ${sanitizedToUserRole || 'user'}`);
+        console.log(`Admin replied: Marked ${updateResult.modifiedCount} messages as read from ${sanitizedToUserRole || 'user'}`);
       } catch (updateError) {
-        console.error('  ⚠️ Error marking messages as read:', updateError);
+        console.error('Error marking messages as read:', updateError);
         // Continue even if marking as read fails (message was already sent)
       }
     }
     
-    // Broadcast message via Socket.io
+    // Broadcast message via Socket.io to all clients in the conversation room
     const io = getIO();
     if (io) {
-      io.to(conversationId).emit('message_received', {
+      const messagePayload = {
         ...insertedMessage,
         id: insertedMessage._id.toString()
-      });
+      };
+      
+      // Broadcast to the conversation room (both sender and receiver should be in this room)
+      io.to(conversationId).emit('message_received', messagePayload);
+      
+      // Also try reverse conversation ID in case clients joined with different order
+      const reverseConversationId = createConversationId(sanitizedToUserId, sanitizedFromUserId);
+      if (reverseConversationId !== conversationId) {
+        io.to(reverseConversationId).emit('message_received', messagePayload);
+      }
+      
+      console.log(`Broadcasted admin message to conversation room: ${conversationId} (and ${reverseConversationId})`);
+      console.log(`   Message: ${message.substring(0, 50)}${message.length > 50 ? '...' : ''}`);
+      
       // Notify about read status update (only if we successfully updated)
       if (updateResult.modifiedCount > 0) {
         io.to(conversationId).emit('messages_read', {
           conversationId,
           count: updateResult.modifiedCount
         });
+        if (reverseConversationId !== conversationId) {
+          io.to(reverseConversationId).emit('messages_read', {
+            conversationId: reverseConversationId,
+            count: updateResult.modifiedCount
+          });
+        }
       }
     }
 

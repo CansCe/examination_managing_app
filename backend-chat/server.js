@@ -26,12 +26,12 @@ if (!existsSync(envPath) && !isDocker) {
   console.warn('╔══════════════════════════════════════════════════════════╗');
   console.warn('║      CHAT SERVICE - Configuration Warning                ║');
   console.warn('╚══════════════════════════════════════════════════════════╝');
-  console.warn(`\n⚠ .env file not found at: ${envPath}`);
-  console.warn('⚠ Service: CHAT SERVICE (backend-chat)');
-  console.warn('\n💡 This is OK if:');
+  console.warn(`\n.env file not found at: ${envPath}`);
+  console.warn('Service: CHAT SERVICE (backend-chat)');
+  console.warn('\nThis is OK if:');
   console.warn('   - Running in Docker (env vars provided via docker-compose)');
   console.warn('   - Environment variables are set in the system');
-  console.warn('\n📝 Otherwise, create .env file:');
+  console.warn('\nOtherwise, create .env file:');
   console.warn('   1. Copy ENV_EXAMPLE.txt to .env');
   console.warn('   2. Fill in your MONGODB_URI');
   console.warn('   3. Restart the service\n');
@@ -42,10 +42,10 @@ if (!process.env.MONGODB_URI) {
   console.error('╔══════════════════════════════════════════════════════════╗');
   console.error('║     CHAT SERVICE - Configuration Error                   ║');
   console.error('╚══════════════════════════════════════════════════════════╝');
-  console.error('\n✗ MONGODB_URI not found in environment variables');
-  console.error('✗ Service: CHAT SERVICE (backend-chat)');
-  console.error('✗ Database: MongoDB');
-  console.error('\n📝 Solution:');
+  console.error('\nMONGODB_URI not found in environment variables');
+  console.error('Service: CHAT SERVICE (backend-chat)');
+  console.error('Database: MongoDB');
+  console.error('\nSolution:');
   if (isDocker) {
     console.error('   For Docker: Add MONGODB_URI to docker-compose.yml or backend-chat/.env file');
     console.error('   (docker-compose loads .env file from host at runtime)');
@@ -57,11 +57,11 @@ if (!process.env.MONGODB_URI) {
   process.exit(1);
 }
 
-console.log('✓ Environment variables loaded');
-console.log('✓ Service: CHAT SERVICE (backend-chat)');
-console.log('✓ Database: MongoDB');
-console.log('✓ Real-time: Socket.io WebSockets');
-console.log('✓ Port: ' + (process.env.PORT || 3001));
+console.log('Environment variables loaded');
+console.log('Service: CHAT SERVICE (backend-chat)');
+console.log('Database: MongoDB');
+console.log('Real-time: Socket.io WebSockets');
+console.log('Port: ' + (process.env.PORT || 3001));
 
 // Now import other modules
 import express from 'express';
@@ -201,17 +201,21 @@ app.get('/', (req, res) => {
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
-  console.log(`✓ Client connected: ${socket.id}`);
+  console.log(`Client connected: ${socket.id}`);
 
-  // Join conversation room
+  // Join conversation room for real-time message delivery
   socket.on('join_conversation', ({ userId, targetUserId }) => {
     if (!userId || !targetUserId) {
-      console.error(`  ✗ Invalid join_conversation: missing userId or targetUserId`);
+      console.error(`Invalid join_conversation: missing userId or targetUserId`);
       return;
     }
+    // Create conversation ID by sorting IDs (ensures same room for both users)
     const conversationId = [userId, targetUserId].sort().join(':');
     socket.join(conversationId);
-    console.log(`  → ${socket.id} joined conversation: ${conversationId}`);
+    console.log(`${socket.id} joined conversation: ${conversationId}`);
+    console.log(`   User: ${userId}, Target: ${targetUserId}`);
+    console.log(`   Ready to receive real-time messages`);
+    
     // Acknowledge join
     socket.emit('joined_conversation', { conversationId });
   });
@@ -220,7 +224,7 @@ io.on('connection', (socket) => {
   socket.on('leave_conversation', ({ userId, targetUserId }) => {
     const conversationId = [userId, targetUserId].sort().join(':');
     socket.leave(conversationId);
-    console.log(`  ← ${socket.id} left conversation: ${conversationId}`);
+    console.log(`${socket.id} left conversation: ${conversationId}`);
   });
 
   // Handle new message (from REST API, broadcast to room)
@@ -230,7 +234,7 @@ io.on('connection', (socket) => {
       if (conversationId) {
         // Broadcast to all clients in the conversation room
         io.to(conversationId).emit('message_received', messageData);
-        console.log(`  📨 Message broadcasted to conversation: ${conversationId}`);
+        console.log(`Message broadcasted to conversation: ${conversationId}`);
       }
     } catch (error) {
       console.error('Error broadcasting message:', error);
@@ -245,7 +249,7 @@ io.on('connection', (socket) => {
 
   // Handle disconnect
   socket.on('disconnect', () => {
-    console.log(`✗ Client disconnected: ${socket.id}`);
+    console.log(`Client disconnected: ${socket.id}`);
   });
 });
 

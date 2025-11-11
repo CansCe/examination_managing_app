@@ -144,35 +144,41 @@ class ChatSocketService {
       final completer = Completer<void>();
       bool connectionEstablished = false;
 
-      // Create Socket.io connection
+      // Create Socket.io connection with automatic reconnection
       _socket = IO.io(
         chatBaseUrl,
         IO.OptionBuilder()
           .setTransports(['websocket', 'polling'])
           .enableAutoConnect()
+          .enableReconnection() // Enable automatic reconnection
+          .setReconnectionAttempts(5) // Try to reconnect up to 5 times
+          .setReconnectionDelay(1000) // Wait 1 second between reconnection attempts
+          .setReconnectionDelayMax(5000) // Max 5 seconds between attempts
           .build(),
       );
 
       // Connection event handlers
       _socket!.onConnect((_) {
-        print('✓ Connected to chat service via Socket.io (socket ID: ${_socket!.id})');
+        print('Connected to chat service via Socket.io (socket ID: ${_socket!.id})');
         _isConnected = true;
         connectionEstablished = true;
         
         // Verify socket is actually connected
         if (_socket!.connected) {
-          print('✓ Socket connection verified: connected = ${_socket!.connected}');
+          print('Socket connection verified: connected = ${_socket!.connected}');
         } else {
-          print('⚠ Socket onConnect fired but socket.connected is false');
+          print('Warning: Socket onConnect fired but socket.connected is false');
         }
         
-        // Join conversation room
+        // Join conversation room for real-time message delivery
+        print('Joining conversation room for real-time updates');
         _socket!.emit('join_conversation', {
           'userId': userId,
           'targetUserId': targetUserId,
         });
+        print('Join request sent - waiting for confirmation');
 
-        // Load chat history
+        // Load chat history (existing messages)
         _loadChatHistory(userId, targetUserId);
 
         // Complete the future if not already completed
@@ -184,15 +190,44 @@ class ChatSocketService {
       _socket!.onDisconnect((reason) {
         // Only log if it's an unexpected disconnect (not a manual disconnect)
         if (_isConnected) {
-          print('✗ Disconnected from chat service: $reason');
+          print('Disconnected from chat service: $reason');
+          print('Automatic reconnection will be attempted...');
         } else {
-          print('✓ Disconnected from chat service (expected)');
+          print('Disconnected from chat service (expected)');
         }
         _isConnected = false;
       });
+      
+      // Handle reconnection
+      _socket!.onReconnect((attemptNumber) {
+        print('Reconnected to chat service after $attemptNumber attempt(s)');
+        _isConnected = true;
+        
+        // Re-join conversation room after reconnection
+        if (_userId != null && _targetUserId != null) {
+          print('Re-joining conversation room after reconnection');
+          _socket!.emit('join_conversation', {
+            'userId': _userId,
+            'targetUserId': _targetUserId,
+          });
+          
+          // Reload chat history after reconnection to get any missed messages
+          _loadChatHistory(_userId!, _targetUserId!);
+        }
+      });
+      
+      // Handle reconnection attempts
+      _socket!.onReconnectAttempt((attemptNumber) {
+        print('Reconnection attempt $attemptNumber...');
+      });
+      
+      // Handle reconnection errors
+      _socket!.onReconnectError((error) {
+        print('Reconnection error: $error');
+      });
 
       _socket!.onConnectError((error) {
-        print('✗ Socket.io connection error: $error');
+        print('Socket.io connection error: $error');
         _isConnected = false;
         if (!completer.isCompleted) {
           completer.completeError(error);
@@ -200,17 +235,25 @@ class ChatSocketService {
       });
 
       _socket!.onError((error) {
-        print('✗ Socket.io error: $error');
+        print('Socket.io error: $error');
         _isConnected = false;
       });
 
-      // Listen for new messages
+      // Listen for new messages - REAL-TIME LIVE FEED
       _socket!.on('message_received', (data) {
         try {
+          print('REAL-TIME: Received message via Socket.io');
           final message = ChatMessage.fromMap(data as Map<String, dynamic>);
+          print('   From: ${message.fromUserRole} ${message.fromUserId}');
+          print('   To: ${message.toUserRole} ${message.toUserId}');
+          print('   Message: ${message.message.substring(0, 50)}${message.message.length > 50 ? '...' : ''}');
+          
+          // Immediately add to stream for real-time display
           _messageController.add(message);
+          print('   Message added to stream - UI should update immediately');
         } catch (e) {
           print('Error parsing received message: $e');
+          print('   Raw data: $data');
         }
       });
 
@@ -218,6 +261,12 @@ class ChatSocketService {
       _socket!.on('messages_read', (data) {
         print('Messages marked as read: $data');
         // Could emit an event to update UI if needed
+      });
+      
+      // Listen for join confirmation
+      _socket!.on('joined_conversation', (data) {
+        print('Joined conversation room: ${data['conversationId']}');
+        print('Ready to receive real-time messages');
       });
 
       // Connect and wait for connection to establish
@@ -236,16 +285,16 @@ class ChatSocketService {
         
         // Double-check connection state after waiting
         if (_socket != null && _socket!.connected) {
-          print('✓ Connection fully established and verified');
+          print('Connection fully established and verified');
           _isConnected = true;
         } else {
-          print('⚠ Connection completed but socket is not connected');
+          print('Warning: Connection completed but socket is not connected');
           _isConnected = false;
           throw Exception('Socket connection not fully established');
         }
       } catch (e) {
         _isConnected = false;
-        print('✗ Connection failed: $e');
+        print('Connection failed: $e');
         if (_socket != null) {
           _socket!.disconnect();
           _socket!.dispose();
@@ -255,7 +304,7 @@ class ChatSocketService {
       }
     } catch (e) {
       _isConnected = false;
-      print('✗ Error connecting to chat service: $e');
+      print('Error connecting to chat service: $e');
       rethrow;
     }
   }
@@ -264,7 +313,7 @@ class ChatSocketService {
   Future<void> _loadChatHistory(String userId, String targetUserId) async {
     final api = ApiService();
     try {
-      print('📥 Loading chat history for userId: $userId, targetUserId: $targetUserId');
+      print('Loading chat history for userId: $userId, targetUserId: $targetUserId');
       print('  userId format: ${userId.contains('-') ? 'UUID' : 'ObjectId'}');
       print('  targetUserId format: ${targetUserId.contains('-') ? 'UUID' : 'ObjectId'}');
       
@@ -273,7 +322,7 @@ class ChatSocketService {
         targetUserId: targetUserId,
       );
       
-      print('📥 Received ${messages.length} messages from chat service');
+      print('Received ${messages.length} messages from chat service');
       if (messages.isNotEmpty) {
         print('  First message: ${messages.first['message']} from ${messages.first['from_user_role']}');
         print('  Last message: ${messages.last['message']} from ${messages.last['from_user_role']}');
@@ -283,16 +332,23 @@ class ChatSocketService {
           .map((m) => ChatMessage.fromMap(m))
           .toList();
       
-      print('📥 Converted to ${chatMessages.length} ChatMessage objects');
+      print('Converted to ${chatMessages.length} ChatMessage objects');
       _historyController.add(chatMessages);
     } catch (e) {
-      print('✗ Error loading chat history: $e');
+      print('Error loading chat history: $e');
       print('  Stack trace: ${StackTrace.current}');
       // Don't rethrow - allow connection to continue even if history fails
       // But add empty list to indicate history was attempted
       _historyController.add([]);
     } finally {
       api.close();
+    }
+  }
+  
+  /// Manually reload chat history (public method for refresh)
+  Future<void> reloadHistory() async {
+    if (_userId != null && _targetUserId != null) {
+      await _loadChatHistory(_userId!, _targetUserId!);
     }
   }
 
@@ -334,9 +390,11 @@ class ChatSocketService {
         throw Exception('Invalid user role: $fromUserRole');
       }
 
+      print('Message sent to server - Socket.io will broadcast to all receivers in real-time');
+      
       // Don't add message here - the Socket.io server will broadcast it via message_received event
       // This prevents duplicate messages (one from REST API response, one from Socket.io broadcast)
-      // The message will appear when the Socket.io broadcast is received
+      // The message will appear immediately when the Socket.io broadcast is received by all clients
     } catch (e) {
       print('Error sending message: $e');
       rethrow;
@@ -349,20 +407,20 @@ class ChatSocketService {
   /// This marks all unread messages from the targetUserId (student) as read
   Future<void> markAsRead(String userId, String targetUserId) async {
     try {
-      print('📖 Marking messages as read for student: $targetUserId');
+      print('Marking messages as read for student: $targetUserId');
       final api = ApiService();
       final success = await api.markChatMessagesAsRead(targetUserId);
       api.close();
       
       if (success) {
-        print('✓ Messages marked as read successfully');
+        print('Messages marked as read successfully');
         // Optionally emit a Socket.io event to notify other clients
         // The backend already handles this via Socket.io in markAsRead controller
       } else {
-        print('⚠ Failed to mark messages as read');
+        print('Failed to mark messages as read');
       }
     } catch (e) {
-      print('✗ Error marking messages as read: $e');
+      print('Error marking messages as read: $e');
       // Don't rethrow - this is not critical for the chat to function
     }
   }
