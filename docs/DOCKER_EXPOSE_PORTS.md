@@ -269,18 +269,18 @@ docker-compose restart
 ## Summary
 
 ### Direct Port Exposure (Current docker-compose.yml)
-- ✅ Already configured with `0.0.0.0:port:port`
-- ✅ Simple setup
-- ✅ Accessible on `http://YOUR_SERVER_IP:3000` and `http://YOUR_SERVER_IP:3001`
-- ⚠️ Less secure
-- ⚠️ No SSL by default
+- Already configured with `0.0.0.0:port:port`
+- Simple setup
+- Accessible on `http://YOUR_SERVER_IP:3000` and `http://YOUR_SERVER_IP:3001`
+- Less secure
+- No SSL by default
 
 ### Nginx Reverse Proxy (docker-compose.production.yml)
-- ✅ More secure
-- ✅ SSL/HTTPS support
-- ✅ Domain name routing
-- ✅ Better for production
-- ⚠️ More complex setup
+- More secure
+- SSL/HTTPS support
+- Domain name routing
+- Better for production
+- More complex setup
 
 **Choose based on your needs:**
 - **Development/Testing:** Use direct port exposure

@@ -204,12 +204,12 @@ await ApiConfig.rediscover();
 
 ## Benefits
 
-✅ **No build-time configuration needed**
-✅ **Automatic failover** between domains
-✅ **Works for all users** without setup
-✅ **Fast startup** (uses cached URL)
-✅ **Self-healing** (rediscovers if endpoint fails)
-✅ **Easy to add new domains** (just update list)
+**No build-time configuration needed**
+**Automatic failover** between domains
+**Works for all users** without setup
+**Fast startup** (uses cached URL)
+**Self-healing** (rediscovers if endpoint fails)
+**Easy to add new domains** (just update list)
 
 ## Security Notes
 
@@ -218,12 +218,4 @@ await ApiConfig.rediscover();
 - Stored URLs are saved locally (not sent anywhere)
 - Users can manually override if needed
 
-## Next Steps
-
-1. **Add your domains** to `api_discovery_service.dart`
-2. **Build the app** normally (no special flags)
-3. **Test** on first launch
-4. **Distribute** to users - they'll auto-connect!
-
-The app will automatically discover and use your API endpoints! 🚀
 
