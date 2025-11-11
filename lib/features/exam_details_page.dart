@@ -12,11 +12,11 @@ class ExamDetailsPage extends StatefulWidget {
   final UserRole? userRole; // User role to determine if delete button should be shown
 
   const ExamDetailsPage({
-    Key? key,
+    super.key,
     required this.exam,
     this.studentId,
     this.userRole,
-  }) : super(key: key);
+  });
 
   @override
   State<ExamDetailsPage> createState() => _ExamDetailsPageState();
@@ -584,8 +584,8 @@ class _ExamDetailsPageState extends State<ExamDetailsPage> {
               child: FloatingActionButton(
                 onPressed: _isLoading ? null : _deleteExam,
                 backgroundColor: Colors.red,
-                child: const Icon(Icons.delete, color: Colors.white),
                 tooltip: 'Delete Exam',
+                child: const Icon(Icons.delete, color: Colors.white),
               ),
             ),
         ],

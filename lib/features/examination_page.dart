@@ -9,11 +9,11 @@ class ExaminationPage extends StatefulWidget {
   final String? studentId; // Student ID for submitting answers
 
   const ExaminationPage({
-    Key? key,
+    super.key,
     required this.exam,
     required this.questions,
     this.studentId,
-  }) : super(key: key);
+  });
 
   @override
   State<ExaminationPage> createState() => _ExaminationPageState();
@@ -417,7 +417,7 @@ class _ExaminationPageState extends State<ExaminationPage> {
                         ),
                       ),
                     );
-                  }).toList(),
+                  }),
                 ],
               ),
             ),

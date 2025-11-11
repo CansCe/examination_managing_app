@@ -55,8 +55,8 @@ class RouteGenerator {
       case AppRoutes.examDetails:
         if (args is Map<String, dynamic>) {
           final Exam exam = args['exam'] as Exam;
-          final Function() onExamUpdated = args['onExamUpdated'] as Function();
-          final Function() onExamDeleted = args['onExamDeleted'] as Function();
+          // onExamUpdated and onExamDeleted are passed but not used in this route
+          // They may be used in the future for callback functionality
           final String? studentId = args['studentId'] as String?;
           final UserRole? userRole = args['userRole'] as UserRole?;
           return MaterialPageRoute(

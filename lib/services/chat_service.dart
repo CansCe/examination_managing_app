@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:socket_io_client/socket_io_client.dart' as _io;
+import 'package:socket_io_client/socket_io_client.dart' as io;
 import 'api_service.dart';
 import '../config/api_config.dart';
 import '../../utils/index.dart';
@@ -94,7 +94,7 @@ class ChatMessage {
 }
 
 class ChatSocketService {
-  _io.Socket? _socket;
+  io.Socket? _socket;
   Timer? _pingTimer;
   final StreamController<ChatMessage> _messageController = StreamController<ChatMessage>.broadcast();
   final StreamController<List<ChatMessage>> _historyController = StreamController<List<ChatMessage>>.broadcast();
@@ -146,9 +146,9 @@ class ChatSocketService {
       bool connectionEstablished = false;
 
       // Create Socket.io connection with automatic reconnection
-      _socket = _io.io(
+      _socket = io.io(
         chatBaseUrl,
-        _io.OptionBuilder()
+        io.OptionBuilder()
           .setTransports(['websocket', 'polling'])
           .enableAutoConnect()
           .enableReconnection() // Enable automatic reconnection

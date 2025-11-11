@@ -8,7 +8,7 @@ const _uuid = Uuid();
 class AdminChatPage extends StatefulWidget {
   final String adminId;
   
-  const AdminChatPage({Key? key, required this.adminId}) : super(key: key);
+  const AdminChatPage({super.key, required this.adminId});
 
   @override
   State<AdminChatPage> createState() => _AdminChatPageState();
@@ -675,10 +675,10 @@ class AdminChatConversationPage extends StatefulWidget {
   final Student student; // Can be a Student or Teacher (converted to Student for UI)
 
   const AdminChatConversationPage({
-    Key? key,
+    super.key,
     required this.adminId,
     required this.student,
-  }) : super(key: key);
+  });
   
   // Determine if this is a teacher (check if rollNumber is 'Teacher')
   bool get isTeacher => student.rollNumber == 'Teacher';
@@ -998,6 +998,24 @@ class _AdminChatConversationPageState
     });
   }
 
+  String _formatTimestamp(DateTime timestamp) {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final messageDate = DateTime(timestamp.year, timestamp.month, timestamp.day);
+    
+    if (messageDate == today) {
+      // Today - show time only
+      return 'Today, ${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}';
+    } else if (messageDate == today.subtract(const Duration(days: 1))) {
+      // Yesterday
+      return 'Yesterday, ${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}';
+    } else {
+      // Older - show date and time
+      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return '${timestamp.day} ${months[timestamp.month - 1]} ${timestamp.year}, ${timestamp.hour.toString().padLeft(2, '0')}:${timestamp.minute.toString().padLeft(2, '0')}';
+    }
+  }
+
   /// Refresh messages manually (pull to refresh)
   Future<void> _refreshMessages() async {
     if (_chatService == null) return;
@@ -1157,6 +1175,7 @@ class _AdminChatConversationPageState
                       itemCount: _messages.length,
                     itemBuilder: (context, index) {
                       final msg = _messages[index];
+                      final prevMsg = index > 0 ? _messages[index - 1] : null;
                       
                       // Determine if message is from admin (right side) or from student/teacher (left side)
                       // Check by role first (most reliable), then by ID match
@@ -1193,50 +1212,78 @@ class _AdminChatConversationPageState
                       // Message is from admin if role is admin OR if IDs match
                       final isMe = isFromAdmin || (isIdMatch && msg.fromUserRole == 'admin');
                       
-                      // Debug log for alignment issues
-                      if (index == 0 || index == _messages.length - 1) {
-                        Logger.debug('Message alignment check:', 'AdminChat');
-                        Logger.debug('  Message fromUserId: $msgFromUserId (normalized: $normalizedMsgId)', 'AdminChat');
-                        Logger.debug('  Admin ID: $adminId (normalized: $normalizedAdminId)', 'AdminChat');
-                        Logger.debug('  Message role: ${msg.fromUserRole}', 'AdminChat');
-                        Logger.debug('  isFromAdmin: $isFromAdmin, isIdMatch: $isIdMatch', 'AdminChat');
-                        Logger.debug('  Final isMe: $isMe (will align ${isMe ? "RIGHT" : "LEFT"})', 'AdminChat');
+                      // Check if we should show a timestamp separator
+                      bool shouldShowTimestamp = false;
+                      String? timestampText;
+                      
+                      if (prevMsg == null) {
+                        // First message - always show timestamp
+                        shouldShowTimestamp = true;
+                        timestampText = _formatTimestamp(msg.timestamp);
+                      } else {
+                        // Check if there's a significant time gap (more than 5 minutes or different day)
+                        final timeDiff = msg.timestamp.difference(prevMsg.timestamp);
+                        final isDifferentDay = msg.timestamp.day != prevMsg.timestamp.day ||
+                                               msg.timestamp.month != prevMsg.timestamp.month ||
+                                               msg.timestamp.year != prevMsg.timestamp.year;
+                        
+                        if (isDifferentDay || timeDiff.inMinutes > 5) {
+                          shouldShowTimestamp = true;
+                          timestampText = _formatTimestamp(msg.timestamp);
+                        }
                       }
                       
-                      return Align(
-                        alignment:
-                            isMe ? Alignment.centerRight : Alignment.centerLeft,
-                        child: Container(
-                          constraints: BoxConstraints(
-                            maxWidth: MediaQuery.of(context).size.width * 0.75,
-                          ),
-                          margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isMe ? Colors.blue[100] : Colors.grey[200],
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                msg.message,
-                                style: const TextStyle(fontSize: 14),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${msg.timestamp.hour.toString().padLeft(2, '0')}:${msg.timestamp.minute.toString().padLeft(2, '0')}',
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          if (shouldShowTimestamp && timestampText != null)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              child: Text(
+                                timestampText,
                                 style: TextStyle(
-                                  fontSize: 10,
+                                  fontSize: 11,
                                   color: Colors.grey[600],
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
-                            ],
+                            ),
+                          Align(
+                            alignment:
+                                isMe ? Alignment.centerRight : Alignment.centerLeft,
+                            child: Container(
+                              constraints: BoxConstraints(
+                                maxWidth: MediaQuery.of(context).size.width * 0.75,
+                              ),
+                              margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isMe ? Colors.blue[100] : Colors.grey[200],
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    msg.message,
+                                    style: const TextStyle(fontSize: 14),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${msg.timestamp.hour.toString().padLeft(2, '0')}:${msg.timestamp.minute.toString().padLeft(2, '0')}',
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
-                        ),
+                        ],
                       );
                     },
                     ),

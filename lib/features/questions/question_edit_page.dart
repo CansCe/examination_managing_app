@@ -10,11 +10,11 @@ class QuestionEditPage extends StatefulWidget {
   final ObjectId? examId; // Optional: if provided, link question to exam
 
   const QuestionEditPage({
-    Key? key,
+    super.key,
     this.questionId,
     required this.teacherId,
     this.examId,
-  }) : super(key: key);
+  });
 
   @override
   State<QuestionEditPage> createState() => _QuestionEditPageState();

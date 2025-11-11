@@ -7,10 +7,10 @@ class AdminStudentExamAssignmentPage extends StatefulWidget {
   final Exam exam;
 
   const AdminStudentExamAssignmentPage({
-    Key? key,
+    super.key,
     required this.examId,
     required this.exam,
-  }) : super(key: key);
+  });
 
   @override
   State<AdminStudentExamAssignmentPage> createState() =>

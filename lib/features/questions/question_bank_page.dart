@@ -8,9 +8,9 @@ class QuestionBankPage extends StatefulWidget {
   final String teacherId;
 
   const QuestionBankPage({
-    Key? key,
+    super.key,
     required this.teacherId,
-  }) : super(key: key);
+  });
 
   @override
   State<QuestionBankPage> createState() => _QuestionBankPageState();

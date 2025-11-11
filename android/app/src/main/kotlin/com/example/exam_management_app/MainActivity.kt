@@ -1,4 +1,4 @@
-package com.pea.exam_management_app
+package com.example.exam_management_app
 
 import io.flutter.embedding.android.FlutterActivity
 

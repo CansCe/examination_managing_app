@@ -5,7 +5,7 @@ import '../../models/index.dart';
 class AdminTeacherListPage extends StatefulWidget {
   final String adminId;
   
-  const AdminTeacherListPage({Key? key, required this.adminId}) : super(key: key);
+  const AdminTeacherListPage({super.key, required this.adminId});
 
   @override
   State<AdminTeacherListPage> createState() => _AdminTeacherListPageState();

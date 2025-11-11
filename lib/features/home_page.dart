@@ -5,7 +5,6 @@ import '../services/index.dart';
 import '../config/routes.dart'; // For AppRoutes.login
 import '../models/index.dart';
 import '../features/index.dart';
-import 'admin/admin_teacher_list_page.dart';
 import '../utils/dialog_helper.dart';
 import '../utils/logger.dart';
 
@@ -52,7 +51,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Exam? _nearestUpcomingExam;
   List<Exam> _pastExams = [];
   // Unread message count for chat badge
-  int _unreadMessageCount = 0;
+  final int _unreadMessageCount = 0;
   //Timer? _unreadMessageTimer;
 
   @override

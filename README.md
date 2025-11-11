@@ -256,7 +256,3 @@ See [docs/AUTO_DISCOVERY_SETUP.md](docs/AUTO_DISCOVERY_SETUP.md) for detailed in
 - **Development:** Uses `localhost` as fallback
 
 See `lib/config/api_config.dart` for configuration options.
-
-## License
-
-Not yet needed

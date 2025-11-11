@@ -2,8 +2,8 @@ import 'package:mongo_dart/mongo_dart.dart';
 import '../config/database_config.dart';
 import '../models/index.dart';
 import '../utils/mock_data_generator.dart';
-import 'index.dart';
-import 'api_service.dart';
+import 'mongodb_service.dart' show MongoDBService;
+import 'api_service.dart' show ApiService;
 
 class DummyExamSetup {
   final Exam exam;
@@ -23,9 +23,9 @@ class AtlasService {
 
   // Initialize connection to MongoDB Atlas
   static Future<void> init() async {
-    if (!_isInitialized) {
-      // REST-based implementation no longer requires a persistent MongoDB connection.
-      // Preserve existing API for legacy callers.
+    if (_db == null) {
+      _db = await Db.create(DatabaseConfig.connectionString);
+      await _db!.open();
       _isInitialized = true;
     }
   }
@@ -95,9 +95,9 @@ class AtlasService {
         }
       }
       
-      // Verify insertion by counting documents
+      // Verify insertion by counting documents (count is not used but verification is performed)
       try {
-        final count = await _db!.collection(collection).count();
+        await _db!.collection(collection).count();
         // Collection updated - no logging needed
       } catch (e) {
         // Could not verify document count - non-critical
@@ -214,8 +214,10 @@ class AtlasService {
 
   // Helper method to ensure connection is established
   static Future<void> _ensureConnection() async {
-    if (!_isInitialized) {
-      await init();
+    if (_db == null) {
+      _db = await Db.create(DatabaseConfig.connectionString);
+      await _db!.open();
+      _isInitialized = true;
     }
   }
 

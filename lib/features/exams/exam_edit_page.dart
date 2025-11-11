@@ -14,11 +14,11 @@ class ExamEditPage extends StatefulWidget {
   final String? adminId; // Optional - for admins
 
   const ExamEditPage({
-    Key? key,
+    super.key,
     this.examId,
     this.teacherId,
     this.adminId,
-  }) : super(key: key);
+  });
 
   @override
   material.State<ExamEditPage> createState() => _ExamEditPageState();
@@ -650,8 +650,7 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
                                     final baseSubjects = ['Mathematics', 'Physics', 'Chemistry', 'Biology'];
                                     
                                     // Combine and remove duplicates
-                                    final allSubjects = <String>[...baseSubjects, ...questionSubjects]
-                                        .toSet()
+                                    final allSubjects = <String>{...baseSubjects, ...questionSubjects}
                                         .toList()
                                       ..sort();
                                     

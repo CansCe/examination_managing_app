@@ -1,7 +1,9 @@
 import 'dart:math';
 import 'package:mongo_dart/mongo_dart.dart';
-import '../services/index.dart';
+// Import AtlasService directly to avoid Flutter dependencies from barrel exports
+import '../services/atlas_service.dart';
 import '../config/database_config.dart';
+import '../services/mongodb_service.dart';
 
 class MockDataGenerator {
   static final _random = Random();
