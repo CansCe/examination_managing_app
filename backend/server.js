@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { MongoClient, ObjectId } from 'mongodb';
+import { readLimiter, writeLimiter, healthLimiter } from './middleware/rateLimiter.js';
 
 const app = express();
 app.use(cors());
@@ -26,8 +27,8 @@ async function getDb() {
   return client.db(defaultDbName);
 }
 
-// Healthcheck
-app.get('/health', async (_req, res) => {
+// Healthcheck - lenient rate limiting
+app.get('/health', healthLimiter, async (_req, res) => {
   try {
     await getDb();
     res.json({ ok: true });
@@ -36,8 +37,8 @@ app.get('/health', async (_req, res) => {
   }
 });
 
-// GET /exams/:id
-app.get('/exams/:id', async (req, res) => {
+// GET /exams/:id - read rate limiting
+app.get('/exams/:id', readLimiter, async (req, res) => {
   try {
     const db = await getDb();
     const id = req.params.id;
@@ -55,8 +56,8 @@ app.get('/exams/:id', async (req, res) => {
   }
 });
 
-// POST /exams
-app.post('/exams', async (req, res) => {
+// POST /exams - write rate limiting
+app.post('/exams', writeLimiter, async (req, res) => {
   try {
     const db = await getDb();
     const body = req.body ?? {};
