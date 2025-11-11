@@ -1,11 +1,13 @@
 import express from 'express';
 import { body } from 'express-validator';
 import { login, getCurrentUser, changePassword } from '../controllers/auth.controller.js';
+import { authLimiter, readLimiter, writeLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
-// Login endpoint
+// Login endpoint - strict rate limiting to prevent brute force
 router.post('/login', 
+  authLimiter,
   [
     body('username').notEmpty().withMessage('Username is required'),
     body('password').notEmpty().withMessage('Password is required')
@@ -13,11 +15,12 @@ router.post('/login',
   login
 );
 
-// Get current user
-router.get('/user/:userId', getCurrentUser);
+// Get current user - read rate limiting
+router.get('/user/:userId', readLimiter, getCurrentUser);
 
-// Change password
+// Change password - write rate limiting
 router.put('/password',
+  writeLimiter,
   [
     body('userId').notEmpty().withMessage('User ID is required'),
     body('currentPassword').notEmpty().withMessage('Current password is required'),

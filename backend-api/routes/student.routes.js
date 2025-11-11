@@ -7,10 +7,12 @@ import {
   updateStudent,
   deleteStudent
 } from '../controllers/student.controller.js';
+import { readLimiter, writeLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
 router.get('/',
+  readLimiter,
   [
     query('page').optional().isInt({ min: 0 }),
     query('limit').optional().isInt({ min: 1, max: 100 })
@@ -18,8 +20,9 @@ router.get('/',
   getAllStudents
 );
 
-router.get('/:id', getStudentById);
+router.get('/:id', readLimiter, getStudentById);
 router.post('/', 
+  writeLimiter,
   [
     body('fullName').notEmpty().withMessage('Full name is required'),
     body('email').isEmail().withMessage('Valid email is required'),
@@ -35,8 +38,8 @@ router.post('/',
   ],
   createStudent
 );
-router.put('/:id', updateStudent);
-router.delete('/:id', deleteStudent);
+router.put('/:id', writeLimiter, updateStudent);
+router.delete('/:id', writeLimiter, deleteStudent);
 
 export default router;
 

@@ -1,6 +1,7 @@
 import { getDatabase } from '../config/database.js';
 import { ObjectId } from 'mongodb';
 import { validationResult } from 'express-validator';
+import { sanitizeObjectId, sanitizeQuery } from '../utils/inputSanitizer.js';
 
 export const getAllQuestions = async (req, res) => {
   try {
@@ -74,12 +75,15 @@ export const getQuestionById = async (req, res) => {
     const { id } = req.params;
     const db = getDatabase();
 
-    let question;
+    // SECURITY: Sanitize user ID to prevent NoSQL injection
+    let sanitizedId;
     try {
-      question = await db.collection('questions').findOne({ _id: new ObjectId(id) });
+      sanitizedId = sanitizeObjectId(id);
     } catch (error) {
-      return res.status(400).json({ success: false, error: 'Invalid question ID' });
+      return res.status(400).json({ success: false, error: 'Invalid question ID format' });
     }
+
+    const question = await db.collection('questions').findOne({ _id: sanitizedId });
 
     if (!question) {
       return res.status(404).json({ success: false, error: 'Question not found' });
@@ -125,13 +129,31 @@ export const updateQuestion = async (req, res) => {
     const { id } = req.params;
     const db = getDatabase();
 
+    // SECURITY: Sanitize user ID to prevent NoSQL injection
+    let sanitizedId;
+    try {
+      sanitizedId = sanitizeObjectId(id);
+    } catch (error) {
+      return res.status(400).json({ success: false, error: 'Invalid question ID format' });
+    }
+
+    // SECURITY: Sanitize update data to prevent NoSQL injection
+    const sanitizedBody = sanitizeQuery(req.body);
     const updateData = {
-      ...req.body,
+      ...sanitizedBody,
       updatedAt: new Date().toISOString()
     };
 
+    // Remove MongoDB operators if any
+    delete updateData._id;
+    delete updateData.$set;
+    delete updateData.$unset;
+    delete updateData.$inc;
+    delete updateData.$push;
+    delete updateData.$pull;
+
     const result = await db.collection('questions').updateOne(
-      { _id: new ObjectId(id) },
+      { _id: sanitizedId },
       { $set: updateData }
     );
 
@@ -139,7 +161,7 @@ export const updateQuestion = async (req, res) => {
       return res.status(404).json({ success: false, error: 'Question not found' });
     }
 
-    const updatedQuestion = await db.collection('questions').findOne({ _id: new ObjectId(id) });
+    const updatedQuestion = await db.collection('questions').findOne({ _id: sanitizedId });
 
     res.json({ success: true, data: updatedQuestion });
   } catch (error) {
@@ -153,7 +175,15 @@ export const deleteQuestion = async (req, res) => {
     const { id } = req.params;
     const db = getDatabase();
 
-    const result = await db.collection('questions').deleteOne({ _id: new ObjectId(id) });
+    // SECURITY: Sanitize user ID to prevent NoSQL injection
+    let sanitizedId;
+    try {
+      sanitizedId = sanitizeObjectId(id);
+    } catch (error) {
+      return res.status(400).json({ success: false, error: 'Invalid question ID format' });
+    }
+
+    const result = await db.collection('questions').deleteOne({ _id: sanitizedId });
 
     if (result.deletedCount === 0) {
       return res.status(404).json({ success: false, error: 'Question not found' });

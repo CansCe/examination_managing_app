@@ -8,10 +8,12 @@ import {
   deleteQuestion,
   getQuestionsByIds
 } from '../controllers/question.controller.js';
+import { readLimiter, writeLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
 router.get('/',
+  readLimiter,
   [
     query('page').optional().isInt({ min: 0 }),
     query('limit').optional().isInt({ min: 1, max: 100 }),
@@ -20,9 +22,10 @@ router.get('/',
   getAllQuestions
 );
 
-router.get('/ids', getQuestionsByIds);
-router.get('/:id', getQuestionById);
+router.get('/ids', readLimiter, getQuestionsByIds);
+router.get('/:id', readLimiter, getQuestionById);
 router.post('/',
+  writeLimiter,
   [
     body('text').notEmpty().withMessage('Question text is required'),
     body('type').isIn(['multiple-choice', 'true-false', 'short-answer']).withMessage('Invalid question type'),
@@ -30,8 +33,8 @@ router.post('/',
   ],
   createQuestion
 );
-router.put('/:id', updateQuestion);
-router.delete('/:id', deleteQuestion);
+router.put('/:id', writeLimiter, updateQuestion);
+router.delete('/:id', writeLimiter, deleteQuestion);
 
 export default router;
 

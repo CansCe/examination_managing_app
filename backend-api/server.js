@@ -68,6 +68,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import { connectDatabase } from './config/database.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
+import { healthLimiter } from './middleware/rateLimiter.js';
 
 // Import routes
 import authRoutes from './routes/auth.routes.js';
@@ -141,8 +142,8 @@ if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('combined'));
 }
 
-// Health check endpoint
-app.get('/health', async (req, res) => {
+// Health check endpoint - lenient rate limiting
+app.get('/health', healthLimiter, async (req, res) => {
   try {
     const db = await connectDatabase();
     await db.admin().ping();

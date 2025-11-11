@@ -13,11 +13,13 @@ import {
   unassignStudentFromExam,
   getStudentsAssignedToExam
 } from '../controllers/exam.controller.js';
+import { readLimiter, writeLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
 
 // Get all exams (with optional filters)
 router.get('/', 
+  readLimiter,
   [
     query('page').optional().isInt({ min: 0 }),
     query('limit').optional().isInt({ min: 1, max: 100 }),
@@ -29,6 +31,7 @@ router.get('/',
 
 // Get teacher's exams
 router.get('/teacher/:teacherId',
+  readLimiter,
   [
     query('page').optional().isInt({ min: 0 }),
     query('limit').optional().isInt({ min: 1, max: 100 })
@@ -38,6 +41,7 @@ router.get('/teacher/:teacherId',
 
 // Get student's assigned exams
 router.get('/student/:studentId',
+  readLimiter,
   [
     query('page').optional().isInt({ min: 0 }),
     query('limit').optional().isInt({ min: 1, max: 100 })
@@ -46,10 +50,11 @@ router.get('/student/:studentId',
 );
 
 // Get exam by ID
-router.get('/:id', getExamById);
+router.get('/:id', readLimiter, getExamById);
 
 // Create new exam
 router.post('/',
+  writeLimiter,
   [
     body('title').notEmpty().withMessage('Title is required'),
     body('subject').notEmpty().withMessage('Subject is required'),
@@ -62,6 +67,7 @@ router.post('/',
 
 // Update exam
 router.put('/:id',
+  writeLimiter,
   [
     body('title').optional().notEmpty(),
     body('examDate').optional().notEmpty(),
@@ -72,6 +78,7 @@ router.put('/:id',
 
 // Update exam status
 router.patch('/:id/status',
+  writeLimiter,
   [
     body('status').isIn(['scheduled', 'delayed', 'cancelled', 'completed']).withMessage('Invalid status')
   ],
@@ -79,16 +86,16 @@ router.patch('/:id/status',
 );
 
 // Assign student to exam
-router.post('/:id/assign/:studentId', assignStudentToExam);
+router.post('/:id/assign/:studentId', writeLimiter, assignStudentToExam);
 
 // Unassign student from exam
-router.delete('/:id/assign/:studentId', unassignStudentFromExam);
+router.delete('/:id/assign/:studentId', writeLimiter, unassignStudentFromExam);
 
 // Get students assigned to exam
-router.get('/:id/students', getStudentsAssignedToExam);
+router.get('/:id/students', readLimiter, getStudentsAssignedToExam);
 
 // Delete exam
-router.delete('/:id', deleteExam);
+router.delete('/:id', writeLimiter, deleteExam);
 
 export default router;
 

@@ -1,6 +1,7 @@
 import { getDatabase } from '../config/database.js';
 import { ObjectId } from 'mongodb';
 import { validationResult } from 'express-validator';
+import { sanitizeUsername, sanitizePassword, sanitizeObjectId } from '../utils/inputSanitizer.js';
 
 export const login = async (req, res) => {
   try {
@@ -12,13 +13,17 @@ export const login = async (req, res) => {
     const { username, password } = req.body;
     const db = getDatabase();
 
+    // SECURITY: Sanitize user inputs to prevent NoSQL injection
+    const sanitizedUsername = sanitizeUsername(username);
+    const sanitizedPassword = sanitizePassword(password);
+
     // Try to find student first
     let student = await db.collection('students').findOne({
       $or: [
-        { username: username },
-        { studentId: username }
+        { username: sanitizedUsername },
+        { studentId: sanitizedUsername }
       ],
-      password: password
+      password: sanitizedPassword
     });
 
     if (student) {
@@ -36,10 +41,10 @@ export const login = async (req, res) => {
     // Try teacher
     let teacher = await db.collection('teachers').findOne({
       $or: [
-        { username: username },
-        { email: username }
+        { username: sanitizedUsername },
+        { email: sanitizedUsername }
       ],
-      password: password
+      password: sanitizedPassword
     });
 
     if (teacher) {
@@ -57,10 +62,10 @@ export const login = async (req, res) => {
     // Try admin (in users collection)
     let admin = await db.collection('users').findOne({
       $or: [
-        { username: username },
-        { email: username }
+        { username: sanitizedUsername },
+        { email: sanitizedUsername }
       ],
-      password: password,
+      password: sanitizedPassword,
       role: 'admin'
     });
 
@@ -91,40 +96,39 @@ export const getCurrentUser = async (req, res) => {
     const { userId } = req.params;
     const db = getDatabase();
 
+    // SECURITY: Sanitize user ID to prevent NoSQL injection
+    let sanitizedUserId;
+    try {
+      sanitizedUserId = sanitizeObjectId(userId);
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid user ID format'
+      });
+    }
+
     let user;
     let role;
 
     // Try to find in students collection first
-    try {
-      user = await db.collection('students').findOne({ _id: new ObjectId(userId) });
-      if (user) {
-        role = 'student';
-      }
-    } catch (error) {
-      // Invalid ObjectId, continue to next collection
+    user = await db.collection('students').findOne({ _id: sanitizedUserId });
+    if (user) {
+      role = 'student';
     }
 
     // If not found, try teachers collection
     if (!user) {
-      try {
-        user = await db.collection('teachers').findOne({ _id: new ObjectId(userId) });
-        if (user) {
-          role = 'teacher';
-        }
-      } catch (error) {
-        // Invalid ObjectId, continue to next collection
+      user = await db.collection('teachers').findOne({ _id: sanitizedUserId });
+      if (user) {
+        role = 'teacher';
       }
     }
 
     // If not found, try users collection (for admins)
     if (!user) {
-      try {
-        user = await db.collection('users').findOne({ _id: new ObjectId(userId) });
-        if (user) {
-          role = user.role || 'admin';
-        }
-      } catch (error) {
-        // Invalid ObjectId
+      user = await db.collection('users').findOne({ _id: sanitizedUserId });
+      if (user) {
+        role = user.role || 'admin';
       }
     }
 
@@ -162,49 +166,51 @@ export const changePassword = async (req, res) => {
     const { userId, currentPassword, newPassword } = req.body;
     const db = getDatabase();
 
+    // SECURITY: Sanitize all inputs to prevent NoSQL injection
+    let sanitizedUserId;
+    try {
+      sanitizedUserId = sanitizeObjectId(userId);
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid user ID format'
+      });
+    }
+    
+    const sanitizedCurrentPassword = sanitizePassword(currentPassword);
+    const sanitizedNewPassword = sanitizePassword(newPassword);
+
     let user;
     let collection;
 
     // Try to find user in students collection first
-    try {
-      user = await db.collection('students').findOne({
-        _id: new ObjectId(userId),
-        password: currentPassword
-      });
-      if (user) {
-        collection = 'students';
-      }
-    } catch (error) {
-      // Invalid ObjectId, continue to next collection
+    user = await db.collection('students').findOne({
+      _id: sanitizedUserId,
+      password: sanitizedCurrentPassword
+    });
+    if (user) {
+      collection = 'students';
     }
 
     // If not found, try teachers collection
     if (!user) {
-      try {
-        user = await db.collection('teachers').findOne({
-          _id: new ObjectId(userId),
-          password: currentPassword
-        });
-        if (user) {
-          collection = 'teachers';
-        }
-      } catch (error) {
-        // Invalid ObjectId, continue to next collection
+      user = await db.collection('teachers').findOne({
+        _id: sanitizedUserId,
+        password: sanitizedCurrentPassword
+      });
+      if (user) {
+        collection = 'teachers';
       }
     }
 
     // If not found, try users collection (for admins)
     if (!user) {
-      try {
-        user = await db.collection('users').findOne({
-          _id: new ObjectId(userId),
-          password: currentPassword
-        });
-        if (user) {
-          collection = 'users';
-        }
-      } catch (error) {
-        // Invalid ObjectId
+      user = await db.collection('users').findOne({
+        _id: sanitizedUserId,
+        password: sanitizedCurrentPassword
+      });
+      if (user) {
+        collection = 'users';
       }
     }
 
@@ -217,8 +223,8 @@ export const changePassword = async (req, res) => {
 
     // Update password
     await db.collection(collection).updateOne(
-      { _id: new ObjectId(userId) },
-      { $set: { password: newPassword } }
+      { _id: sanitizedUserId },
+      { $set: { password: sanitizedNewPassword } }
     );
 
     return res.json({

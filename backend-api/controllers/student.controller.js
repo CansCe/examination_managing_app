@@ -1,6 +1,7 @@
 import { getDatabase } from '../config/database.js';
 import { ObjectId } from 'mongodb';
 import { validationResult } from 'express-validator';
+import { sanitizeObjectId, sanitizeQuery } from '../utils/inputSanitizer.js';
 
 export const getAllStudents = async (req, res) => {
   try {
@@ -43,12 +44,15 @@ export const getStudentById = async (req, res) => {
     const { id } = req.params;
     const db = getDatabase();
 
-    let student;
+    // SECURITY: Sanitize user ID to prevent NoSQL injection
+    let sanitizedId;
     try {
-      student = await db.collection('students').findOne({ _id: new ObjectId(id) });
+      sanitizedId = sanitizeObjectId(id);
     } catch (error) {
-      return res.status(400).json({ success: false, error: 'Invalid student ID' });
+      return res.status(400).json({ success: false, error: 'Invalid student ID format' });
     }
+
+    const student = await db.collection('students').findOne({ _id: sanitizedId });
 
     if (!student) {
       return res.status(404).json({ success: false, error: 'Student not found' });
@@ -103,19 +107,41 @@ export const updateStudent = async (req, res) => {
     const { id } = req.params;
     const db = getDatabase();
 
+    // SECURITY: Sanitize user ID to prevent NoSQL injection
+    let sanitizedId;
+    try {
+      sanitizedId = sanitizeObjectId(id);
+    } catch (error) {
+      return res.status(400).json({ success: false, error: 'Invalid student ID format' });
+    }
+
+    // SECURITY: Sanitize update data to prevent NoSQL injection
+    const sanitizedBody = sanitizeQuery(req.body);
     const updateData = {
-      ...req.body,
+      ...sanitizedBody,
       updatedAt: new Date().toISOString()
     };
 
-    if (updateData.assignedExams) {
-      updateData.assignedExams = updateData.assignedExams.map(id => 
-        typeof id === 'string' ? new ObjectId(id) : id
-      );
+    // Remove MongoDB operators if any
+    delete updateData._id;
+    delete updateData.$set;
+    delete updateData.$unset;
+    delete updateData.$inc;
+    delete updateData.$push;
+    delete updateData.$pull;
+
+    if (updateData.assignedExams && Array.isArray(updateData.assignedExams)) {
+      updateData.assignedExams = updateData.assignedExams.map(examId => {
+        try {
+          return sanitizeObjectId(examId);
+        } catch {
+          return null;
+        }
+      }).filter(id => id !== null);
     }
 
     const result = await db.collection('students').updateOne(
-      { _id: new ObjectId(id) },
+      { _id: sanitizedId },
       { $set: updateData }
     );
 
@@ -123,7 +149,7 @@ export const updateStudent = async (req, res) => {
       return res.status(404).json({ success: false, error: 'Student not found' });
     }
 
-    const updatedStudent = await db.collection('students').findOne({ _id: new ObjectId(id) });
+    const updatedStudent = await db.collection('students').findOne({ _id: sanitizedId });
 
     res.json({ success: true, data: updatedStudent });
   } catch (error) {
@@ -137,7 +163,15 @@ export const deleteStudent = async (req, res) => {
     const { id } = req.params;
     const db = getDatabase();
 
-    const result = await db.collection('students').deleteOne({ _id: new ObjectId(id) });
+    // SECURITY: Sanitize user ID to prevent NoSQL injection
+    let sanitizedId;
+    try {
+      sanitizedId = sanitizeObjectId(id);
+    } catch (error) {
+      return res.status(400).json({ success: false, error: 'Invalid student ID format' });
+    }
+
+    const result = await db.collection('students').deleteOne({ _id: sanitizedId });
 
     if (result.deletedCount === 0) {
       return res.status(404).json({ success: false, error: 'Student not found' });
