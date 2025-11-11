@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math';
 import 'package:mongo_dart/mongo_dart.dart';
+import '../config/database_config.dart';
 
 /// Standalone script to generate and upload mock data to MongoDB Atlas
 /// 
@@ -12,18 +13,15 @@ import 'package:mongo_dart/mongo_dart.dart';
 ///   2. Drop the entire database
 ///   3. Generate fresh mock data
 ///   4. Upload all data to the cluster
+/// 
+/// Note: Connection string is read from database_config.dart
 
-// MongoDB connection configuration
-const String connectionString =
-    'mongodb+srv://admin1:jjNu8RzV5onpbb6T@clustertest.7nkaqoh.mongodb.net/exam_management?retryWrites=true&w=majority&appName=ClusterTest';
-const String databaseName = 'exam_management';
-
-// Collection names
-const String teachersCollection = 'teachers';
-const String studentsCollection = 'students';
-const String examsCollection = 'exams';
-const String questionsCollection = 'questions';
-const String usersCollection = 'users';
+// Collection names (using from config)
+const String teachersCollection = DatabaseConfig.teachersCollection;
+const String studentsCollection = DatabaseConfig.studentsCollection;
+const String examsCollection = DatabaseConfig.examsCollection;
+const String questionsCollection = DatabaseConfig.questionsCollection;
+const String usersCollection = DatabaseConfig.usersCollection;
 
 final Random _random = Random();
 
@@ -48,7 +46,7 @@ The script will:
 Options:
   --help, -h    Show this help message
 
-Note: Make sure your MongoDB connection string is correct in the script.
+Note: Make sure your MongoDB connection string is correct in lib/config/database_config.dart
 ''');
     exit(0);
   }
@@ -64,14 +62,15 @@ Note: Make sure your MongoDB connection string is correct in the script.
     print('WARNING: This will drop and recreate the entire database!');
     print('All existing data will be permanently deleted!\n');
     
-    // Connect to MongoDB
+    // Connect to MongoDB using connection string from config
     print('Connecting to MongoDB Atlas...');
-    db = await Db.create(connectionString);
+    print('Using connection string from database_config.dart');
+    db = await Db.create(DatabaseConfig.connectionString);
     await db.open();
     print('Connected successfully!\n');
     
     // Drop the entire database
-    print('Dropping entire database: $databaseName');
+    print('Dropping entire database: ${DatabaseConfig.databaseName}');
     print('This will delete ALL data in the database!');
     await db.drop();
     print('Database dropped successfully\n');
