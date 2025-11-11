@@ -48,7 +48,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   String? _teacherId;
   final List<Question> _questions = [];
   // Separate lists for students: upcoming and past exams
-  Exam? _nearestUpcomingExam;
+  List<Exam> _upcomingExams = [];
   List<Exam> _pastExams = [];
   // Unread message count for chat badge
   final int _unreadMessageCount = 0;
@@ -115,46 +115,73 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
       if (widget.userRole == UserRole.student && widget.studentId != null) {
         // For students, load only their assigned exams on initial data load
+        print('🎓 Loading exams for student: ${widget.studentId}');
         final assignedExams = await AtlasService.getStudentExams(
           studentId: widget.studentId!,
           page: _currentPage,
           limit: _pageSize,
         );
+        
+        print('📚 Received ${assignedExams.length} exam(s) from API');
+        
         // For students, separate upcoming and past exams
         final now = DateTime.now();
-        final oneDayFromNow = now.add(const Duration(days: 1));
-        final oneWeekAgo = now.subtract(const Duration(days: 7));
+        print('⏰ Current time: $now');
         
         final upcomingExams = <Exam>[];
         final pastExams = <Exam>[];
         
         for (final exam in assignedExams) {
-          final examStartDateTime = exam.getExamStartDateTime();
-          final examEndDateTime = exam.getExamEndDateTime();
-          
-          // Upcoming exams (at least 1 day away)
-          if (examStartDateTime.isAfter(oneDayFromNow) || examStartDateTime.isAtSameMomentAs(oneDayFromNow)) {
-            upcomingExams.add(exam);
-          }
-          // Past exams (finished within last week)
-          else if (examEndDateTime.isBefore(now) && examEndDateTime.isAfter(oneWeekAgo)) {
-            pastExams.add(exam);
+          try {
+            final examStartDateTime = exam.getExamStartDateTime();
+            final examEndDateTime = exam.getExamEndDateTime();
+            
+            print('📅 Exam: ${exam.title}');
+            print('   Start: $examStartDateTime');
+            print('   End: $examEndDateTime');
+            print('   Now: $now');
+            
+            // Upcoming exams: exams that haven't started yet (or are starting now)
+            if (examStartDateTime.isAfter(now) || examStartDateTime.isAtSameMomentAs(now)) {
+              print('   ✅ Added to UPCOMING');
+              upcomingExams.add(exam);
+            }
+            // Past exams: exams that have already ended
+            else if (examEndDateTime.isBefore(now)) {
+              print('   ✅ Added to PAST');
+              pastExams.add(exam);
+            }
+            // Exams currently in progress: show as upcoming
+            else if (examStartDateTime.isBefore(now) && examEndDateTime.isAfter(now)) {
+              print('   ✅ Added to UPCOMING (in progress)');
+              upcomingExams.add(exam);
+            } else {
+              print('   ⚠️ Not categorized (start: $examStartDateTime, end: $examEndDateTime, now: $now)');
+            }
+          } catch (e, stackTrace) {
+            print('❌ Error processing exam ${exam.title}: $e');
+            print('   Stack trace: $stackTrace');
           }
         }
         
-        // Find the nearest upcoming exam
-        Exam? nearestUpcoming;
+        print('📊 Categorized: ${upcomingExams.length} upcoming, ${pastExams.length} past');
+        
+        // Sort upcoming exams by start date (nearest to farthest)
         if (upcomingExams.isNotEmpty) {
           upcomingExams.sort((a, b) => a.getExamStartDateTime().compareTo(b.getExamStartDateTime()));
-          nearestUpcoming = upcomingExams.first;
+          print('🎯 Upcoming exams sorted: ${upcomingExams.map((e) => e.title).join(", ")}');
+        } else {
+          print('⚠️ No upcoming exams found');
         }
         
         setState(() {
-          _nearestUpcomingExam = nearestUpcoming;
+          _upcomingExams = upcomingExams;
           _pastExams = pastExams;
           _exams = pastExams; // Use _exams for past exams list
           _hasMoreData = assignedExams.length == _pageSize;
         });
+        
+        print('✅ State updated: ${_pastExams.length} past exams, ${_upcomingExams.length} upcoming exams');
       } else {
         // For teachers and admins, load all relevant data
         final teachers = await AtlasService.findTeachers();
@@ -194,7 +221,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         _exams.clear();
         _students.clear();
         _teachers.clear();
-        _nearestUpcomingExam = null;
+        _upcomingExams.clear();
         _pastExams.clear();
       });
     }
@@ -245,8 +272,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         if (widget.userRole == UserRole.student) {
           // For students, separate upcoming and past exams
           final now = DateTime.now();
-          final oneDayFromNow = now.add(const Duration(days: 1));
-          final oneWeekAgo = now.subtract(const Duration(days: 7));
           
           final upcomingExams = <Exam>[];
           final pastExams = <Exam>[];
@@ -255,30 +280,44 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             final examStartDateTime = exam.getExamStartDateTime();
             final examEndDateTime = exam.getExamEndDateTime();
             
-            // Upcoming exams (at least 1 day away)
-            if (examStartDateTime.isAfter(oneDayFromNow) || examStartDateTime.isAtSameMomentAs(oneDayFromNow)) {
+            // Upcoming exams: exams that haven't started yet (or are starting now)
+            if (examStartDateTime.isAfter(now) || examStartDateTime.isAtSameMomentAs(now)) {
               upcomingExams.add(exam);
             }
-            // Past exams (finished within last week)
-            else if (examEndDateTime.isBefore(now) && 
-                     (examEndDateTime.isAfter(oneWeekAgo) || examEndDateTime.isAtSameMomentAs(oneWeekAgo))) {
+            // Past exams: exams that have already ended
+            else if (examEndDateTime.isBefore(now)) {
               pastExams.add(exam);
+            }
+            // Exams currently in progress: show as upcoming
+            else if (examStartDateTime.isBefore(now) && examEndDateTime.isAfter(now)) {
+              upcomingExams.add(exam);
             }
           }
           
-          // Find the nearest upcoming exam
-          Exam? nearestUpcoming;
+          // Sort upcoming exams by start date (nearest to farthest)
           if (upcomingExams.isNotEmpty) {
             upcomingExams.sort((a, b) => a.getExamStartDateTime().compareTo(b.getExamStartDateTime()));
-            nearestUpcoming = upcomingExams.first;
           }
           
           setState(() {
             if (refresh || _currentPage == 0) {
-              _nearestUpcomingExam = nearestUpcoming;
+              _upcomingExams = upcomingExams;
               _pastExams = pastExams;
               _exams = pastExams;
             } else {
+              // Merge and re-sort upcoming exams
+              _upcomingExams.addAll(upcomingExams);
+              _upcomingExams.sort((a, b) => a.getExamStartDateTime().compareTo(b.getExamStartDateTime()));
+              // Remove duplicates based on exam ID
+              final seenIds = <String>{};
+              _upcomingExams = _upcomingExams.where((exam) {
+                final id = exam.id.toString();
+                if (seenIds.contains(id)) return false;
+                seenIds.add(id);
+                return true;
+              }).toList();
+              _upcomingExams.sort((a, b) => a.getExamStartDateTime().compareTo(b.getExamStartDateTime()));
+              
               _pastExams.addAll(pastExams);
               _exams = _pastExams;
             }
@@ -872,7 +911,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   Widget _buildUpcomingExamBanner() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(vertical: 16),
       margin: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -911,82 +950,149 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ],
           ),
           const SizedBox(height: 16),
-          if (_nearestUpcomingExam != null) ...[
-            Card(
-              color: Colors.white,
-              child: InkWell(
-                onTap: () => _navigateToExamDetails(_nearestUpcomingExam!),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _nearestUpcomingExam!.title,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Row(
-                        children: [
-                          Icon(Icons.subject, size: 16, color: Colors.grey.shade700),
-                          const SizedBox(width: 4),
-                          Text(
-                            _nearestUpcomingExam!.subject,
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey.shade700,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(Icons.calendar_today, size: 16, color: Colors.grey.shade700),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${_nearestUpcomingExam!.examDate.toString().split(' ')[0]} at ${_nearestUpcomingExam!.examTime}',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey.shade700,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(Icons.access_time, size: 16, color: Colors.grey.shade700),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Duration: ${_nearestUpcomingExam!.duration} minutes',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey.shade700,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
+          if (_upcomingExams.isEmpty) ...[
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16.0),
+                child: Text(
+                  'No upcoming exams',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
                   ),
                 ),
               ),
             ),
           ] else ...[
-            const Card(
-              color: Colors.white,
-              child: Padding(
-                padding: EdgeInsets.all(16),
-                child: Text(
-                  'No upcoming exams',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.grey,
+            SizedBox(
+              height: 180,
+              child: Stack(
+                children: [
+                  // Horizontal scrollable list
+                  ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    physics: const BouncingScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    itemCount: _upcomingExams.length,
+                    itemBuilder: (context, index) {
+                      final exam = _upcomingExams[index];
+                      return Container(
+                        width: 300,
+                        margin: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Card(
+                          color: Colors.white,
+                          child: InkWell(
+                            onTap: () => _navigateToExamDetails(exam),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    exam.title,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.subject, size: 16, color: Colors.grey.shade700),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          exam.subject,
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.grey.shade700,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.calendar_today, size: 16, color: Colors.grey.shade700),
+                                      const SizedBox(width: 4),
+                                      Expanded(
+                                        child: Text(
+                                          '${exam.examDate.toString().split(' ')[0]} at ${exam.examTime}',
+                                          style: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.grey.shade700,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.access_time, size: 16, color: Colors.grey.shade700),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Duration: ${exam.duration} min',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: Colors.grey.shade700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                ),
+                  // Left fade gradient
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 40,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.centerLeft,
+                          end: Alignment.centerRight,
+                          colors: [
+                            Colors.blue.shade600,
+                            Colors.blue.shade600.withOpacity(0.0),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  // Right fade gradient
+                  Positioned(
+                    right: 0,
+                    top: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 40,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.centerRight,
+                          end: Alignment.centerLeft,
+                          colors: [
+                            Colors.blue.shade600,
+                            Colors.blue.shade600.withOpacity(0.0),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
@@ -1002,7 +1108,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         Padding(
           padding: const EdgeInsets.all(16),
           child: Text(
-            'Past Exams (Last 1 Week)',
+            'Past Exams',
             style: TextStyle(
               fontSize: isSmallScreen ? 18 : 20,
               fontWeight: FontWeight.bold,
@@ -1022,7 +1128,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        'No past exams in the last week',
+                        'No past exams',
                         style: TextStyle(
                           fontSize: 16,
                           color: Colors.grey.shade600,

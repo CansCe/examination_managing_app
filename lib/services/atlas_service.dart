@@ -536,6 +536,7 @@ class AtlasService {
     int limit = 20,
   }) async {
     try {
+      print('🔍 Getting student exams for studentId: $studentId, page: $page, limit: $limit');
       final api = ApiService();
       final data = await api.getStudentExams(
         studentId: studentId,
@@ -544,7 +545,29 @@ class AtlasService {
       );
       api.close();
 
-      final exams = data.map((doc) => Exam.fromMap(doc)).toList();
+      print('📊 API returned ${data.length} exam(s)');
+      if (data.isEmpty) {
+        print('⚠️ No exams found for student: $studentId');
+        return [];
+      }
+
+      print('📝 Raw exam data sample: ${data.first}');
+      
+      final exams = <Exam>[];
+      for (final doc in data) {
+        try {
+          final exam = Exam.fromMap(doc);
+          print('✅ Parsed exam: ${exam.title}, Date: ${exam.examDate}, Time: ${exam.examTime}');
+          print('   Start: ${exam.getExamStartDateTime()}, End: ${exam.getExamEndDateTime()}');
+          exams.add(exam);
+        } catch (e, stackTrace) {
+          print('❌ Error parsing exam from map: $e');
+          print('   Map data: $doc');
+          print('   Stack trace: $stackTrace');
+        }
+      }
+
+      print('✅ Successfully parsed ${exams.length} exam(s)');
 
       for (final exam in exams) {
         if (exam.questions.isNotEmpty) {
@@ -553,8 +576,9 @@ class AtlasService {
       }
 
       return exams;
-    } catch (e) {
-      print('Error getting student exams: $e');
+    } catch (e, stackTrace) {
+      print('❌ Error getting student exams: $e');
+      print('   Stack trace: $stackTrace');
       rethrow;
     }
   }

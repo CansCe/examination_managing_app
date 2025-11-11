@@ -1058,20 +1058,51 @@ class ApiService {
       'accept': 'application/json',
     };
     try {
+      print('🌐 API Request: GET $uri');
       final response = await _client.get(uri, headers: headers);
+      print('📡 API Response status: ${response.statusCode}');
+      
       if (response.statusCode == 200) {
         final body = response.body.trim();
-        if (body.isEmpty) return [];
+        if (body.isEmpty) {
+          print('⚠️ Empty response body');
+          return [];
+        }
+        
+        print('📦 Response body (first 500 chars): ${body.length > 500 ? body.substring(0, 500) : body}');
+        
         final decoded = json.decode(body) as Map<String, dynamic>;
+        print('✅ Decoded JSON: success=${decoded['success']}, has data=${decoded.containsKey('data')}');
+        
         if (decoded['success'] == true && decoded['data'] is List) {
-          return (decoded['data'] as List).cast<Map<String, dynamic>>();
+          final dataList = (decoded['data'] as List).cast<Map<String, dynamic>>();
+          print('📊 Extracted ${dataList.length} item(s) from data array');
+          if (dataList.isNotEmpty) {
+            print('📝 First item sample: ${dataList.first}');
+          }
+          return dataList;
+        } else {
+          print('⚠️ Unexpected response format:');
+          print('   success: ${decoded['success']}');
+          print('   data type: ${decoded['data']?.runtimeType}');
+          print('   data value: ${decoded['data']}');
+          if (decoded.containsKey('error')) {
+            print('   error: ${decoded['error']}');
+          }
         }
         return [];
       }
+      print('❌ API returned status ${response.statusCode}');
+      print('   Response body: ${response.body}');
       throw ApiException('$operation failed', response.statusCode, response.body);
-    } catch (e) {
-      if (e is ApiException) rethrow;
+    } catch (e, stackTrace) {
+      if (e is ApiException) {
+        print('❌ ApiException: ${e.message}');
+        rethrow;
+      }
       final errorMsg = e.toString();
+      print('❌ Error in _getPaginatedData: $errorMsg');
+      print('   Stack trace: $stackTrace');
       final isConnError = errorMsg.contains('Connection refused') ||
           errorMsg.contains('Failed host lookup') ||
           errorMsg.contains('Network is unreachable');

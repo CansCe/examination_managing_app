@@ -326,18 +326,113 @@ export const getStudentExams = async (req, res) => {
 
     const db = getDatabase();
 
-    if (!isValidObjectId(studentId)) {
-      return res.status(400).json({ success: false, error: 'Invalid student ID' });
+    console.log(`[getStudentExams] Looking for student with ID: ${studentId}`);
+
+    // Find student by studentId (string) or _id (ObjectId)
+    let student;
+    if (isValidObjectId(studentId)) {
+      // Try to find by MongoDB _id first
+      try {
+        student = await db.collection('students').findOne({ _id: new ObjectId(studentId) });
+        if (student) {
+          console.log(`[getStudentExams] Found student by _id: ${student._id}`);
+        }
+      } catch (error) {
+        console.log(`[getStudentExams] Error finding by _id: ${error.message}`);
+        // Invalid ObjectId format, continue to search by studentId string
+      }
+    }
+    
+    // If not found by _id, try to find by studentId string field
+    if (!student) {
+      student = await db.collection('students').findOne({ 
+        $or: [
+          { studentId: studentId },
+          { rollNumber: studentId }
+        ]
+      });
+      if (student) {
+        console.log(`[getStudentExams] Found student by studentId/rollNumber: ${student._id}`);
+      }
     }
 
-    // Get student's assigned exams from student_exams collection
-    const studentExams = await db.collection('student_exams')
-      .find({ studentId: new ObjectId(studentId) })
+    if (!student) {
+      console.log(`[getStudentExams] Student not found with ID: ${studentId}`);
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Student not found' 
+      });
+    }
+
+    console.log(`[getStudentExams] Student found: _id=${student._id}, studentId=${student.studentId}, rollNumber=${student.rollNumber}`);
+
+    // Get assigned exams from student's assignedExams array
+    const assignedExamIds = student.assignedExams || [];
+    console.log(`[getStudentExams] assignedExams array has ${assignedExamIds.length} exam(s):`, 
+      assignedExamIds.map(id => id instanceof ObjectId ? id.toString() : String(id)));
+    
+    // Also check student_exams collection for additional assignments
+    const studentMongoId = student._id;
+    const studentExamsFromCollection = await db.collection('student_exams')
+      .find({ studentId: studentMongoId })
       .toArray();
+    
+    console.log(`[getStudentExams] student_exams collection has ${studentExamsFromCollection.length} entry/entries`);
+    
+    const examIdsFromCollection = studentExamsFromCollection.map(se => se.examId);
+    console.log(`[getStudentExams] Exam IDs from collection:`, 
+      examIdsFromCollection.map(id => id instanceof ObjectId ? id.toString() : String(id)));
+    
+    // Combine both sources of exam IDs (deduplicate by converting to strings)
+    const assignedIds = assignedExamIds.map(id => {
+      try {
+        if (id instanceof ObjectId) {
+          return id.toString();
+        } else if (typeof id === 'string') {
+          // Validate it's a valid ObjectId string
+          if (ObjectId.isValid(id)) {
+            return id;
+          }
+          console.log(`[getStudentExams] Invalid ObjectId string in assignedExams: ${id}`);
+          return null;
+        }
+        return null;
+      } catch (e) {
+        console.log(`[getStudentExams] Error converting assigned exam ID: ${id}, error: ${e.message}`);
+        return null;
+      }
+    }).filter(id => id !== null);
+    
+    const collectionIds = examIdsFromCollection.map(examId => {
+      try {
+        if (examId instanceof ObjectId) {
+          return examId.toString();
+        } else if (typeof examId === 'string' && ObjectId.isValid(examId)) {
+          return examId;
+        }
+        console.log(`[getStudentExams] Invalid examId in student_exams collection: ${examId}`);
+        return null;
+      } catch (e) {
+        console.log(`[getStudentExams] Error converting collection exam ID: ${examId}, error: ${e.message}`);
+        return null;
+      }
+    }).filter(id => id !== null);
+    
+    const uniqueIdStrings = [...new Set([...assignedIds, ...collectionIds])];
+    const allExamIds = uniqueIdStrings.map(idStr => {
+      try {
+        return new ObjectId(idStr);
+      } catch (e) {
+        console.log(`[getStudentExams] Error creating ObjectId from string: ${idStr}, error: ${e.message}`);
+        return null;
+      }
+    }).filter(id => id !== null);
 
-    const examIds = studentExams.map(se => se.examId);
+    console.log(`[getStudentExams] Total unique exam IDs: ${allExamIds.length}`);
+    console.log(`[getStudentExams] Exam IDs to query:`, allExamIds.map(id => id.toString()));
 
-    if (examIds.length === 0) {
+    if (allExamIds.length === 0) {
+      console.log(`[getStudentExams] No exam IDs found, returning empty array`);
       return res.json({
         success: true,
         data: [],
@@ -345,14 +440,25 @@ export const getStudentExams = async (req, res) => {
       });
     }
 
+    // Fetch all exams (no date filter - get all assigned exams)
     const exams = await db.collection('exams')
-      .find({ _id: { $in: examIds } })
+      .find({ _id: { $in: allExamIds } })
       .sort({ examDate: -1 })
       .skip(skip)
       .limit(limit)
       .toArray();
 
-    const total = examIds.length;
+    console.log(`[getStudentExams] Found ${exams.length} exam(s) in database`);
+    if (exams.length === 0 && allExamIds.length > 0) {
+      console.log(`[getStudentExams] WARNING: Exam IDs exist but no exams found!`);
+      console.log(`[getStudentExams] Checking if exams exist with these IDs...`);
+      for (const examId of allExamIds) {
+        const examExists = await db.collection('exams').findOne({ _id: examId });
+        console.log(`[getStudentExams] Exam ${examId.toString()} exists: ${examExists ? 'YES' : 'NO'}`);
+      }
+    }
+
+    const total = allExamIds.length;
 
     res.json({
       success: true,
@@ -365,7 +471,8 @@ export const getStudentExams = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('Get student exams error:', error);
+    console.error('[getStudentExams] Error:', error);
+    console.error('[getStudentExams] Stack:', error.stack);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 };
@@ -396,12 +503,23 @@ export const assignStudentToExam = async (req, res) => {
       return res.json({ success: true, message: 'Student already assigned to exam' });
     }
 
-    // Assign student to exam
+    // Assign student to exam - update both student_exams collection AND student's assignedExams array
     await db.collection('student_exams').insertOne({
       studentId: new ObjectId(studentId),
       examId: new ObjectId(examId),
       assignedAt: new Date()
     });
+
+    // Also update the student's assignedExams array
+    await db.collection('students').updateOne(
+      { _id: new ObjectId(studentId) },
+      { 
+        $addToSet: { assignedExams: new ObjectId(examId) },
+        $set: { updatedAt: new Date() }
+      }
+    );
+
+    console.log(`[assignStudentToExam] Assigned student ${studentId} to exam ${examId}`);
 
     res.json({ success: true, message: 'Student assigned to exam successfully' });
   } catch (error) {
@@ -423,6 +541,15 @@ export const unassignStudentFromExam = async (req, res) => {
       studentId: new ObjectId(studentId),
       examId: new ObjectId(examId)
     });
+
+    // Also remove from student's assignedExams array
+    await db.collection('students').updateOne(
+      { _id: new ObjectId(studentId) },
+      { 
+        $pull: { assignedExams: new ObjectId(examId) },
+        $set: { updatedAt: new Date() }
+      }
+    );
 
     if (result.deletedCount === 0) {
       return res.status(404).json({ success: false, error: 'Assignment not found' });

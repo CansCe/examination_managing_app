@@ -24,6 +24,7 @@ const String questionsCollection = DatabaseConfig.questionsCollection;
 const String usersCollection = DatabaseConfig.usersCollection;
 
 final Random _random = Random();
+int _studentIdCounter = 1; // Counter for generating sequential student IDs
 
 Future<void> main(List<String> args) async {
   if (args.contains('--help') || args.contains('-h')) {
@@ -60,7 +61,7 @@ Note: Make sure your MongoDB connection string is correct in lib/config/database
     print('');
     
     print('WARNING: This will drop and recreate the entire database!');
-    print('All existing data will be permanently deleted!\n');
+    print("All existing data will be permanently deleted!\n");
     
     // Connect to MongoDB using connection string from config
     print('Connecting to MongoDB Atlas...');
@@ -331,8 +332,9 @@ List<Map<String, dynamic>> _generateAdmins() {
   return admins;
 }
 
-// Generate a student ID (8 digits)
+// Generate a student ID (format: 2021 + 4-digit number, e.g., 20210001, 20210002)
 String _generateStudentId() {
-  return List.generate(8, (_) => _random.nextInt(10)).join();
+  final id = _studentIdCounter++;
+  return '2021${id.toString().padLeft(4, '0')}';
 }
 
