@@ -368,16 +368,16 @@ class ApiService {
       'targetUserId': encodedTargetUserId,
     });
     
-    print('GET $uri');
-    print('  Original userId: $userId -> Encoded: $encodedUserId');
-    print('  Original targetUserId: $targetUserId -> Encoded: $encodedTargetUserId');
+    Logger.debug('GET $uri', 'ApiService');
+    Logger.debug('  Original userId: $userId -> Encoded: $encodedUserId', 'ApiService');
+    Logger.debug('  Original targetUserId: $targetUserId -> Encoded: $encodedTargetUserId', 'ApiService');
     
     try {
       final response = await _client.get(uri, headers: {
         'accept': 'application/json',
       });
       
-      print('Response status: ${response.statusCode}');
+      Logger.debug('Response status: ${response.statusCode}', 'ApiService');
       
       if (response.statusCode == 200) {
         final body = response.body.trim();
@@ -397,7 +397,7 @@ class ApiService {
           // If success is false, log the error
           if (decoded.containsKey('success') && decoded['success'] == false) {
             final error = decoded['error'] ?? decoded['errors'] ?? 'Unknown error';
-            print('  Server error: $error');
+            Logger.error('Server error', error, null, 'ApiService');
             throw ApiException(
               'GET /api/chat/conversation failed: $error',
               response.statusCode,
@@ -424,7 +424,7 @@ class ApiService {
         errorMessage = response.body;
       }
       
-      print('  Error response: $errorMessage');
+      Logger.error('Error response', errorMessage, null, 'ApiService');
       throw ApiException(
         'GET /api/chat/conversation failed: $errorMessage',
         response.statusCode,
@@ -1288,6 +1288,55 @@ class ApiService {
   Future<List<Map<String, dynamic>>> getStudentsAssignedToExam(String examId) async {
     final uri = _buildUri('/api/exams/$examId/students');
     return _getPaginatedData(uri, operation: 'GET /api/exams/students');
+  }
+
+  /// Update a student
+  Future<bool> updateStudent({
+    required String studentId,
+    String? fullName,
+    String? email,
+    String? rollNumber,
+    String? className,
+    String? phoneNumber,
+    String? address,
+  }) async {
+    final uri = _buildUri('/api/students/$studentId');
+    try {
+      final bodyData = <String, dynamic>{};
+      if (fullName != null) bodyData['fullName'] = fullName;
+      if (email != null) bodyData['email'] = email;
+      if (rollNumber != null) bodyData['rollNumber'] = rollNumber;
+      if (className != null) bodyData['className'] = className;
+      if (phoneNumber != null) bodyData['phoneNumber'] = phoneNumber;
+      if (address != null) bodyData['address'] = address;
+
+      final response = await _client.put(
+        uri,
+        headers: {
+          'content-type': 'application/json',
+          'accept': 'application/json',
+        },
+        body: json.encode(bodyData),
+      );
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        return decoded['success'] == true;
+      }
+      throw ApiException('PUT /api/students/:id failed', response.statusCode, response.body);
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      final errorMsg = e.toString();
+      if (errorMsg.contains('Connection refused') ||
+          errorMsg.contains('Failed host lookup') ||
+          errorMsg.contains('Network is unreachable')) {
+        throw ApiException(
+          'Main API service is not running. Please start the main API at $_baseUrl',
+          0,
+          errorMsg,
+        );
+      }
+      rethrow;
+    }
   }
 
   /// Create a new student

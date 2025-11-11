@@ -5,7 +5,9 @@ import '../services/index.dart';
 import '../config/routes.dart'; // For AppRoutes.login
 import '../models/index.dart';
 import '../features/index.dart';
+import 'admin/admin_teacher_list_page.dart';
 import '../utils/dialog_helper.dart';
+import '../utils/logger.dart';
 
 final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 
@@ -322,13 +324,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     try {
       final teacherId = _teacherId ?? widget.teacherId;
       if (teacherId == null) {
-        print('Teacher ID not available for teacher user');
+        Logger.warning('Teacher ID not available for teacher user', 'HomePage');
         setState(() {
           _isLoading = false;
         });
         return;
       }
-      print('_loadTeacherData called for teacherId: $teacherId');
+      Logger.debug('_loadTeacherData called for teacherId: $teacherId', 'HomePage');
       // Get teacher's exams using their ID
       final exams = await AtlasService.getTeacherExams(
         teacherId: teacherId,
@@ -521,18 +523,49 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   },
                 ),
               if (widget.userRole == UserRole.admin)
-                IconButton(
-                  icon: const Icon(Icons.support_agent),
-                  tooltip: 'Admin Chat',
-                  onPressed: () {
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.admin_panel_settings),
+                  tooltip: 'Admin Tools',
+                  onSelected: (value) {
                     final adminId = widget.adminId ?? widget.studentId ?? widget.teacherId ?? widget.username;
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => AdminChatPage(adminId: adminId ?? ''),
-                      ),
-                    );
+                    if (value == 'chat') {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AdminChatPage(adminId: adminId ?? ''),
+                        ),
+                      );
+                    } else if (value == 'teachers') {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => AdminTeacherListPage(adminId: adminId ?? ''),
+                        ),
+                      );
+                    }
                   },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'chat',
+                      child: Row(
+                        children: [
+                          Icon(Icons.support_agent, size: 20),
+                          SizedBox(width: 8),
+                          Text('Student Chat'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'teachers',
+                      child: Row(
+                        children: [
+                          Icon(Icons.people, size: 20),
+                          SizedBox(width: 8),
+                          Text('Teachers'),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               IconButton(
                 icon: const Icon(Icons.settings),

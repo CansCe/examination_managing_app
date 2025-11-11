@@ -113,8 +113,8 @@ class _AdminChatPageState extends State<AdminChatPage> {
         }
       }
       
-      print('Students with chat: ${studentIdsWithChat.length}');
-      print('Teachers with chat: ${teacherIdsWithChat.length}');
+      Logger.debug('Students with chat: ${studentIdsWithChat.length}', 'AdminChat');
+      Logger.debug('Teachers with chat: ${teacherIdsWithChat.length}', 'AdminChat');
       
       if (studentIdsWithChat.isEmpty && teacherIdsWithChat.isEmpty) {
         if (mounted) {
@@ -151,13 +151,13 @@ class _AdminChatPageState extends State<AdminChatPage> {
               if (hexString.length == 24) {
                 return hexString.toLowerCase();
               } else {
-                print('Warning: Decoded hex string length is ${hexString.length}, expected 24');
+                Logger.warning('Decoded hex string length is ${hexString.length}, expected 24', 'AdminChat');
               }
             }
           }
           return id; // Return original if decoding fails
         } catch (e) {
-          print('Error decoding chat user ID: $e');
+          Logger.error('Error decoding chat user ID', e, null, 'AdminChat');
           return id;
         }
       }
@@ -165,14 +165,14 @@ class _AdminChatPageState extends State<AdminChatPage> {
       // Decode all student IDs from chat history
       final decodedStudentIds = studentIdsWithChat.map((id) {
         final decoded = decodeChatUserId(id);
-        print('  Decoded student: $id -> $decoded');
+        Logger.debug('  Decoded student: $id -> $decoded', 'AdminChat');
         return decoded;
       }).toSet().toList();
       
       // Decode all teacher IDs from chat history
       final decodedTeacherIds = teacherIdsWithChat.map((id) {
         final decoded = decodeChatUserId(id);
-        print('  Decoded teacher: $id -> $decoded');
+        Logger.debug('  Decoded teacher: $id -> $decoded', 'AdminChat');
         return decoded;
       }).toSet().toList();
 
@@ -199,7 +199,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
           }
         }
         
-        print('Fetched ${allStudents.length} total students from database');
+        Logger.info('Fetched ${allStudents.length} total students from database', 'AdminChat');
       }
       
       // Fetch all teachers with pagination and filter to only those with chat history
@@ -224,14 +224,14 @@ class _AdminChatPageState extends State<AdminChatPage> {
           }
         }
         
-        print('Fetched ${allTeachers.length} total teachers from database');
+        Logger.info('Fetched ${allTeachers.length} total teachers from database', 'AdminChat');
       }
       
       // Filter students with chat history
       final studentsWithChat = allStudents.where((student) {
         final matches = decodedStudentIds.contains(student.id) || studentIdsWithChat.contains(student.id);
         if (matches) {
-          print('  Matched student: ${student.id} (${student.fullName})');
+          Logger.debug('  Matched student: ${student.id} (${student.fullName})', 'AdminChat');
         }
         return matches;
       }).toList();
@@ -246,7 +246,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
                        teacherIdsWithChat.any((id) => decodeChatUserId(id) == teacherIdHex) ||
                        decodedTeacherIds.contains(teacherIdHex);
         if (matches) {
-          print('  Matched teacher: ${teacher.id.toHexString()} (${teacher.fullName})');
+          Logger.debug('  Matched teacher: ${teacher.id.toHexString()} (${teacher.fullName})', 'AdminChat');
         }
         return matches;
       }).map((teacher) {
@@ -268,7 +268,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
       // Combine students and teachers (as students)
       final allContactsWithChat = [...studentsWithChat, ...teachersAsStudents];
       
-      print('Found ${studentsWithChat.length} students and ${teachersAsStudents.length} teachers with chat history');
+      Logger.info('Found ${studentsWithChat.length} students and ${teachersAsStudents.length} teachers with chat history', 'AdminChat');
 
       // Sort by last message time (most recent first)
       // For now, we'll keep the order as returned, but prioritize those with unread messages
@@ -332,8 +332,8 @@ class _AdminChatPageState extends State<AdminChatPage> {
       final unreadMessages = await ChatService.getUnreadMessages();
       final Map<String, int> counts = {};
       
-      print('Updating unread message counts. Found ${unreadMessages.length} unread messages');
-      print('Students in list: ${_allStudents.length}');
+      Logger.debug('Updating unread message counts. Found ${unreadMessages.length} unread messages', 'AdminChat');
+      Logger.debug('Students in list: ${_allStudents.length}', 'AdminChat');
       
       // Helper to decode UUID-encoded IDs to ObjectId format (same as in _loadStudents)
       String decodeChatUserId(String id) {
@@ -363,25 +363,25 @@ class _AdminChatPageState extends State<AdminChatPage> {
         
         // Only count messages sent TO admin (from students or teachers)
         if (!isFromStudent && !isFromTeacher) {
-          print('  Skipping message from ${msg.fromUserRole} (not from student/teacher)');
+          Logger.debug('  Skipping message from ${msg.fromUserRole} (not from student/teacher)', 'AdminChat');
           continue;
         }
         
         // Only count messages where to_user_role is 'admin'
         if (msg.toUserRole != 'admin') {
-          print('  Skipping message to ${msg.toUserRole} (not to admin)');
+          Logger.debug('  Skipping message to ${msg.toUserRole} (not to admin)', 'AdminChat');
           continue;
         }
         
         String messageUserId = msg.fromUserId; // The user who sent the message
         final userRole = isFromStudent ? 'student' : 'teacher';
         
-        print('  Message from $userRole ID: $messageUserId (format: ${messageUserId.contains('-') ? 'UUID' : 'ObjectId'})');
+        Logger.debug('  Message from $userRole ID: $messageUserId (format: ${messageUserId.contains('-') ? 'UUID' : 'ObjectId'})', 'AdminChat');
         
         // Decode if it's UUID-encoded
         final decodedUserId = decodeChatUserId(messageUserId);
         if (decodedUserId != messageUserId) {
-          print('    Decoded to: $decodedUserId');
+          Logger.debug('    Decoded to: $decodedUserId', 'AdminChat');
         }
         
         // Try to find matching contact in the list using both encoded and decoded IDs
@@ -394,14 +394,14 @@ class _AdminChatPageState extends State<AdminChatPage> {
             (s) => s.id.toLowerCase() == decodedUserId.toLowerCase() || 
                    s.id.toLowerCase() == messageUserId.toLowerCase(),
           );
-          print('    Match found with decoded ID: ${matchingContact.id} (${matchingContact.rollNumber})');
+          Logger.debug('    Match found with decoded ID: ${matchingContact.id} (${matchingContact.rollNumber})', 'AdminChat');
         } catch (e) {
           try {
             // Strategy 2: Match with original ID
             matchingContact = _allStudents.firstWhere(
               (s) => s.id.toLowerCase() == messageUserId.toLowerCase(),
             );
-            print('    Match found with original ID: ${matchingContact.id} (${matchingContact.rollNumber})');
+            Logger.debug('    Match found with original ID: ${matchingContact.id} (${matchingContact.rollNumber})', 'AdminChat');
           } catch (e2) {
             try {
               // Strategy 3: Match by checking if decoded ID matches any contact's decoded ID
@@ -412,11 +412,11 @@ class _AdminChatPageState extends State<AdminChatPage> {
                          sDecoded.toLowerCase() == messageUserId.toLowerCase();
                 },
               );
-              print('    Match found with cross-decoded ID: ${matchingContact.id} (${matchingContact.rollNumber})');
+              Logger.debug('    Match found with cross-decoded ID: ${matchingContact.id} (${matchingContact.rollNumber})', 'AdminChat');
             } catch (e3) {
-              print('    No match found - $userRole might not be in list yet');
-              print('      Message ID: $messageUserId (decoded: $decodedUserId)');
-              print('      Available contacts: ${_allStudents.length} (${_allStudents.where((s) => s.rollNumber == 'Teacher').length} teachers)');
+              Logger.debug('    No match found - $userRole might not be in list yet', 'AdminChat');
+              Logger.debug('      Message ID: $messageUserId (decoded: $decodedUserId)', 'AdminChat');
+              Logger.debug('      Available contacts: ${_allStudents.length} (${_allStudents.where((s) => s.rollNumber == 'Teacher').length} teachers)', 'AdminChat');
               // Still add to counts so it shows up when the contact is loaded
             }
           }
@@ -425,13 +425,13 @@ class _AdminChatPageState extends State<AdminChatPage> {
         // Use the matching contact ID if found, otherwise use the decoded ID
         final contactId = matchingContact?.id ?? decodedUserId;
         counts[contactId] = (counts[contactId] ?? 0) + 1;
-        print('    Count for $contactId ($userRole): ${counts[contactId]}');
+        Logger.debug('    Count for $contactId ($userRole): ${counts[contactId]}', 'AdminChat');
       }
       
       // Debug: Print final counts
-      print('Final unread counts:');
+      Logger.debug('Final unread counts:', 'AdminChat');
       counts.forEach((id, count) {
-        print('  - $id: $count');
+        Logger.debug('  - $id: $count', 'AdminChat');
       });
       
       if (mounted) {
@@ -440,8 +440,7 @@ class _AdminChatPageState extends State<AdminChatPage> {
         });
       }
     } catch (e) {
-      print('Error updating unread message counts: $e');
-      print('Stack trace: ${StackTrace.current}');
+      Logger.error('Error updating unread message counts', e, StackTrace.current, 'AdminChat');
     }
   }
 
@@ -466,6 +465,105 @@ class _AdminChatPageState extends State<AdminChatPage> {
       // Refresh student list when returning from chat
       _loadStudents();
     });
+  }
+
+  Future<void> _editStudent(Student student) async {
+    final nameController = TextEditingController(text: student.fullName);
+    final emailController = TextEditingController(text: student.email);
+    final rollNumberController = TextEditingController(text: student.rollNumber);
+    final classNameController = TextEditingController(text: student.className);
+    final phoneController = TextEditingController(text: student.phoneNumber);
+    final addressController = TextEditingController(text: student.address);
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Edit Student'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: 'Full Name'),
+              ),
+              TextField(
+                controller: emailController,
+                decoration: const InputDecoration(labelText: 'Email'),
+                keyboardType: TextInputType.emailAddress,
+              ),
+              TextField(
+                controller: rollNumberController,
+                decoration: const InputDecoration(labelText: 'Roll Number'),
+              ),
+              TextField(
+                controller: classNameController,
+                decoration: const InputDecoration(labelText: 'Class Name'),
+              ),
+              TextField(
+                controller: phoneController,
+                decoration: const InputDecoration(labelText: 'Phone Number'),
+                keyboardType: TextInputType.phone,
+              ),
+              TextField(
+                controller: addressController,
+                decoration: const InputDecoration(labelText: 'Address'),
+                maxLines: 2,
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                // Split full name into first and last name
+                final nameParts = nameController.text.trim().split(' ');
+                final firstName = nameParts.isNotEmpty ? nameParts.first : '';
+                final lastName = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
+
+                final api = ApiService();
+                final success = await api.updateStudent(
+                  studentId: student.id,
+                  fullName: nameController.text.trim(),
+                  email: emailController.text.trim(),
+                  phoneNumber: phoneController.text.trim(),
+                  className: classNameController.text.trim(),
+                  rollNumber: rollNumberController.text.trim(),
+                  address: addressController.text.trim(),
+                );
+                api.close();
+
+                if (mounted) {
+                  Navigator.pop(context);
+                  if (success) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Student updated successfully')),
+                    );
+                    _loadStudents(); // Refresh list
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Failed to update student')),
+                    );
+                  }
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $e')),
+                  );
+                }
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -636,8 +734,20 @@ class _AdminChatPageState extends State<AdminChatPage> {
                                             ),
                                         ],
                                       ),
-                                      trailing: unreadCount > 0
-                                          ? Container(
+                                      trailing: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            icon: const Icon(Icons.edit, size: 20),
+                                            onPressed: () => _editStudent(student),
+                                            tooltip: 'Edit Student',
+                                            color: Colors.blue,
+                                            padding: EdgeInsets.zero,
+                                            constraints: const BoxConstraints(),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          if (unreadCount > 0)
+                                            Container(
                                               width: 32,
                                               height: 32,
                                               alignment: Alignment.center,
@@ -655,7 +765,10 @@ class _AdminChatPageState extends State<AdminChatPage> {
                                                 textAlign: TextAlign.center,
                                               ),
                                             )
-                                          : const Icon(Icons.chevron_right, color: Colors.grey),
+                                          else
+                                            const Icon(Icons.chevron_right, color: Colors.grey),
+                                        ],
+                                      ),
                                       onTap: () => _navigateToChat(student),
                                     ),
                                   );
@@ -719,7 +832,7 @@ class _AdminChatConversationPageState
         });
       }
     } catch (e) {
-      print('Error loading metadata: $e');
+      Logger.error('Error loading metadata', e, null, 'AdminChat');
     }
   }
 
@@ -806,10 +919,10 @@ class _AdminChatConversationPageState
       // Teachers are marked with rollNumber = 'Teacher'
       final targetUserRole = widget.isTeacher ? 'teacher' : 'student';
       
-      print('Connecting to chat:');
-      print('  Admin ID: ${widget.adminId}');
-      print('  Target ID: ${widget.student.id}');
-      print('  Target Role: $targetUserRole');
+      Logger.info('Connecting to chat:', 'AdminChat');
+      Logger.debug('  Admin ID: ${widget.adminId}', 'AdminChat');
+      Logger.debug('  Target ID: ${widget.student.id}', 'AdminChat');
+      Logger.debug('  Target Role: $targetUserRole', 'AdminChat');
       
       // Connect to chat
       await _chatService!.connect(
@@ -836,7 +949,7 @@ class _AdminChatConversationPageState
         return;
       }
     } catch (e) {
-      print('Error connecting to chat: $e');
+      Logger.error('Error connecting to chat', e, null, 'AdminChat');
       if (mounted) {
         setState(() {
           _isLoadingMessages = false;
@@ -855,7 +968,7 @@ class _AdminChatConversationPageState
     // Listen for chat history
     _chatService!.historyStream.listen((messages) {
       if (mounted) {
-        print('Received ${messages.length} messages in history stream');
+        Logger.info('Received ${messages.length} messages in history stream', 'AdminChat');
         setState(() {
           _messages.clear();
           _messages.addAll(messages);
@@ -870,11 +983,11 @@ class _AdminChatConversationPageState
     // Listen for new messages - REAL-TIME LIVE FEED
     _chatService!.messageStream.listen((message) {
       if (mounted) {
-        print('REAL-TIME: Received new message via Socket.io');
-        print('   From: ${message.fromUserRole} ${message.fromUserId}');
-        print('   To: ${message.toUserRole} ${message.toUserId}');
-        print('   Message: ${message.message.substring(0, 50)}${message.message.length > 50 ? '...' : ''}');
-        print('   Timestamp: ${message.timestamp}');
+        Logger.debug('REAL-TIME: Received new message via Socket.io', 'AdminChat');
+        Logger.debug('   From: ${message.fromUserRole} ${message.fromUserId}', 'AdminChat');
+        Logger.debug('   To: ${message.toUserRole} ${message.toUserId}', 'AdminChat');
+        Logger.debug('   Message: ${message.message.substring(0, 50)}${message.message.length > 50 ? '...' : ''}', 'AdminChat');
+        Logger.debug('   Timestamp: ${message.timestamp}', 'AdminChat');
         
         setState(() {
           // Check if message already exists by ID (most reliable)
@@ -889,13 +1002,13 @@ class _AdminChatConversationPageState
           );
           
           if (!existsById && !existsByContent) {
-            print('  Adding new message to UI immediately - LIVE FEED');
+            Logger.debug('  Adding new message to UI immediately - LIVE FEED', 'AdminChat');
             _messages.add(message);
             // Sort by timestamp to maintain order
             _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-            print('  Message displayed on screen - Total messages: ${_messages.length}');
+            Logger.debug('  Message displayed on screen - Total messages: ${_messages.length}', 'AdminChat');
           } else {
-            print('  Message already exists, skipping (existsById: $existsById, existsByContent: $existsByContent)');
+            Logger.debug('  Message already exists, skipping (existsById: $existsById, existsByContent: $existsByContent)', 'AdminChat');
           }
         });
         
@@ -907,7 +1020,7 @@ class _AdminChatConversationPageState
           _chatService?.markAsRead(widget.adminId, widget.student.id);
         }
       } else {
-        print('  Widget not mounted, skipping message update');
+        Logger.debug('  Widget not mounted, skipping message update', 'AdminChat');
       }
     });
   }
@@ -918,7 +1031,7 @@ class _AdminChatConversationPageState
     _chatService?.disconnect().then((_) {
       _chatService?.dispose();
     }).catchError((e) {
-      print('Error disposing chat service: $e');
+      Logger.warning('Error disposing chat service: $e', 'AdminChat');
       _chatService?.dispose();
     });
     _messageController.dispose();
@@ -958,7 +1071,7 @@ class _AdminChatConversationPageState
       // Determine target user role (student or teacher)
       final targetUserRole = widget.isTeacher ? 'teacher' : 'student';
       
-      print('Sending message to $targetUserRole: ${widget.student.id}');
+      Logger.info('Sending message to $targetUserRole: ${widget.student.id}', 'AdminChat');
       
       // Send via WebSocket - the server will broadcast it back, and we'll update the temp message with real ID
       _chatService!.sendMessage(
@@ -1008,7 +1121,7 @@ class _AdminChatConversationPageState
       if (widget.adminId.isNotEmpty && widget.student.id.isNotEmpty) {
         // If disconnected, try to reconnect
         if (!_chatService!.isConnected) {
-          print('Not connected, attempting to reconnect...');
+          Logger.info('Not connected, attempting to reconnect...', 'AdminChat');
           await _chatService!.connect(
             userId: widget.adminId,
             userRole: 'admin',
@@ -1037,7 +1150,7 @@ class _AdminChatConversationPageState
         }
       }
     } catch (e) {
-      print('Error refreshing messages: $e');
+      Logger.error('Error refreshing messages', e, null, 'AdminChat');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to refresh messages: $e')),
@@ -1196,12 +1309,12 @@ class _AdminChatConversationPageState
                       
                       // Debug log for alignment issues
                       if (index == 0 || index == _messages.length - 1) {
-                        print('Message alignment check:');
-                        print('  Message fromUserId: $msgFromUserId (normalized: $normalizedMsgId)');
-                        print('  Admin ID: $adminId (normalized: $normalizedAdminId)');
-                        print('  Message role: ${msg.fromUserRole}');
-                        print('  isFromAdmin: $isFromAdmin, isIdMatch: $isIdMatch');
-                        print('  Final isMe: $isMe (will align ${isMe ? "RIGHT" : "LEFT"})');
+                        Logger.debug('Message alignment check:', 'AdminChat');
+                        Logger.debug('  Message fromUserId: $msgFromUserId (normalized: $normalizedMsgId)', 'AdminChat');
+                        Logger.debug('  Admin ID: $adminId (normalized: $normalizedAdminId)', 'AdminChat');
+                        Logger.debug('  Message role: ${msg.fromUserRole}', 'AdminChat');
+                        Logger.debug('  isFromAdmin: $isFromAdmin, isIdMatch: $isIdMatch', 'AdminChat');
+                        Logger.debug('  Final isMe: $isMe (will align ${isMe ? "RIGHT" : "LEFT"})', 'AdminChat');
                       }
                       
                       return Align(

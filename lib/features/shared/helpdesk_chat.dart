@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../../services/index.dart';
+import '../../utils/logger.dart';
 
 const _uuid = Uuid();
 
@@ -80,7 +81,7 @@ class _HelpdeskChatState extends State<HelpdeskChat> {
           return;
         }
       } catch (e) {
-        print('Error connecting to chat: $e');
+        Logger.error('Error connecting to chat', e, null, 'HelpdeskChat');
         if (!mounted) return;
         setState(() { 
           _isLoading = false;
@@ -125,7 +126,7 @@ class _HelpdeskChatState extends State<HelpdeskChat> {
         setState(() { _isLoading = false; });
       }
     } catch (e) {
-      print('Error in _resolveAndConnect: $e');
+      Logger.error('Error in _resolveAndConnect', e, null, 'HelpdeskChat');
       if (!mounted) return;
       setState(() { 
         _isLoading = false;
@@ -218,6 +219,53 @@ class _HelpdeskChatState extends State<HelpdeskChat> {
     });
   }
 
+  /// Refresh messages manually (pull to refresh)
+  Future<void> _refreshMessages() async {
+    if (_chatService == null || widget.studentId == null || _resolvedTargetId == null) return;
+    
+    try {
+      // If disconnected, try to reconnect
+      if (!_chatService!.isConnected) {
+        Logger.info('Not connected, attempting to reconnect...', 'HelpdeskChat');
+        await _chatService!.connect(
+          userId: widget.studentId!,
+          userRole: widget.userRole ?? 'student',
+          targetUserId: _resolvedTargetId!,
+          targetUserRole: _resolvedTargetRole,
+        );
+      }
+      
+      // Manually reload history
+      await _chatService!.reloadHistory();
+      
+      // Also directly fetch to ensure we have latest messages
+      final api = ApiService();
+      final messages = await api.getChatMessages(
+        userId: widget.studentId!,
+        targetUserId: _resolvedTargetId!,
+      );
+      api.close();
+      
+      if (mounted) {
+        setState(() {
+          _messages.clear();
+          _messages.addAll(
+            messages.map((m) => ChatMessage.fromMap(m)).toList()
+          );
+          _messages.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+        });
+        _scrollToBottom();
+      }
+    } catch (e) {
+      Logger.error('Error refreshing messages', e, null, 'HelpdeskChat');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to refresh messages: $e')),
+        );
+      }
+    }
+  }
+
   @override
   void dispose() {
     _chatService?.dispose();
@@ -280,6 +328,34 @@ class _HelpdeskChatState extends State<HelpdeskChat> {
                   ? const Center(child: CircularProgressIndicator())
                   : Stack(
                       children: [
+                        // Connection status indicator
+                        if (_chatService != null)
+                          Positioned(
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              color: _chatService!.isConnected ? Colors.green[50] : Colors.orange[50],
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    _chatService!.isConnected ? Icons.wifi : Icons.wifi_off,
+                                    size: 16,
+                                    color: _chatService!.isConnected ? Colors.green : Colors.orange,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    _chatService!.isConnected ? 'Connected' : 'Disconnected - Reconnecting...',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: _chatService!.isConnected ? Colors.green[700] : Colors.orange[700],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         if (_messages.isEmpty)
                           const Center(
                             child: Text(
@@ -289,10 +365,12 @@ class _HelpdeskChatState extends State<HelpdeskChat> {
                             ),
                           )
                         else
-                          ListView.builder(
-                            controller: _scrollController,
-                            padding: const EdgeInsets.all(16),
-                            itemCount: _messages.length,
+                          RefreshIndicator(
+                            onRefresh: _refreshMessages,
+                            child: ListView.builder(
+                              controller: _scrollController,
+                              padding: const EdgeInsets.only(top: 50, left: 16, right: 16, bottom: 16),
+                              itemCount: _messages.length,
                             itemBuilder: (context, index) {
                               final msg = _messages[index];
                               
@@ -361,6 +439,7 @@ class _HelpdeskChatState extends State<HelpdeskChat> {
                                 ),
                               );
                             },
+                            ),
                           ),
                         if (_chatService != null && !_chatService!.isConnected)
                           Align(

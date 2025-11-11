@@ -247,6 +247,11 @@ io.on('connection', (socket) => {
     socket.to(conversationId).emit('user_typing', { userId, isTyping });
   });
 
+  // Handle ping (keepalive)
+  socket.on('ping', (data) => {
+    socket.emit('pong', { timestamp: Date.now(), ...data });
+  });
+
   // Handle disconnect
   socket.on('disconnect', () => {
     console.log(`Client disconnected: ${socket.id}`);

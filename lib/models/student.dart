@@ -32,7 +32,7 @@ class Student {
             try {
               return ObjectId.fromHexString(id);
             } catch (e) {
-              print('Error converting assigned exam ID: $id');
+              // Logger not needed here - silent fail is acceptable
               return ObjectId(); // Return a new ObjectId to avoid null
             }
           } else if (id is ObjectId) {
@@ -71,8 +71,7 @@ class Student {
         assignedExams: parsedAssignedExams,
       );
     } catch (e) {
-      print('Error parsing Student from map: $e');
-      print('Map data: $map');
+      // Error will be rethrown - no logging needed in model layer
       rethrow;
     }
   }

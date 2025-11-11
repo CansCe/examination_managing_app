@@ -36,7 +36,7 @@ class AtlasService {
       await _db!.close();
       _db = null;
       _isInitialized = false;
-      print('MongoDB Atlas connection closed');
+      // Connection closed - no logging needed
     }
   }
 
@@ -47,7 +47,7 @@ class AtlasService {
       final cursor = _db!.collection(collection).find();
       return await cursor.toList();
     } catch (e) {
-      print('Error fetching from $collection: $e');
+      // Error will be rethrown - logging handled by caller
       rethrow;
     }
   }
@@ -58,7 +58,7 @@ class AtlasService {
     try {
       return await _db!.collection(collection).findOne(where.id(ObjectId.fromHexString(id)));
     } catch (e) {
-      print('Error fetching document from $collection: $e');
+      // Error will be rethrown - logging handled by caller
       rethrow;
     }
   }
@@ -70,7 +70,7 @@ class AtlasService {
       final result = await _db!.collection(collection).insert(document);
       return result['_id'].toString();
     } catch (e) {
-      print('Error uploading to $collection: $e');
+      // Error will be rethrown - logging handled by caller
       rethrow;
     }
   }
@@ -80,11 +80,11 @@ class AtlasService {
     await _ensureConnection();
     try {
       if (documents.isEmpty) {
-        print('⚠ Warning: Attempted to upload empty list to $collection');
+        // Empty list - return empty result
         return [];
       }
       
-      print('  → Inserting ${documents.length} documents into $collection...');
+      // Inserting documents - no logging needed
       final result = await _db!.collection(collection).insertAll(documents);
       
       final List<String> ids = [];
@@ -98,13 +98,13 @@ class AtlasService {
       // Verify insertion by counting documents
       try {
         final count = await _db!.collection(collection).count();
-        print('  → Collection $collection now has $count document(s)');
+        // Collection updated - no logging needed
       } catch (e) {
-        print('  → Note: Could not verify document count: $e');
+        // Could not verify document count - non-critical
       }
       
       if (ids.length != documents.length) {
-        print('⚠ Warning: Expected ${documents.length} inserted IDs but got ${ids.length}');
+        // Warning: Expected ${documents.length} inserted IDs but got ${ids.length} - non-critical
       }
       
       return ids;
