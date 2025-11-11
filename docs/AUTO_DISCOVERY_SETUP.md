@@ -1,221 +1,251 @@
-# Auto-Discovery API Setup Guide
+# API Auto-Discovery Setup
 
-## Overview
-
-The app now supports **automatic API endpoint discovery**. When the app launches, it will automatically try multiple API endpoints and use the first one that responds. This means you don't need to configure the API URL at build time!
+The Exam Management App includes an automatic API discovery feature that allows the Flutter app to automatically find and connect to available backend services without manual configuration.
 
 ## How It Works
 
-1. **On First Launch**: App tries a list of potential API endpoints
-2. **Auto-Discovery**: First endpoint that responds is saved locally
-3. **Future Launches**: App uses the saved endpoint (faster startup)
-4. **Validation**: On each launch, the app validates the saved endpoint
-5. **Fallback**: If saved endpoint fails, it rediscovers automatically
+The auto-discovery service:
 
-## Setting Up Your API Domains
+1. **Tries multiple endpoints** in order (local first, then production)
+2. **Tests each endpoint** by calling the `/health` endpoint
+3. **Uses the first working endpoint** it finds
+4. **Saves the endpoint** locally for future use
+5. **Re-validates** on each app launch
 
-### Option 1: Add Domains in Code (Recommended for Production)
+## Default Endpoints
 
-Edit `lib/services/api_discovery_service.dart` and add your domains to the list:
+The app tries these endpoints in order:
 
-```dart
-static final List<String> _defaultApiUrls = [
-  // Add your production domains here
-  'https://api.yourdomain.com',
-  'http://api.yourdomain.com',
-  'https://yourapp.duckdns.org',
-  'http://yourapp.duckdns.org',
-  
-  // Local development
-  'http://localhost:3000',
-  'http://10.0.2.2:3000',
-];
-```
+### API Service (Main Backend)
+- `http://localhost:3000` (local development)
+- `http://10.0.2.2:3000` (Android emulator)
+- `https://exam-app-api.duckdns.org` (production HTTPS)
+- `http://exam-app-api.duckdns.org` (production HTTP fallback)
 
-### Option 2: Add Domains at Runtime
+### Chat Service
+- `http://localhost:3001` (local development)
+- `http://10.0.2.2:3001` (Android emulator)
+- `https://backend-chat.duckdns.org` (production HTTPS)
+- `http://backend-chat.duckdns.org` (production HTTP fallback)
 
-You can add custom domains when the app starts:
+## Adding Your Own Domains
 
-```dart
-// In main.dart or your app initialization
-ApiConfig.addCustomApiUrls([
-  'https://api.yourdomain.com',
-  'https://api2.yourdomain.com',
-]);
+### Method 1: Edit Source Code (Recommended for Permanent Changes)
 
-ApiConfig.addCustomChatUrls([
-  'https://chat.yourdomain.com',
-  'https://chat2.yourdomain.com',
-]);
-```
-
-### Option 3: User Manual Configuration
-
-Users can manually configure the API URL in app settings if auto-discovery fails.
-
-## Build the App
-
-**No special build flags needed!** Just build normally:
-
-```bash
-# Android
-flutter build apk --release
-
-# iOS
-flutter build ios --release
-```
-
-The app will automatically discover available endpoints on first launch.
-
-## Customization
-
-### Add Your Domains
-
-1. **Edit `api_discovery_service.dart`**:
-   - Open `lib/services/api_discovery_service.dart`
-   - Find `_defaultApiUrls` and `_defaultChatUrls`
-   - Add your domain URLs to the list (in order of preference)
-
-2. **Rebuild the app**:
-   ```bash
-   flutter build apk --release
+1. **Open the auto-discovery service file**
+   ```
+   lib/services/api_discovery_service.dart
    ```
 
-### Priority Order
+2. **Find the default URL lists**
+   ```dart
+   static final List<String> _defaultApiUrls = [
+     'http://localhost:3000',
+     'http://10.0.2.2:3000',
+     // Add your domains here
+     'https://your-api-domain.com',
+     'http://your-api-domain.com',
+   ];
+   
+   static final List<String> _defaultChatUrls = [
+     'http://localhost:3001',
+     'http://10.0.2.2:3001',
+     // Add your domains here
+     'https://your-chat-domain.com',
+     'http://your-chat-domain.com',
+   ];
+   ```
 
-Domains are tried in the order they appear in the list:
-- First domain in list = Highest priority
-- Last domain in list = Lowest priority
-- First responding domain = Used and saved
+3. **Add your domains** (HTTPS first, then HTTP fallback)
+   ```dart
+   static final List<String> _defaultApiUrls = [
+     'http://localhost:3000',
+     'http://10.0.2.2:3000',
+     'https://api.yourdomain.com',      // Your production API
+     'http://api.yourdomain.com',        // HTTP fallback
+     'https://exam-app-api.duckdns.org', // Existing production
+     'http://exam-app-api.duckdns.org',
+   ];
+   ```
 
-## Example Setup
+4. **Rebuild the app**
+   ```bash
+   flutter build apk --release
+   # or
+   flutter build ios --release
+   ```
 
-### For DuckDNS (Free)
+### Method 2: Runtime Configuration (For Testing)
+
+You can also add custom URLs at runtime using the `ApiDiscoveryService`:
+
+```dart
+// Add custom URLs to try
+await ApiDiscoveryService.addCustomApiUrls([
+  'https://test-api.example.com',
+  'http://test-api.example.com',
+]);
+
+await ApiDiscoveryService.addCustomChatUrls([
+  'https://test-chat.example.com',
+  'http://test-chat.example.com',
+]);
+
+// Discover with custom URLs
+final apiUrl = await ApiDiscoveryService.discoverApiUrl();
+final chatUrl = await ApiDiscoveryService.discoverChatUrl();
+```
+
+## How Discovery Works
+
+### Discovery Process
+
+1. **Check saved URL**: First checks if a URL was previously saved
+2. **Validate saved URL**: Tests if saved URL still works
+3. **Try default URLs**: If saved URL fails, tries default list
+4. **Try custom URLs**: If provided, tries custom URLs
+5. **Save working URL**: Saves the first working URL found
+
+### Health Check
+
+Each endpoint is tested by calling:
+- API Service: `{url}/health`
+- Chat Service: `{url}/health`
+
+The endpoint must return HTTP 200 status code to be considered valid.
+
+### Timeout
+
+Default timeout is 3 seconds per endpoint. You can customize:
+
+```dart
+final apiUrl = await ApiDiscoveryService.discoverApiUrl(
+  timeout: Duration(seconds: 5),
+);
+```
+
+## Local Storage
+
+Discovered URLs are saved using `SharedPreferences`:
+
+- **API URL Key**: `api_base_url`
+- **Chat URL Key**: `chat_base_url`
+- **Last Checked**: Timestamps for when URLs were last validated
+
+### Clearing Saved URLs
+
+To force re-discovery, clear saved URLs:
+
+```dart
+await ApiDiscoveryService.clearSavedUrls();
+```
+
+## Android Emulator Support
+
+The app automatically tries `10.0.2.2` which maps to the host machine's localhost when running on Android emulator. This is included in the default URL list.
+
+## Production Deployment
+
+### For Production Apps
+
+1. **Add your production domains** to the default URL list
+2. **Place HTTPS URLs first** (more secure)
+3. **Include HTTP fallback** (in case HTTPS fails)
+4. **Test discovery** before releasing
+
+### Example Production Configuration
 
 ```dart
 static final List<String> _defaultApiUrls = [
-  'https://examapp.duckdns.org',
-  'http://examapp.duckdns.org',
-  'http://localhost:3000',
+  // Production (HTTPS first)
+  'https://api.yourdomain.com',
+  'https://exam-app-api.duckdns.org',
+  
+  // Production fallback (HTTP)
+  'http://api.yourdomain.com',
+  'http://exam-app-api.duckdns.org',
+  
+  // Development (only for debug builds)
+  if (kDebugMode) 'http://localhost:3000',
+  if (kDebugMode) 'http://10.0.2.2:3000',
 ];
 ```
 
-### For Custom Domain
+## Debugging
+
+### Enable Debug Logs
+
+The discovery service prints detailed logs:
+
+```
+🔍 Starting API URL discovery...
+📋 Trying 4 potential endpoints
+  ⏳ Testing: http://localhost:3000
+  ✅ Found working API: http://localhost:3000
+```
+
+### Check Saved URLs
 
 ```dart
-static final List<String> _defaultApiUrls = [
-  'https://api.exammanagement.com',
-  'http://api.exammanagement.com',
-  'https://examapp.duckdns.org',
-  'http://localhost:3000',
-];
+final savedApiUrl = await ApiDiscoveryService.getSavedApiUrl();
+final savedChatUrl = await ApiDiscoveryService.getSavedChatUrl();
+print('Saved API URL: $savedApiUrl');
+print('Saved Chat URL: $savedChatUrl');
 ```
 
-### For Multiple Domains (Failover)
+### Force Re-Discovery
 
 ```dart
-static final List<String> _defaultApiUrls = [
-  'https://api-primary.yourdomain.com',  // Primary
-  'https://api-backup.yourdomain.com',   // Backup
-  'https://api-secondary.yourdomain.com', // Secondary
-  'http://localhost:3000',                // Local fallback
-];
-```
+// Clear saved URLs
+await ApiDiscoveryService.clearSavedUrls();
 
-## Testing
-
-### Test Auto-Discovery
-
-1. Clear app data (to reset stored URLs)
-2. Launch the app
-3. Check console logs for discovery process
-4. App should automatically find and use working endpoint
-
-### Check Current Configuration
-
-```dart
-print('Current API Config: ${ApiConfig.currentConfig}');
-```
-
-Output:
-```
-{
-  'baseUrl': 'https://api.yourdomain.com',
-  'chatBaseUrl': 'https://chat.yourdomain.com',
-  'isProduction': 'true',
-  'initialized': 'true'
-}
+// Discover again
+final apiUrl = await ApiDiscoveryService.discoverApiUrl();
 ```
 
 ## Troubleshooting
 
-### No Endpoints Found
+### App Can't Find Backend
 
-**Problem**: App can't find any working endpoints
-
-**Solution**:
-1. Check your domains are accessible
-2. Verify `/health` endpoint is working
-3. Check firewall/network settings
-4. Add more domains to the discovery list
+- **Check backend is running**: Ensure services are started
+- **Check health endpoint**: Verify `/health` returns 200
+- **Check network**: Ensure device can reach backend
+- **Check logs**: Look for discovery logs in console
+- **Try manual URL**: Use `ApiConfig.setBaseUrl()` to set manually
 
 ### Wrong Endpoint Selected
 
-**Problem**: App selects wrong endpoint (e.g., localhost instead of production)
+- **Clear saved URLs**: Force re-discovery
+- **Reorder URL list**: Put preferred URL first
+- **Check network**: Ensure preferred endpoint is reachable
 
-**Solution**:
-1. Reorder domains in `_defaultApiUrls` (put production first)
-2. Clear app data and restart
-3. Use `ApiConfig.rediscover()` to force rediscovery
+### Discovery Takes Too Long
 
-### Endpoint Stops Working
+- **Reduce timeout**: Lower timeout value
+- **Remove slow URLs**: Remove unreachable URLs from list
+- **Check network**: Ensure network connection is stable
 
-**Problem**: Saved endpoint stops working
+## Best Practices
 
-**Solution**:
-- App automatically rediscovers if saved endpoint fails
-- Or manually trigger: `ApiConfig.rediscover()`
+1. **HTTPS First**: Always try HTTPS before HTTP
+2. **Local First**: Try localhost before remote (for development)
+3. **Fallback URLs**: Include HTTP fallback for HTTPS URLs
+4. **Test Discovery**: Test discovery on all target platforms
+5. **Monitor Logs**: Check discovery logs in production
+6. **Update Domains**: Keep domain list updated when infrastructure changes
 
-## Manual Configuration (For Users)
+## Manual Override
 
-If auto-discovery fails, users can manually configure:
-
-```dart
-// Set API URL manually
-await ApiConfig.setApiUrl('https://api.yourdomain.com');
-
-// Set Chat URL manually
-await ApiConfig.setChatUrl('https://chat.yourdomain.com');
-```
-
-## Advanced: Runtime Domain Addition
-
-You can add domains at runtime (e.g., from server config):
+If auto-discovery fails, you can manually set URLs:
 
 ```dart
-// Add domains from remote config
-final serverConfig = await fetchServerConfig();
-ApiConfig.addCustomApiUrls(serverConfig.apiUrls);
-ApiConfig.addCustomChatUrls(serverConfig.chatUrls);
-
-// Force rediscovery with new domains
-await ApiConfig.rediscover();
+// In your app initialization
+await ApiConfig.setBaseUrl('https://api.yourdomain.com');
+await ApiConfig.setChatBaseUrl('https://chat.yourdomain.com');
 ```
 
-## Benefits
+However, auto-discovery is recommended as it provides better flexibility and user experience.
 
-**No build-time configuration needed**
-**Automatic failover** between domains
-**Works for all users** without setup
-**Fast startup** (uses cached URL)
-**Self-healing** (rediscovers if endpoint fails)
-**Easy to add new domains** (just update list)
+---
 
-## Security Notes
-
-- Always use HTTPS for production endpoints
-- The app validates endpoints by checking `/health`
-- Stored URLs are saved locally (not sent anywhere)
-- Users can manually override if needed
-
-
+**Last Updated**: 2024

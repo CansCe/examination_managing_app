@@ -1,164 +1,347 @@
-# Real-Time Chat Implementation
+# Chat Implementation Guide
+
+This document describes the chat service implementation for the Exam Management App.
 
 ## Overview
-Implemented a real-time chat system using **WebSocket (Socket.IO)** for minimal latency communication between students, teachers, and admins. Messages are stored in MongoDB and only messages from the last 30 days are shown/stored.
 
-## Features Implemented
-
-### ✅ Real-Time Communication
-- **Protocol**: WebSocket using Socket.IO (best for minimal latency)
-- **Latency**: Messages appear instantly (no polling delays)
-- **Connection**: Persistent WebSocket connection with automatic reconnection
-
-### ✅ Multi-Role Support
-- Students can chat with admins and teachers
-- Teachers can chat with students and admins
-- Admins can chat with students and teachers
-- All conversations are properly routed based on user roles
-
-### ✅ Message Persistence
-- All messages stored in MongoDB (`chat_messages` collection)
-- Messages accessible from any device when logged in
-- Cross-device synchronization
-
-### ✅ 30-Day Retention Policy
-- Only messages from the last 30 days are:
-  - Shown in chat history
-  - Stored in database
-- Automatic cleanup of old messages (runs every 24 hours)
+The chat service provides real-time messaging between students, teachers, and admins using WebSocket (Socket.io) and MongoDB for message persistence.
 
 ## Architecture
 
-### Backend (Node.js/Express)
-- **WebSocket Server**: `backend-api/sockets/chat.socket.js`
-- **Socket.IO**: Handles real-time bidirectional communication
-- **Message Storage**: MongoDB with automatic cleanup
-- **Room Management**: Each conversation has a unique room ID
+- **Technology**: Node.js + Express + Socket.io
+- **Database**: MongoDB
+- **Port**: 3001
+- **Protocol**: WebSocket (Socket.io) for real-time, HTTP REST for message history
 
-### Frontend (Flutter)
-- **WebSocket Client**: `lib/services/chat_service.dart`
-- **ChatSocketService**: Manages WebSocket connections
-- **Real-Time Updates**: Stream-based message handling
-- **UI Components**: Updated chat pages use WebSocket instead of polling
+## Features
 
-## Files Changed
+- Real-time messaging via WebSocket
+- Message persistence in MongoDB
+- One-on-one conversations
+- Support for students, teachers, and admins
+- Automatic cleanup of messages older than 30 days
+- Timestamp display for messages
+- Read/unread status tracking
 
-### Backend
-1. `backend-api/package.json` - Added socket.io dependency
-2. `backend-api/server.js` - Set up HTTP server with Socket.IO
-3. `backend-api/sockets/chat.socket.js` - **NEW** WebSocket handlers
-4. `backend-api/controllers/chat.controller.js` - Updated for new message structure
-5. `backend-api/routes/chat.routes.js` - Added teacher endpoint
+## Database Schema
 
-### Frontend
-1. `pubspec.yaml` - Added socket_io_client dependency
-2. `lib/services/chat_service.dart` - **REWRITTEN** WebSocket client service
-3. `lib/features/shared/helpdesk_chat.dart` - Updated to use WebSocket
-4. `lib/features/admin/admin_chat_page.dart` - Updated to use WebSocket
+### Messages Collection
 
-## New Message Model
-
-```dart
-ChatMessage {
-  id: ObjectId
-  fromUserId: String
-  fromUserRole: 'student' | 'teacher' | 'admin'
-  toUserId: String
-  toUserRole: 'student' | 'teacher' | 'admin'
-  message: String
-  timestamp: DateTime
-  isRead: bool
+```javascript
+{
+  _id: ObjectId,
+  conversationId: String,      // Unique conversation identifier
+  senderId: ObjectId,          // User ID (student, teacher, or admin)
+  receiverId: ObjectId,         // User ID (student, teacher, or admin)
+  message: String,              // Message content
+  timestamp: Date,               // Message timestamp
+  read: Boolean,                 // Read status
+  createdAt: Date
 }
 ```
 
-## Usage
+### Conversations Collection
 
-### Connecting to Chat
-```dart
-final chatService = ChatSocketService();
-chatService.connect(
-  userId: 'user_id_here',
-  userRole: 'student', // or 'teacher' or 'admin'
-  targetUserId: 'target_user_id',
-  targetUserRole: 'admin',
-);
+```javascript
+{
+  _id: ObjectId,
+  participants: [ObjectId],     // Array of user IDs
+  lastMessage: String,           // Last message preview
+  lastMessageTime: Date,         // Last message timestamp
+  createdAt: Date,
+  updatedAt: Date
+}
 ```
 
-### Sending Messages
-```dart
-chatService.sendMessage(
-  message: 'Hello!',
-  fromUserId: 'user_id',
-  fromUserRole: 'student',
-  toUserId: 'target_id',
-  toUserRole: 'admin',
-);
+## API Endpoints
+
+### Health Check
+
+```
+GET /health
 ```
 
-### Listening for Messages
+Returns service status.
+
+### Get Conversations
+
+```
+GET /api/chat/conversations/:userId
+```
+
+Returns all conversations for a user.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "_id": "...",
+      "participants": ["userId1", "userId2"],
+      "lastMessage": "Hello",
+      "lastMessageTime": "2024-01-01T00:00:00Z"
+    }
+  ]
+}
+```
+
+### Get Messages
+
+```
+GET /api/chat/messages/:conversationId
+```
+
+Returns messages for a conversation.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "_id": "...",
+      "conversationId": "conv123",
+      "senderId": "userId1",
+      "receiverId": "userId2",
+      "message": "Hello",
+      "timestamp": "2024-01-01T00:00:00Z",
+      "read": false
+    }
+  ]
+}
+```
+
+## WebSocket Events
+
+### Client → Server
+
+#### Join Room
+```javascript
+socket.emit('join_room', {
+  userId: 'userId123',
+  conversationId: 'conv123'
+});
+```
+
+#### Send Message
+```javascript
+socket.emit('send_message', {
+  conversationId: 'conv123',
+  senderId: 'userId1',
+  receiverId: 'userId2',
+  message: 'Hello, how are you?'
+});
+```
+
+#### Mark as Read
+```javascript
+socket.emit('mark_read', {
+  conversationId: 'conv123',
+  userId: 'userId2'
+});
+```
+
+### Server → Client
+
+#### Message Received
+```javascript
+socket.on('message_received', (data) => {
+  console.log('New message:', data);
+  // data: { conversationId, senderId, receiverId, message, timestamp }
+});
+```
+
+#### Message Sent
+```javascript
+socket.on('message_sent', (data) => {
+  console.log('Message sent:', data);
+  // data: { conversationId, messageId, timestamp }
+});
+```
+
+## Flutter Integration
+
+### Connect to Chat Service
+
 ```dart
-chatService.messageStream.listen((message) {
+import 'package:socket_io_client/socket_io_client.dart' as IO;
+
+final socket = IO.io('http://localhost:3001', <String, dynamic>{
+  'transports': ['websocket'],
+  'autoConnect': false,
+});
+
+socket.connect();
+```
+
+### Join Conversation
+
+```dart
+socket.emit('join_room', {
+  'userId': userId,
+  'conversationId': conversationId,
+});
+```
+
+### Send Message
+
+```dart
+socket.emit('send_message', {
+  'conversationId': conversationId,
+  'senderId': senderId,
+  'receiverId': receiverId,
+  'message': messageText,
+});
+```
+
+### Listen for Messages
+
+```dart
+socket.on('message_received', (data) {
   // Handle new message
-});
-
-chatService.historyStream.listen((messages) {
-  // Handle chat history
+  final message = Message.fromMap(data);
+  // Update UI
 });
 ```
 
-## Setup Instructions
+## Message Cleanup
 
-### Backend
-1. Install dependencies:
-   ```bash
-   cd backend-api
-   npm install
-   ```
+The chat service includes an automatic cleanup script that removes messages older than 30 days.
 
-2. Start the server:
-   ```bash
-   npm start
-   ```
+### Manual Cleanup
 
-   The WebSocket server will be available at `ws://localhost:3000`
+```bash
+cd backend-chat
+node scripts/cleanup-old-messages.js
+```
 
-### Frontend
-1. Install dependencies:
-   ```bash
-   flutter pub get
-   ```
+### Automated Cleanup
 
-2. The chat will automatically connect when opened
+Set up a cron job or scheduled task:
 
-## Configuration
+```bash
+# Run daily at 2 AM
+0 2 * * * cd /path/to/backend-chat && node scripts/cleanup-old-messages.js
+```
 
-### WebSocket URL
-The WebSocket URL is automatically derived from `ApiConfig.baseUrl`:
-- `http://localhost:3000` → `ws://localhost:3000`
-- `https://example.com` → `wss://example.com`
+## Conversation ID Generation
 
-To override, pass `socketUrl` to `ChatSocketService` constructor.
+Conversation IDs are generated based on participant IDs:
 
-## Benefits Over Polling
+```javascript
+function generateConversationId(userId1, userId2) {
+  const sorted = [userId1, userId2].sort();
+  return `${sorted[0]}_${sorted[1]}`;
+}
+```
 
-1. **Minimal Latency**: Messages appear instantly (< 100ms)
-2. **Reduced Server Load**: No constant HTTP requests
-3. **Better UX**: Real-time updates without refresh delays
-4. **Efficient**: Bidirectional communication on single connection
-5. **Scalable**: WebSocket handles many concurrent connections
+This ensures the same conversation ID is used regardless of which user initiates.
+
+## Timestamp Display
+
+Messages include timestamps that can be displayed in the UI:
+
+- **Recent messages** (< 1 hour): "Just now" or "X minutes ago"
+- **Today**: "HH:MM" format
+- **Yesterday**: "Yesterday at HH:MM"
+- **This week**: "Day at HH:MM"
+- **Older**: "MM/DD/YYYY at HH:MM"
+
+## Security
+
+### Rate Limiting
+
+Chat endpoints are protected with rate limiting:
+- Message sending: 20 requests per 15 minutes
+- Conversation fetching: 100 requests per 15 minutes
+
+### Input Validation
+
+All message inputs are validated and sanitized:
+- Message length limits
+- XSS prevention
+- SQL injection prevention (NoSQL injection)
+
+### CORS Configuration
+
+CORS is configured to allow only specified origins. Update `ALLOWED_ORIGINS` in `.env` file.
+
+## Error Handling
+
+### Connection Errors
+
+```javascript
+socket.on('connect_error', (error) => {
+  console.error('Connection error:', error);
+});
+```
+
+### Message Errors
+
+```javascript
+socket.on('error', (error) => {
+  console.error('Socket error:', error);
+});
+```
 
 ## Testing
 
-1. Start the backend server
-2. Open the app on multiple devices/sessions
-3. Send messages between different users
-4. Verify messages appear instantly on all devices
-5. Check that only last 30 days of messages are shown
+### Test WebSocket Connection
 
-## Notes
+```bash
+# Using wscat
+npm install -g wscat
+wscat -c ws://localhost:3001/socket.io/?transport=websocket
+```
 
-- Messages older than 30 days are automatically deleted
-- Connection status is shown in the UI (green = connected, red = disconnected)
-- Automatic reconnection on connection loss
-- Messages are stored in MongoDB for persistence across sessions
+### Test HTTP Endpoints
 
+```bash
+# Health check
+curl http://localhost:3001/health
+
+# Get conversations
+curl http://localhost:3001/api/chat/conversations/userId123
+
+# Get messages
+curl http://localhost:3001/api/chat/messages/conv123
+```
+
+## Troubleshooting
+
+### WebSocket Connection Fails
+
+- Check chat service is running: `curl http://localhost:3001/health`
+- Verify CORS configuration
+- Check firewall rules
+- Verify WebSocket support in network
+
+### Messages Not Persisting
+
+- Check MongoDB connection
+- Verify database permissions
+- Check service logs
+
+### Messages Not Delivered
+
+- Verify both users are connected
+- Check conversation ID matches
+- Verify room joining
+
+## Performance Considerations
+
+- **Message Pagination**: Implement pagination for message history
+- **Connection Pooling**: Use MongoDB connection pooling
+- **Message Batching**: Batch multiple messages if needed
+- **Indexing**: Index `conversationId` and `timestamp` fields
+
+## Next Steps
+
+- Read [CHAT_SERVICE_USAGE.md](CHAT_SERVICE_USAGE.md) for usage examples
+- Read [BACKEND_SETUP.md](BACKEND_SETUP.md) for setup instructions
+- Read [DEPLOYMENT.md](DEPLOYMENT.md) for deployment guide
+
+---
+
+**Last Updated**: 2024

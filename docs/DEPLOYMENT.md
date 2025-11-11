@@ -1,238 +1,338 @@
 # Deployment Guide
 
-This guide explains how to deploy the split backend services.
+This guide covers deploying the Exam Management App to production, including both backend services and the Flutter mobile app.
 
-## Architecture
+## Deployment Overview
 
-The backend is split into two independent services:
+The application consists of:
+- **Backend API Service**: REST API (port 3000)
+- **Chat Service**: WebSocket chat (port 3001)
+- **Flutter Mobile App**: iOS and Android apps
+- **MongoDB Database**: MongoDB Atlas or self-hosted
 
-1. **Main API Service** (`backend-api/`)
-   - Uses MongoDB
-   - Handles: Auth, Exams, Students, Teachers, Questions, Exam Results
-   - Port: 3000
-   - Can be hosted on Raspberry Pi or any server
+## Prerequisites
 
-2. **Chat Service** (`backend-chat/`)
-   - Uses Supabase
-   - Handles: Real-time chat messaging
-   - Port: 3001
-   - Can be hosted separately (cloud, Docker, etc.)
+- Server with Node.js 18.0.0+ installed
+- Domain names (optional but recommended)
+- MongoDB Atlas account or MongoDB instance
+- SSL certificates (for HTTPS)
+- Reverse proxy (Nginx recommended)
 
 ## Deployment Options
 
-### Option 1: Docker Compose (Recommended)
+### Option 1: Docker Deployment (Recommended)
 
-Deploy both services together using Docker Compose.
+See [DOCKER_DEPLOYMENT.md](DOCKER_DEPLOYMENT.md) for detailed Docker setup.
 
-#### Prerequisites
-- Docker and Docker Compose installed
-- MongoDB connection string
-- Supabase credentials
+### Option 2: Manual Server Deployment
 
-#### Steps
+See [PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md) for manual server setup.
 
-1. Create environment files:
+### Option 3: Server with Domain Names
 
-**`backend-api/.env`**:
+See [SERVER_DEPLOYMENT_WITH_DOMAINS.md](SERVER_DEPLOYMENT_WITH_DOMAINS.md) for domain setup.
+
+## Quick Docker Deployment
+
+1. **Prepare environment files**
+   ```bash
+   # Backend API
+   cd backend-api
+   cp ENV_EXAMPLE.txt .env
+   # Edit .env with your MongoDB URI
+   
+   # Chat Service
+   cd ../backend-chat
+   cp ENV_EXAMPLE.txt .env
+   # Edit .env with your MongoDB URI
+   ```
+
+2. **Start services with Docker Compose**
+   ```bash
+   cd ..
+   docker-compose up -d
+   ```
+
+3. **Verify services**
+   ```bash
+   curl http://localhost:3000/health
+   curl http://localhost:3001/health
+   ```
+
+## Backend Services Deployment
+
+### Environment Configuration
+
+Both services require `.env` files with:
+
+**backend-api/.env:**
 ```env
-MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/exam_management
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/exam_management?retryWrites=true&w=majority
 MONGODB_DB=exam_management
 PORT=3000
 NODE_ENV=production
-ALLOWED_ORIGINS=http://localhost:8080,https://yourdomain.com
+ALLOWED_ORIGINS=https://yourdomain.com,https://api.yourdomain.com
 ```
 
-**`backend-chat/.env`**:
+**backend-chat/.env:**
 ```env
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-PORT=3001
-NODE_ENV=production
-ALLOWED_ORIGINS=http://localhost:8080,https://yourdomain.com
-```
-
-2. Build and start services:
-```bash
-docker-compose up -d
-```
-
-3. Check status:
-```bash
-docker-compose ps
-docker-compose logs -f
-```
-
-### Option 2: Separate Hosting
-
-#### Main API on Raspberry Pi
-
-1. SSH into your Raspberry Pi
-2. Install Node.js 18+:
-```bash
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-sudo apt-get install -y nodejs
-```
-
-3. Clone repository and navigate to `backend-api/`
-
-4. Install dependencies:
-```bash
-npm install
-```
-
-5. Create `.env` file with MongoDB connection
-
-6. Start service:
-```bash
-# Using PM2 for process management
-npm install -g pm2
-pm2 start server.js --name exam-api
-pm2 save
-pm2 startup
-```
-
-#### Chat Service on Cloud/Server
-
-1. Deploy to your cloud provider (AWS, DigitalOcean, etc.)
-
-2. Install Node.js and dependencies:
-```bash
-cd backend-chat
-npm install
-```
-
-3. Create `.env` file with Supabase credentials
-
-4. Start service:
-```bash
-# Using PM2
-pm2 start server.js --name exam-chat
-pm2 save
-```
-
-### Option 3: Windows Hosting
-
-Both services can run on Windows.
-
-#### Main API
-
-1. Install Node.js from [nodejs.org](https://nodejs.org)
-
-2. Open PowerShell in `backend-api/`:
-```powershell
-npm install
-# Create .env file
-npm start
-```
-
-#### Chat Service
-
-1. Open PowerShell in `backend-chat/`:
-```powershell
-npm install
-# Create .env file
-npm start
-```
-
-## Environment Variables
-
-### Main API (`backend-api/.env`)
-```env
-MONGODB_URI=mongodb+srv://...
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/exam_management?retryWrites=true&w=majority
 MONGODB_DB=exam_management
-PORT=3000
-NODE_ENV=production
-ALLOWED_ORIGINS=http://localhost:8080,https://yourdomain.com
-SHUTDOWN_TOKEN=your-secret-token  # Optional, for dev
-```
-
-### Chat Service (`backend-chat/.env`)
-```env
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 PORT=3001
 NODE_ENV=production
-ALLOWED_ORIGINS=http://localhost:8080,https://yourdomain.com
-DEFAULT_ADMIN_ID=uuid-here  # Optional
-SHUTDOWN_TOKEN=your-secret-token  # Optional, for dev
+ALLOWED_ORIGINS=https://yourdomain.com,https://chat.yourdomain.com
+DEFAULT_ADMIN_ID=507f1f77bcf86cd799439011
 ```
 
-## Flutter App Configuration
+### Using PM2 (Process Manager)
 
-Update your Flutter app to use separate URLs:
+1. **Install PM2**
+   ```bash
+   npm install -g pm2
+   ```
 
-**`lib/config/api_config.dart`**:
-```dart
-class ApiConfig {
-  static const String baseUrl = 'http://your-api-server:3000';  // Main API
-  static const String chatBaseUrl = 'http://your-chat-server:3001';  // Chat service
+2. **Start services with PM2**
+   ```bash
+   # API Service
+   cd backend-api
+   pm2 start server.js --name exam-api
+   
+   # Chat Service
+   cd ../backend-chat
+   pm2 start server.js --name exam-chat
+   ```
+
+3. **Save PM2 configuration**
+   ```bash
+   pm2 save
+   pm2 startup
+   ```
+
+4. **Monitor services**
+   ```bash
+   pm2 status
+   pm2 logs
+   ```
+
+## Nginx Reverse Proxy Setup
+
+### Install Nginx
+
+```bash
+# Ubuntu/Debian
+sudo apt update
+sudo apt install nginx
+
+# CentOS/RHEL
+sudo yum install nginx
+```
+
+### Configure Nginx
+
+Create `/etc/nginx/sites-available/exam-app`:
+
+```nginx
+# API Service
+server {
+    listen 80;
+    server_name api.yourdomain.com;
+    
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+
+# Chat Service
+server {
+    listen 80;
+    server_name chat.yourdomain.com;
+    
+    location / {
+        proxy_pass http://localhost:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+    
+    # WebSocket support
+    location /socket.io/ {
+        proxy_pass http://localhost:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+    }
 }
 ```
 
-**`lib/config/supabase_config.dart`**:
-```dart
-class SupabaseConfig {
-  static const String supabaseUrl = 'https://your-project.supabase.co';
-  static const String supabaseAnonKey = 'your-anon-key';
-}
+### Enable SSL with Let's Encrypt
+
+```bash
+# Install Certbot
+sudo apt install certbot python3-certbot-nginx
+
+# Get SSL certificates
+sudo certbot --nginx -d api.yourdomain.com
+sudo certbot --nginx -d chat.yourdomain.com
 ```
 
-## Health Checks
+### Enable Site
 
-- Main API: `http://your-server:3000/health`
-- Chat Service: `http://your-server:3001/health`
+```bash
+sudo ln -s /etc/nginx/sites-available/exam-app /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+## Flutter App Deployment
+
+### Build for Production
+
+**Android:**
+```bash
+flutter build apk --release
+# or for app bundle
+flutter build appbundle --release
+```
+
+**iOS:**
+```bash
+flutter build ios --release
+```
+
+### Update API Discovery
+
+Before building, update `lib/services/api_discovery_service.dart` with your production domains:
+
+```dart
+static final List<String> _defaultApiUrls = [
+  'https://api.yourdomain.com',
+  'http://api.yourdomain.com',
+];
+
+static final List<String> _defaultChatUrls = [
+  'https://chat.yourdomain.com',
+  'http://chat.yourdomain.com',
+];
+```
+
+### Publish to App Stores
+
+**Android (Google Play):**
+1. Build app bundle: `flutter build appbundle --release`
+2. Upload to Google Play Console
+3. Complete store listing and submit for review
+
+**iOS (App Store):**
+1. Build iOS app: `flutter build ios --release`
+2. Archive in Xcode
+3. Upload to App Store Connect
+4. Submit for review
+
+## Security Checklist
+
+- [ ] Use HTTPS for all services
+- [ ] Configure CORS properly
+- [ ] Enable rate limiting
+- [ ] Use environment variables for secrets
+- [ ] Keep dependencies updated
+- [ ] Enable MongoDB authentication
+- [ ] Use strong passwords
+- [ ] Configure firewall rules
+- [ ] Enable SSL/TLS certificates
+- [ ] Set up monitoring and logging
 
 ## Monitoring
 
-### Using PM2
+### Health Checks
 
-```bash
-# View logs
-pm2 logs
+Both services provide health check endpoints:
+- API: `GET /health`
+- Chat: `GET /health`
 
-# Monitor
-pm2 monit
+Set up monitoring to check these endpoints regularly.
 
-# Restart services
-pm2 restart exam-api
-pm2 restart exam-chat
-```
+### Logs
 
-### Using Docker
+- **PM2 logs**: `pm2 logs`
+- **Docker logs**: `docker-compose logs`
+- **Nginx logs**: `/var/log/nginx/access.log` and `/var/log/nginx/error.log`
 
-```bash
-# View logs
-docker-compose logs -f
+### Database Monitoring
 
-# Restart services
-docker-compose restart api
-docker-compose restart chat
-```
+Monitor MongoDB Atlas dashboard or set up MongoDB monitoring tools.
+
+## Backup Strategy
+
+1. **Database Backups**: Set up automated MongoDB Atlas backups
+2. **Code Backups**: Use Git repository
+3. **Configuration Backups**: Backup `.env` files securely
+4. **SSL Certificates**: Backup SSL certificates
 
 ## Troubleshooting
 
-### Services not connecting
-- Check firewall rules (ports 3000, 3001)
+### Services Won't Start
+
+- Check MongoDB connection
 - Verify environment variables
-- Check service logs
+- Check port availability
+- Review service logs
 
-### MongoDB connection issues
-- Verify MongoDB URI is correct
-- Check network connectivity
-- Ensure MongoDB allows connections from your IP
+### App Can't Connect
 
-### Supabase connection issues
-- Verify Supabase URL and service role key
-- Check Supabase dashboard for API status
-- Ensure Realtime is enabled for `chat_messages` table
+- Verify backend services are running
+- Check CORS configuration
+- Verify domain names resolve correctly
+- Check firewall rules
 
-## Production Tips
+### SSL Certificate Issues
 
-1. Use reverse proxy (Nginx) for SSL/TLS
-2. Set up process managers (PM2) for auto-restart
-3. Configure log rotation
-4. Set up monitoring and alerts
-5. Use environment-specific configurations
-6. Enable rate limiting
-7. Set up backup strategies
+- Verify domain DNS records
+- Check certificate expiration
+- Renew certificates: `sudo certbot renew`
 
+## Scaling
+
+### Horizontal Scaling
+
+- Use load balancer for multiple instances
+- Configure MongoDB replica set
+- Use Redis for session storage (if needed)
+
+### Vertical Scaling
+
+- Increase server resources
+- Optimize database queries
+- Use caching where appropriate
+
+## Maintenance
+
+### Regular Updates
+
+- Update Node.js dependencies: `npm update`
+- Update Flutter dependencies: `flutter pub upgrade`
+- Keep MongoDB drivers updated
+- Monitor security advisories
+
+### Database Maintenance
+
+- Regular backups
+- Index optimization
+- Cleanup old data (chat messages, etc.)
+
+## Next Steps
+
+- Read [DOCKER_DEPLOYMENT.md](DOCKER_DEPLOYMENT.md) for Docker setup
+- Read [PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md) for detailed server setup
+- Read [SERVER_DEPLOYMENT_WITH_DOMAINS.md](SERVER_DEPLOYMENT_WITH_DOMAINS.md) for domain configuration
+
+---
+
+**Last Updated**: 2024

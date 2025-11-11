@@ -1,95 +1,193 @@
-# Deployment Guide - Quick Start
+# Deployment Guide - Quick Reference
 
 ## Your Domains
-- **API:** `exam-app-api.duckdns.org`
-- **Chat:** `backend-chat.duckdns.org`
+
+- **API Service**: `exam-app-api.duckdns.org` (or `api.yourdomain.com`)
+- **Chat Service**: `backend-chat.duckdns.org` (or `chat.yourdomain.com`)
 
 ## Choose Your Deployment Method
 
 ### Option 1: Production Server with Nginx (Recommended)
 
-**Use:** `SERVER_DEPLOYMENT_WITH_DOMAINS.md`
+**Use:** [SERVER_DEPLOYMENT_WITH_DOMAINS.md](SERVER_DEPLOYMENT_WITH_DOMAINS.md)
 
-This is the complete guide for deploying to a production server with:
+Complete guide for deploying to a production server with:
 - Nginx reverse proxy
-- SSL/HTTPS certificates
+- SSL/HTTPS certificates (Let's Encrypt)
 - Docker containers
 - Domain routing
 
-**Steps:**
-1. Install Docker, Nginx, Certbot on your server
-2. Configure Nginx to proxy to Docker containers
-3. Get SSL certificates
-4. Start Docker containers
-5. Update Flutter app
+**Best for:** Production deployments with custom domains
 
-### Option 2: Quick Deployment
+### Option 2: Docker Deployment
 
-**Use:** `QUICK_SERVER_DEPLOYMENT.md`
+**Use:** [DOCKER_DEPLOYMENT.md](DOCKER_DEPLOYMENT.md)
 
-Fast 5-minute deployment guide.
+Deploy using Docker Compose for:
+- Local development
+- Quick testing
+- Containerized deployment
 
-### Option 3: Local Development
+**Best for:** Local development and testing
 
-**Use:** `DOCKER_DEPLOYMENT.md`
+### Option 3: Manual Server Deployment
 
-For local testing with Docker.
+**Use:** [PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md)
 
-## File Structure
+Deploy services manually with PM2 for:
+- Full control over services
+- Custom configurations
+- Non-Docker environments
 
-```
-exam_management_app/
-├── nginx/                              # Nginx configuration files
-│   ├── exam-app-api.duckdns.org.conf  # API Nginx config
-│   └── backend-chat.duckdns.org.conf  # Chat Nginx config
-├── docker-compose.yml                  # Docker Compose (local dev)
-├── docker-compose.production.yml       # Docker Compose (production)
-├── deploy-server.sh                    # Automated deployment script
-├── SERVER_DEPLOYMENT_WITH_DOMAINS.md   # Complete deployment guide ⭐
-├── QUICK_SERVER_DEPLOYMENT.md          # Quick reference
-└── DEPLOYMENT_SUMMARY.md               # This file
-```
+**Best for:** Servers without Docker or custom setups
 
-## Quick Commands
+## Quick Start
 
-### On Server
+### 1. Local Development
 
 ```bash
-# Start containers
-docker-compose -f docker-compose.production.yml up -d
+# Start backend services
+cd backend-api && npm install && npm start
+cd ../backend-chat && npm install && npm start
 
-# Check status
-docker ps
-
-# View logs
-docker-compose logs -f
-
-# Restart
-docker-compose restart
+# Run Flutter app
+flutter run
 ```
 
-### Build Flutter App
+### 2. Docker Deployment
 
 ```bash
-flutter build apk --release \
-  --dart-define=API_BASE_URL=https://exam-app-api.duckdns.org \
-  --dart-define=CHAT_BASE_URL=https://backend-chat.duckdns.org
+# Configure .env files
+cd backend-api && cp ENV_EXAMPLE.txt .env
+cd ../backend-chat && cp ENV_EXAMPLE.txt .env
+
+# Start services
+docker-compose up -d
+
+# Verify
+curl http://localhost:3000/health
+curl http://localhost:3001/health
 ```
 
-## Need Help?
+### 3. Production Deployment
 
-1. Check `SERVER_DEPLOYMENT_WITH_DOMAINS.md` for detailed instructions
-2. Check troubleshooting section in deployment guides
-3. Verify DNS resolution: `nslookup exam-app-api.duckdns.org`
-4. Check container logs: `docker-compose logs -f`
-5. Check Nginx logs: `sudo tail -f /var/log/nginx/error.log`
+```bash
+# On server: Clone repository
+git clone <repository-url> /var/www/exam-management-app
+cd /var/www/exam-management-app
+
+# Configure environment
+cd backend-api && cp ENV_EXAMPLE.txt .env && nano .env
+cd ../backend-chat && cp ENV_EXAMPLE.txt .env && nano .env
+
+# Start with Docker
+docker-compose up -d
+
+# Or start with PM2
+cd backend-api && pm2 start server.js --name exam-api
+cd ../backend-chat && pm2 start server.js --name exam-chat
+```
+
+## Configuration Checklist
+
+- [ ] MongoDB connection string configured
+- [ ] Environment variables set in `.env` files
+- [ ] CORS origins configured
+- [ ] Ports 3000 and 3001 available
+- [ ] Domain names configured (if using domains)
+- [ ] SSL certificates installed (for HTTPS)
+- [ ] Firewall rules configured
+- [ ] Nginx reverse proxy configured (if using)
+
+## Update Flutter App
+
+After deploying backend services, update the Flutter app:
+
+1. **Edit `lib/services/api_discovery_service.dart`**
+   ```dart
+   static final List<String> _defaultApiUrls = [
+     'https://exam-app-api.duckdns.org',
+     'http://exam-app-api.duckdns.org',
+   ];
+   
+   static final List<String> _defaultChatUrls = [
+     'https://backend-chat.duckdns.org',
+     'http://backend-chat.duckdns.org',
+   ];
+   ```
+
+2. **Rebuild app**
+   ```bash
+   flutter build apk --release
+   # or
+   flutter build ios --release
+   ```
+
+## Verification
+
+### Test Backend Services
+
+```bash
+# API Service
+curl http://localhost:3000/health
+curl https://exam-app-api.duckdns.org/health
+
+# Chat Service
+curl http://localhost:3001/health
+curl https://backend-chat.duckdns.org/health
+```
+
+### Test from Flutter App
+
+- Launch the app
+- Check console logs for API discovery
+- Verify connection to production endpoints
+- Test chat functionality
+
+## Troubleshooting
+
+### Services Not Accessible
+
+- Check Docker containers: `docker-compose ps`
+- Check service logs: `docker-compose logs -f`
+- Verify environment variables
+- Check MongoDB connection
+- Verify ports are not in use
+
+### SSL Certificate Issues
+
+- Verify domain DNS records
+- Check certificate expiration: `sudo certbot certificates`
+- Renew certificates: `sudo certbot renew`
+
+### App Can't Connect
+
+- Verify backend services are running
+- Check CORS configuration
+- Verify domain names in API discovery
+- Check network connectivity
+
+## Documentation Files
+
+- **[QUICK_START.md](QUICK_START.md)** - Quick setup guide
+- **[BACKEND_SETUP.md](BACKEND_SETUP.md)** - Backend configuration
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - General deployment guide
+- **[DOCKER_DEPLOYMENT.md](DOCKER_DEPLOYMENT.md)** - Docker setup
+- **[PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md)** - Production server setup
+- **[SERVER_DEPLOYMENT_WITH_DOMAINS.md](SERVER_DEPLOYMENT_WITH_DOMAINS.md)** - Domain setup guide
 
 ## Security Checklist
 
-- [ ] SSL certificates installed
-- [ ] Firewall configured (only ports 80, 443 open)
-- [ ] Containers not exposed directly (only via Nginx)
-- [ ] .env files not in Docker images
-- [ ] Strong MongoDB credentials
+- [ ] Use HTTPS for all services
+- [ ] Configure CORS properly
+- [ ] Enable rate limiting
+- [ ] Use environment variables for secrets
+- [ ] Keep dependencies updated
+- [ ] Enable MongoDB authentication
+- [ ] Configure firewall rules
+- [ ] Set up monitoring and logging
 - [ ] Regular backups
 
+---
+
+**Last Updated**: 2024

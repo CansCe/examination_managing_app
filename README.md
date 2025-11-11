@@ -1,258 +1,420 @@
 # Exam Management App
 
-A comprehensive exam management application with Flutter frontend and Node.js backend services.
+A comprehensive exam management application built with Flutter (frontend) and Node.js/Express (backend), featuring role-based access control, real-time chat, and MongoDB database integration.
 
-## Features
+## 🎯 Features
 
-- Student, Teacher, and Admin roles
-- Exam creation and management
-- Real-time chat system
-- Question bank management
-- Exam results tracking
+### Core Functionality
+- **Multi-Role System**: Student, Teacher, and Admin roles with distinct permissions
+- **Exam Management**: Create, edit, delete, and assign exams to students
+- **Question Bank**: Manage a centralized question bank with multiple question types
+- **Exam Taking**: Students can take exams with timer, auto-submission, and answer tracking
+- **Results Tracking**: View and manage exam results with detailed analytics
+- **Real-Time Chat**: WebSocket-based chat system for student-teacher communication
 
-## How the Code Works
+### User Experience
+- **Automatic API Discovery**: App automatically finds and connects to available backend services
+- **Horizontal Scrolling**: Upcoming exams displayed in a draggable, fade-effect horizontal list
+- **Responsive Design**: Optimized for mobile devices with smooth animations
+- **Offline Support**: Local data caching with SharedPreferences
 
-### Architecture Overview
+## 🏗️ Architecture
 
-The application follows a client-server architecture with three main components:
+### Frontend (Flutter)
+- **Framework**: Flutter 3.2.3+
+- **Language**: Dart
+- **State Management**: StatefulWidget with setState
+- **Key Packages**:
+  - `http`: REST API communication
+  - `socket_io_client`: WebSocket connections for chat
+  - `mongo_dart`: Direct MongoDB access (for mock data generation)
+  - `shared_preferences`: Local storage for API endpoints and user preferences
+  - `uuid`: Unique identifier generation
 
-1. **Flutter Mobile App (Frontend)**
-   - Cross-platform mobile application built with Flutter/Dart
-   - Communicates with backend services via REST API and WebSocket
-   - Supports automatic API endpoint discovery
-   - Handles authentication, exam management, and real-time chat
+### Backend Services
 
-2. **Backend API Service (Node.js/Express)**
-   - Main REST API service running on port 3000
-   - Handles exam, student, teacher, and question management
-   - Uses MongoDB for data persistence
-   - Provides CRUD operations for all entities
+#### 1. Main API Service (`backend-api`)
+- **Port**: 3000
+- **Technology**: Node.js + Express
+- **Database**: MongoDB
+- **Features**:
+  - REST API for exams, students, teachers, questions, and results
+  - Authentication endpoints
+  - Input sanitization to prevent NoSQL injection
+  - Rate limiting on all endpoints
+  - CORS configuration
+  - Health check endpoint
 
-3. **Backend Chat Service (Node.js/Express + Socket.io)**
-   - Real-time chat service running on port 3001
-   - Uses MongoDB for message storage
-   - Implements WebSocket connections via Socket.io for live messaging
-   - Handles message broadcasting to connected clients
+#### 2. Chat Service (`backend-chat`)
+- **Port**: 3001
+- **Technology**: Node.js + Express + Socket.io
+- **Database**: MongoDB
+- **Features**:
+  - Real-time messaging via WebSocket
+  - Message persistence in MongoDB
+  - Room-based chat (one-on-one conversations)
+  - Automatic cleanup of messages older than 30 days
+  - Support for students and teachers chatting with admins
 
-### Real-Time Chat System
+### Database
+- **MongoDB**: Primary database (MongoDB Atlas or self-hosted)
+- **Collections**:
+  - `exams`: Exam definitions
+  - `students`: Student profiles
+  - `teachers`: Teacher profiles
+  - `questions`: Question bank
+  - `student_exams`: Exam assignments
+  - `exam_results`: Exam submissions and results
+  - `messages`: Chat messages
+  - `conversations`: Chat conversation metadata
 
-The chat system uses a hybrid approach:
-
-1. **Message Sending**: Messages are sent via REST API to the chat service
-2. **Message Storage**: Messages are saved to MongoDB
-3. **Real-Time Broadcasting**: Socket.io immediately broadcasts the message to all clients in the conversation room
-4. **Message Reception**: Clients receive messages via WebSocket events and update the UI instantly
-
-**Flow:**
-- User sends message → REST API endpoint → Save to MongoDB → Broadcast via Socket.io → All connected clients receive message → UI updates immediately
-
-**Room Management:**
-- Each conversation has a unique room ID (created by sorting user IDs)
-- Both sender and receiver join the same room when opening chat
-- Messages are broadcast to all clients in that room
-- Supports both students and teachers chatting with admins
-
-### Database Operations
-
-All CRUD operations update MongoDB immediately:
-
-- **Exams**: Create, update, delete exams. Deletion also cleans up student assignments
-- **Students**: Create, update, delete students. Supports both studentId and rollNumber fields
-- **Questions**: Create, update, delete questions
-- **Chat Messages**: All messages are persisted to MongoDB with timestamps and read status
-
-### Security Features
-
-- Input sanitization to prevent NoSQL injection
-- Rate limiting on API endpoints
-- CORS configuration for allowed origins
-- User role validation
-- Environment variables for sensitive data (not copied into Docker images)
-
-## How the Server is Hosted
-
-### Local Development
-
-The application runs locally using Docker Compose:
-
-1. **Docker Compose Setup**
-   - `docker-compose.yml` orchestrates all services
-   - Services run in separate containers but share the same network
-   - Environment variables are loaded from `.env` files on the host (not copied into images)
-   - Ports are mapped to localhost for local access
-
-2. **Services**
-   - Backend API: `localhost:3000`
-   - Backend Chat: `localhost:3001`
-   - MongoDB: Internal container (not exposed externally)
-
-3. **Configuration**
-   - Copy `ENV_EXAMPLE.txt` to `.env` files in each backend directory
-   - Set `MONGODB_URI` to your MongoDB connection string
-   - Services automatically load environment variables at runtime
-
-### Production Deployment
-
-For production, the application can be deployed to a dedicated server:
-
-1. **Server Requirements**
-   - Linux server (Ubuntu recommended)
-   - Docker and Docker Compose installed
-   - Public IP address or domain name
-   - MongoDB (can be hosted on the same server or external service)
-
-2. **Deployment Options**
-
-   **Option A: Direct Docker Deployment**
-   - Deploy `docker-compose.yml` to server
-   - Configure environment variables
-   - Expose ports 3000 and 3001
-   - Use firewall rules to restrict access
-
-   **Option B: Nginx Reverse Proxy (Recommended)**
-   - Install Nginx on the server
-   - Configure reverse proxy to forward requests to Docker containers
-   - Set up SSL certificates (Let's Encrypt)
-   - Use domain names (DuckDNS or custom domains)
-   - Containers run on internal ports, Nginx handles external traffic
-
-3. **Domain Setup**
-   - Use DuckDNS for free dynamic DNS (or custom domain)
-   - Point domain to server's public IP
-   - Configure Nginx to route traffic:
-     - `api.yourdomain.com` → Backend API (port 3000)
-     - `chat.yourdomain.com` → Backend Chat (port 3001)
-
-4. **Mobile App Configuration**
-   - App uses automatic endpoint discovery
-   - Can also be configured at build time with `--dart-define` flags
-   - App tries multiple potential domains and uses the first that responds
-
-### Server Hosting Providers
-
-Common options for hosting:
-
-- **AWS EC2**: Virtual private server with full control
-- **DigitalOcean**: Simple VPS with predictable pricing
-- **Vultr**: High-performance VPS with global locations
-- **Linode**: Developer-friendly cloud hosting
-- **Hetzner**: European provider with competitive pricing
-
-All providers offer:
-- Linux servers (Ubuntu/Debian)
-- Public IP addresses
-- Root access for Docker installation
-- Firewall/security group configuration
-
-### Network Architecture
-
-```
-Internet
-   |
-   | (HTTPS/HTTP)
-   |
-Nginx (Port 80/443)
-   |
-   | (Internal network)
-   |
-   +---> Backend API Container (Port 3000)
-   |
-   +---> Backend Chat Container (Port 3001)
-   |
-   +---> MongoDB (Internal, not exposed)
-```
-
-### Environment Variables
-
-Environment variables are passed at runtime (not baked into Docker images):
-
-- `MONGODB_URI`: MongoDB connection string
-- `PORT`: Service port (3000 for API, 3001 for Chat)
-- `ALLOWED_ORIGINS`: Comma-separated list of allowed CORS origins
-- `DOCKER_CONTAINER`: Set to `true` when running in Docker
-
-### Quick Start
-
-**Local Development:**
-```bash
-docker-compose up -d
-```
-
-**Production Build:**
-```bash
-# Android
-flutter build apk --release \
-  --dart-define=API_BASE_URL=https://api.yourdomain.com \
-  --dart-define=CHAT_BASE_URL=https://chat.yourdomain.com
-
-# iOS
-flutter build ios --release \
-  --dart-define=API_BASE_URL=https://api.yourdomain.com \
-  --dart-define=CHAT_BASE_URL=https://chat.yourdomain.com
-```
-
-## Documentation
-
-### Deployment Guides
-
-- **[docs/DEPLOYING_SERVER.md](docs/DEPLOYING_SERVER.md)** - Complete server deployment and troubleshooting guide
-- **[docs/SERVER_PROVIDERS_GUIDE.md](docs/SERVER_PROVIDERS_GUIDE.md)** - Where to get a server (DigitalOcean, Vultr, AWS, etc.)
-- **[docs/AWS_EC2_DEPLOYMENT.md](docs/AWS_EC2_DEPLOYMENT.md)** - Complete AWS EC2 deployment guide
-- **[docs/LAPTOP_VS_SERVER_IP.md](docs/LAPTOP_VS_SERVER_IP.md)** - Laptop IP vs Server IP - Understanding the difference
-- **[docs/SERVER_DEPLOYMENT_WITH_DOMAINS.md](docs/SERVER_DEPLOYMENT_WITH_DOMAINS.md)** - Complete server deployment with DuckDNS domains
-- **[docs/DOCKER_EXPOSE_PORTS.md](docs/DOCKER_EXPOSE_PORTS.md)** - How to expose Docker containers to public internet
-- **[docs/DOCKER_EXPOSE_PUBLIC_URL.md](docs/DOCKER_EXPOSE_PUBLIC_URL.md)** - Make Docker containers accessible via public URL (Nginx)
-- **[docs/DEDICATED_SERVER_DOCKER_DEPLOYMENT.md](docs/DEDICATED_SERVER_DOCKER_DEPLOYMENT.md)** - Docker on your own dedicated server/hardware
-- **[docs/DEPLOYMENT_GUIDE.md](docs/DEPLOYMENT_GUIDE.md)** - Master deployment guide (Docker + DNS + Domain setup)
-- **[docs/PRODUCTION_DEPLOYMENT.md](docs/PRODUCTION_DEPLOYMENT.md)** - Complete guide for deploying to a dedicated server
-- **[docs/DOCKER_DEPLOYMENT.md](docs/DOCKER_DEPLOYMENT.md)** - Local development with Docker
-- **[docs/DOMAIN_SETUP_GUIDE.md](docs/DOMAIN_SETUP_GUIDE.md)** - How to get domain names and safer alternatives
-- **[docs/QUICK_DOMAIN_SETUP.md](docs/QUICK_DOMAIN_SETUP.md)** - Quick 5-minute domain setup guide
-- **[docs/AUTO_DISCOVERY_SETUP.md](docs/AUTO_DISCOVERY_SETUP.md)** - Auto-discovery API setup guide
-
-### Other Guides
-
-- **[docs/CHAT_IMPLEMENTATION.md](docs/CHAT_IMPLEMENTATION.md)** - Chat service documentation
-
-## Project Structure
+## 📁 Project Structure
 
 ```
 exam_management_app/
-├── lib/                    # Flutter app source code
-│   ├── config/            # Configuration files
-│   ├── features/          # App features (pages, widgets)
-│   ├── models/            # Data models
-│   └── services/          # API and service classes
-├── backend-api/           # Main API service (MongoDB)
-├── backend-chat/          # Chat service (MongoDB + Socket.io)
-├── docs/                  # Documentation files (.md)
-├── docker-compose.yml     # Docker configuration
-└── build-production.sh    # Production build script
+├── lib/                          # Flutter app source code
+│   ├── config/                   # Configuration files
+│   │   ├── api_config.dart      # API endpoint configuration
+│   │   ├── database_config.dart # Database connection config
+│   │   └── routes.dart          # App routing configuration
+│   ├── features/                 # App features (pages, widgets)
+│   │   ├── admin/               # Admin-specific pages
+│   │   ├── exams/               # Exam management pages
+│   │   ├── questions/           # Question bank pages
+│   │   ├── shared/              # Shared components
+│   │   ├── home_page.dart       # Main home screen
+│   │   ├── login_page.dart      # Authentication page
+│   │   ├── exam_details_page.dart
+│   │   └── examination_page.dart
+│   ├── models/                  # Data models
+│   │   ├── exam.dart
+│   │   ├── student.dart
+│   │   ├── teacher.dart
+│   │   ├── question.dart
+│   │   └── user_role.dart
+│   ├── services/                # API and service classes
+│   │   ├── api_service.dart     # REST API client
+│   │   ├── atlas_service.dart   # MongoDB Atlas service
+│   │   ├── chat_service.dart    # WebSocket chat client
+│   │   ├── auth_service.dart    # Authentication service
+│   │   ├── api_discovery_service.dart # Auto-discovery service
+│   │   └── mongodb_service.dart # Direct MongoDB access
+│   ├── utils/                   # Utility functions
+│   └── main.dart                # App entry point
+├── backend-api/                  # Main API service
+│   ├── controllers/             # Request handlers
+│   ├── routes/                  # API routes
+│   ├── middleware/              # Express middleware
+│   │   ├── rateLimiter.js      # Rate limiting
+│   │   └── errorHandler.js     # Error handling
+│   ├── utils/                   # Utility functions
+│   │   └── inputSanitizer.js   # Input sanitization
+│   ├── config/                  # Configuration
+│   │   └── database.js          # MongoDB connection
+│   ├── server.js                # Express server
+│   ├── package.json
+│   └── ENV_EXAMPLE.txt          # Environment variables template
+├── backend-chat/                 # Chat service
+│   ├── controllers/             # Chat controllers
+│   ├── routes/                  # Chat routes
+│   ├── sockets/                  # Socket.io handlers
+│   ├── scripts/                 # Utility scripts
+│   │   └── cleanup-old-messages.js
+│   ├── config/                  # Configuration
+│   │   ├── database.js          # MongoDB connection
+│   │   └── socket.js            # Socket.io setup
+│   ├── server.js                # Express + Socket.io server
+│   ├── package.json
+│   └── ENV_EXAMPLE.txt
+├── scripts/                      # Utility scripts
+│   └── generate_mock_data_standalone.bat
+├── docs/                         # Documentation
+├── docker-compose.yml            # Docker Compose configuration
+└── pubspec.yaml                  # Flutter dependencies
 ```
 
-## Configuration
+## 🚀 Quick Start
 
-The app supports **automatic API endpoint discovery**! No build-time configuration needed.
+### Prerequisites
+- **Flutter SDK**: 3.2.3 or higher
+- **Node.js**: 18.0.0 or higher
+- **MongoDB**: MongoDB Atlas account or local MongoDB instance
+- **Docker** (optional): For containerized deployment
 
-### Automatic Discovery (Recommended)
+### Local Development Setup
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd exam_management_app
+   ```
+
+2. **Set up Backend API**
+   ```bash
+   cd backend-api
+   npm install
+   cp ENV_EXAMPLE.txt .env
+   # Edit .env and add your MONGODB_URI
+   npm start
+   ```
+
+3. **Set up Chat Service**
+   ```bash
+   cd backend-chat
+   npm install
+   cp ENV_EXAMPLE.txt .env
+   # Edit .env and add your MONGODB_URI (same as backend-api)
+   npm start
+   ```
+
+4. **Set up Flutter App**
+   ```bash
+   flutter pub get
+   flutter run
+   ```
+
+### Docker Setup (Recommended)
+
+1. **Configure environment variables**
+   ```bash
+   # Backend API
+   cd backend-api
+   cp ENV_EXAMPLE.txt .env
+   # Edit .env with your MongoDB URI
+   
+   # Chat Service
+   cd backend-chat
+   cp ENV_EXAMPLE.txt .env
+   # Edit .env with your MongoDB URI
+   ```
+
+2. **Start services**
+   ```bash
+   docker-compose up -d
+   ```
+
+3. **Verify services are running**
+   ```bash
+   curl http://localhost:3000/health  # API service
+   curl http://localhost:3001/health  # Chat service
+   ```
+
+## 📱 Mobile App Configuration
+
+### Automatic API Discovery (Recommended)
 
 The app automatically discovers available API endpoints on first launch:
-- Tries multiple potential domains
+- Tries multiple potential domains (localhost, production domains)
 - Uses the first one that responds
 - Saves it locally for future use
 - Re-validates on each launch
 
 **To add your domains:**
 1. Edit `lib/services/api_discovery_service.dart`
-2. Add your domain URLs to the `_defaultApiUrls` and `_defaultChatUrls` lists
+2. Add your domain URLs to `_defaultApiUrls` and `_defaultChatUrls` lists
 3. Build the app normally (no special flags needed)
 
 See [docs/AUTO_DISCOVERY_SETUP.md](docs/AUTO_DISCOVERY_SETUP.md) for detailed instructions.
 
 ### Manual Configuration (Optional)
 
-- **Build-time:** Use `--dart-define` flags (overrides auto-discovery)
-- **Runtime:** App settings allow manual configuration
-- **Development:** Uses `localhost` as fallback
+**Build-time configuration:**
+```bash
+flutter build apk --release \
+  --dart-define=API_BASE_URL=https://api.yourdomain.com \
+  --dart-define=CHAT_BASE_URL=https://chat.yourdomain.com
+```
 
-See `lib/config/api_config.dart` for configuration options.
+**Runtime configuration:**
+- App settings allow manual API endpoint configuration
+- Falls back to localhost for development
+
+## 🔒 Security Features
+
+### Backend Security
+- **Input Sanitization**: All user inputs are sanitized to prevent NoSQL injection
+- **Rate Limiting**: API endpoints are protected with rate limiting:
+  - Authentication endpoints: 5 requests per 15 minutes
+  - Read operations: 100 requests per 15 minutes
+  - Write operations: 20 requests per 15 minutes
+  - Health checks: 200 requests per 15 minutes
+- **CORS**: Configured to allow only specified origins
+- **Helmet**: Security headers middleware
+- **Environment Variables**: Sensitive data (MongoDB URI) stored in `.env` files, not in code
+
+### Frontend Security
+- **API Discovery**: Validates endpoints before connecting
+- **Error Handling**: Graceful error handling for network failures
+- **Input Validation**: Client-side validation before API calls
+
+## 🗄️ Database Schema
+
+### Exams Collection
+```javascript
+{
+  _id: ObjectId,
+  title: String,
+  description: String,
+  subject: String,
+  difficulty: String,
+  examDate: Date,
+  examTime: String,
+  duration: Number, // minutes
+  maxStudents: Number,
+  questions: [ObjectId], // References to questions collection
+  createdBy: ObjectId, // Teacher/Admin ID
+  createdAt: Date,
+  updatedAt: Date,
+  status: String
+}
+```
+
+### Students Collection
+```javascript
+{
+  _id: ObjectId,
+  studentId: String, // Format: 20210001, 20210002, etc.
+  rollNumber: String,
+  name: String,
+  email: String,
+  className: String,
+  assignedExams: [ObjectId], // Exam IDs
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+### Questions Collection
+```javascript
+{
+  _id: ObjectId,
+  questionText: String,
+  type: String, // 'multiple_choice', 'true_false', 'short_answer'
+  options: [String], // For multiple choice
+  correctAnswer: String,
+  points: Number,
+  subject: String,
+  difficulty: String,
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+### Messages Collection
+```javascript
+{
+  _id: ObjectId,
+  conversationId: String,
+  senderId: ObjectId,
+  receiverId: ObjectId,
+  message: String,
+  timestamp: Date,
+  read: Boolean,
+  createdAt: Date
+}
+```
+
+## 📚 Documentation
+
+### Getting Started
+- **[docs/QUICK_START.md](docs/QUICK_START.md)** - Quick setup guide for local development
+- **[docs/BACKEND_SETUP.md](docs/BACKEND_SETUP.md)** - Detailed backend setup instructions
+- **[docs/AUTO_DISCOVERY_SETUP.md](docs/AUTO_DISCOVERY_SETUP.md)** - API auto-discovery configuration
+
+### Deployment
+- **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Complete deployment guide
+- **[docs/DOCKER_DEPLOYMENT.md](docs/DOCKER_DEPLOYMENT.md)** - Docker deployment guide
+- **[docs/PRODUCTION_DEPLOYMENT.md](docs/PRODUCTION_DEPLOYMENT.md)** - Production server deployment
+- **[docs/SERVER_DEPLOYMENT_WITH_DOMAINS.md](docs/SERVER_DEPLOYMENT_WITH_DOMAINS.md)** - Deployment with domain names
+
+### Features
+- **[docs/CHAT_IMPLEMENTATION.md](docs/CHAT_IMPLEMENTATION.md)** - Chat service documentation
+- **[docs/CHAT_SERVICE_USAGE.md](docs/CHAT_SERVICE_USAGE.md)** - How to use the chat service
+
+## 🛠️ Development
+
+### Running Tests
+```bash
+flutter test
+```
+
+### Building for Production
+
+**Android:**
+```bash
+flutter build apk --release
+```
+
+**iOS:**
+```bash
+flutter build ios --release
+```
+
+### Generating Mock Data
+```bash
+# Windows
+scripts\generate_mock_data_standalone.bat
+
+# The script will:
+# 1. Generate mock students, teachers, questions, and exams
+# 2. Upload data to MongoDB Atlas
+# 3. Assign exams to students
+```
+
+## 🔧 Configuration
+
+### Environment Variables
+
+#### Backend API (`backend-api/.env`)
+```env
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/exam_management
+MONGODB_DB=exam_management
+PORT=3000
+NODE_ENV=development
+ALLOWED_ORIGINS=http://localhost:8080,https://yourdomain.com
+```
+
+#### Chat Service (`backend-chat/.env`)
+```env
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/exam_management
+MONGODB_DB=exam_management
+PORT=3001
+NODE_ENV=development
+ALLOWED_ORIGINS=http://localhost:8080,https://yourdomain.com
+DEFAULT_ADMIN_ID=507f1f77bcf86cd799439011
+```
+
+## 🐛 Troubleshooting
+
+### Backend Services Not Starting
+- Check MongoDB connection string in `.env` files
+- Verify ports 3000 and 3001 are not in use
+- Check Node.js version (requires 18.0.0+)
+
+### Mobile App Can't Connect
+- Verify backend services are running
+- Check API discovery service logs
+- Ensure CORS is configured correctly
+- For Android emulator, use `10.0.2.2` instead of `localhost`
+
+### Chat Not Working
+- Verify Socket.io connection in browser console
+- Check WebSocket support in network configuration
+- Ensure chat service is running on port 3001
+
+## 📝 License
+
+This project is private and not licensed for public use.
+
+## 🤝 Contributing
+
+This is a public project. For internal contributions, please follow the existing code style and submit pull requests for review.
+
+## 📞 Support
+
+For issues or questions:
+1. Check the documentation in the `docs/` folder
+2. Review error logs in backend services
+3. Check Flutter app console for API discovery logs
+
+---

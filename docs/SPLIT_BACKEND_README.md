@@ -1,8 +1,8 @@
 # Split Backend Architecture
 
-The backend has been split into two independent services for flexible deployment.
+The backend has been split into two independent services for flexible deployment and scalability.
 
-## Services
+## Services Overview
 
 ### 1. Main API Service (`backend-api/`)
 - **Database**: MongoDB
@@ -15,32 +15,45 @@ The backend has been split into two independent services for flexible deployment
   - `/api/teachers` - Teacher management
   - `/api/questions` - Question bank
   - `/api/exam-results` - Exam results
+- **Features**:
+  - REST API
+  - Input sanitization
+  - Rate limiting
+  - CORS support
 
 ### 2. Chat Service (`backend-chat/`)
-- **Database**: Supabase (PostgreSQL)
+- **Database**: MongoDB (same database as API service)
 - **Port**: 3001
 - **Purpose**: Real-time chat messaging
 - **Endpoints**:
-  - `/api/chat/*` - All chat-related endpoints
-  - Uses Supabase Realtime for real-time updates
+  - `/api/chat/conversations/:userId` - Get conversations
+  - `/api/chat/messages/:conversationId` - Get messages
+  - WebSocket: Real-time messaging via Socket.io
+- **Features**:
+  - WebSocket support (Socket.io)
+  - Message persistence
+  - Automatic message cleanup (30 days)
+  - Real-time message delivery
 
 ## Quick Start
 
-### Main API (MongoDB)
+### Main API Service
 
 ```bash
 cd backend-api
 npm install
-# Create .env with MONGODB_URI
+cp ENV_EXAMPLE.txt .env
+# Edit .env with MONGODB_URI
 npm start
 ```
 
-### Chat Service (Supabase)
+### Chat Service
 
 ```bash
 cd backend-chat
 npm install
-# Create .env with SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY
+cp ENV_EXAMPLE.txt .env
+# Edit .env with MONGODB_URI (same as API service)
 npm start
 ```
 
@@ -49,30 +62,108 @@ npm start
 Deploy both services together:
 
 ```bash
+# Configure .env files
+cd backend-api && cp ENV_EXAMPLE.txt .env
+cd ../backend-chat && cp ENV_EXAMPLE.txt .env
+
+# Start services
 docker-compose up -d
+
+# Verify
+curl http://localhost:3000/health
+curl http://localhost:3001/health
 ```
 
 ## Separate Hosting
 
-- **Main API**: Can run on Raspberry Pi with MongoDB
-- **Chat Service**: Can run on cloud/server with Supabase
+Both services can be hosted separately:
 
-See `DEPLOYMENT.md` for detailed instructions.
+- **Main API**: Can run on any server with Node.js
+- **Chat Service**: Can run on any server with Node.js
+- **Database**: Both services can share the same MongoDB instance
 
 ## Flutter App Configuration
 
-Update `lib/config/api_config.dart`:
+The Flutter app uses auto-discovery to find available endpoints. Update `lib/services/api_discovery_service.dart` to add your domains:
 
 ```dart
-static const String baseUrl = 'http://your-api-server:3000';  // Main API
-static const String chatBaseUrl = 'http://your-chat-server:3001';  // Chat service
+static final List<String> _defaultApiUrls = [
+  'https://exam-app-api.duckdns.org',
+  'http://exam-app-api.duckdns.org',
+];
+
+static final List<String> _defaultChatUrls = [
+  'https://backend-chat.duckdns.org',
+  'http://backend-chat.duckdns.org',
+];
 ```
 
 ## Benefits
 
 1. **Independent Scaling**: Scale chat service separately from main API
-2. **Flexible Hosting**: Main API on Pi, chat on cloud
-3. **Technology Choice**: MongoDB for main data, Supabase for real-time chat
+2. **Flexible Hosting**: Host services on different servers if needed
+3. **Technology Consistency**: Both services use MongoDB
 4. **Isolation**: Chat issues don't affect main API
 5. **Easy Updates**: Update services independently
+6. **Resource Optimization**: Allocate resources based on service needs
 
+## Architecture Diagram
+
+```
+┌─────────────────┐         ┌─────────────────┐
+│   Flutter App   │         │   Flutter App   │
+│                 │         │                 │
+│  Auto-Discovery │         │  Auto-Discovery │
+└────────┬────────┘         └────────┬────────┘
+         │                           │
+         │                           │
+    ┌────▼─────┐              ┌─────▼─────┐
+    │   API    │              │   Chat    │
+    │ Service  │              │ Service   │
+    │ :3000    │              │ :3001     │
+    └────┬─────┘              └─────┬─────┘
+         │                          │
+         │                          │
+         └──────────┬───────────────┘
+                    │
+              ┌─────▼─────┐
+              │  MongoDB  │
+              │  Database │
+              └───────────┘
+```
+
+## Configuration
+
+Both services use MongoDB. They can share the same database or use separate databases:
+
+**Shared Database (Recommended):**
+```env
+# backend-api/.env
+MONGODB_URI=mongodb+srv://.../exam_management
+MONGODB_DB=exam_management
+
+# backend-chat/.env
+MONGODB_URI=mongodb+srv://.../exam_management
+MONGODB_DB=exam_management
+```
+
+**Separate Databases:**
+```env
+# backend-api/.env
+MONGODB_URI=mongodb+srv://.../exam_management
+MONGODB_DB=exam_management
+
+# backend-chat/.env
+MONGODB_URI=mongodb+srv://.../exam_management_chat
+MONGODB_DB=exam_management_chat
+```
+
+## Next Steps
+
+- Read [BACKEND_SETUP.md](BACKEND_SETUP.md) for detailed setup
+- Read [DEPLOYMENT.md](DEPLOYMENT.md) for deployment guide
+- Read [DOCKER_DEPLOYMENT.md](DOCKER_DEPLOYMENT.md) for Docker setup
+
+---
+
+**Last Updated**: 2024

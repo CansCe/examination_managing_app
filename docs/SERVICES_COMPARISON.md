@@ -5,10 +5,10 @@
 | Feature | Main API Service | Chat Service |
 |---------|-----------------|--------------|
 | **Folder** | `backend-api/` | `backend-chat/` |
-| **Database** | MongoDB | Supabase (PostgreSQL) |
+| **Database** | MongoDB | MongoDB |
 | **Port** | 3000 | 3001 |
 | **Config File** | `backend-api/.env` | `backend-chat/.env` |
-| **Start Script** | `start-backend-api.ps1` | `start-backend-chat.ps1` |
+| **Protocol** | HTTP REST | HTTP REST + WebSocket |
 | **Error Identifier** | `MAIN API SERVICE` | `CHAT SERVICE` |
 | **Health Check** | `http://localhost:3000/health` | `http://localhost:3001/health` |
 
@@ -16,36 +16,45 @@
 
 ### Main API (`backend-api/.env`)
 ```env
-MONGODB_URI=mongodb+srv://...
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/exam_management?retryWrites=true&w=majority
 MONGODB_DB=exam_management
 PORT=3000
+NODE_ENV=development
+ALLOWED_ORIGINS=http://localhost:8080,http://localhost:3000,http://localhost:3001
 ```
 
 ### Chat Service (`backend-chat/.env`)
 ```env
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your-key
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/exam_management?retryWrites=true&w=majority
+MONGODB_DB=exam_management
 PORT=3001
+NODE_ENV=development
+ALLOWED_ORIGINS=http://localhost:8080,http://localhost:3000,http://localhost:3001
+DEFAULT_ADMIN_ID=507f1f77bcf86cd799439011
 ```
+
+**Note:** Both services can use the same MongoDB database and connection string.
 
 ## Error Identification
 
 ### Main API Errors
 ```
 ╔══════════════════════════════════════════════════════════╗
-║  ✗ MAIN API SERVICE - Error                           ║
+║  ✗ MAIN API SERVICE - Configuration Error               ║
 ╚══════════════════════════════════════════════════════════╝
 ✗ Service: MAIN API (backend-api)
 ✗ Database: MongoDB
+✗ Error: MONGODB_URI not found
 ```
 
 ### Chat Service Errors
 ```
 ╔══════════════════════════════════════════════════════════╗
-║  ✗ CHAT SERVICE - Error                               ║
+║  ✗ CHAT SERVICE - Configuration Error                     ║
 ╚══════════════════════════════════════════════════════════╝
 ✗ Service: CHAT SERVICE (backend-chat)
-✗ Database: Supabase
+✗ Database: MongoDB
+✗ Error: MONGODB_URI not found
 ```
 
 ## Startup Messages
@@ -53,15 +62,22 @@ PORT=3001
 ### Main API Startup
 ```
 ╔══════════════════════════════════════════════════════════╗
-║     MAIN API SERVICE - Starting...                      ║
+║     MAIN API SERVICE - Starting...                       ║
 ╚══════════════════════════════════════════════════════════╝
+
+✅ MongoDB connected successfully
+✅ Server running on port 3000
 ```
 
 ### Chat Service Startup
 ```
 ╔══════════════════════════════════════════════════════════╗
-║     CHAT SERVICE - Starting...                          ║
+║     CHAT SERVICE - Starting...                           ║
 ╚══════════════════════════════════════════════════════════╝
+
+✅ MongoDB connected successfully
+✅ Socket.io server initialized
+✅ Server running on port 3001
 ```
 
 ## Health Check Responses
@@ -81,10 +97,44 @@ PORT=3001
 {
   "ok": true,
   "service": "CHAT SERVICE",
-  "database": "Supabase",
+  "database": "MongoDB",
   "port": 3001
 }
 ```
+
+## API Endpoints
+
+### Main API Service (Port 3000)
+- `GET /health` - Health check
+- `POST /api/auth/login` - Authentication
+- `GET /api/exams` - List exams
+- `POST /api/exams` - Create exam
+- `GET /api/students` - List students
+- `GET /api/teachers` - List teachers
+- `GET /api/questions` - List questions
+- `GET /api/exam-results` - List exam results
+
+### Chat Service (Port 3001)
+- `GET /health` - Health check
+- `GET /api/chat/conversations/:userId` - Get conversations
+- `GET /api/chat/messages/:conversationId` - Get messages
+- WebSocket: `ws://localhost:3001` - Real-time messaging
+
+## Database Collections
+
+### Main API Service Uses
+- `exams` - Exam definitions
+- `students` - Student profiles
+- `teachers` - Teacher profiles
+- `questions` - Question bank
+- `student_exams` - Exam assignments
+- `exam_results` - Exam submissions and results
+
+### Chat Service Uses
+- `messages` - Chat messages
+- `conversations` - Chat conversation metadata
+
+**Note:** Both services can share the same MongoDB database.
 
 ## Troubleshooting by Service
 
@@ -93,26 +143,81 @@ PORT=3001
 2. Verify `MONGODB_URI`
 3. Test MongoDB connection
 4. Check port 3000 availability
+5. Verify CORS configuration
 
 ### Chat Service Issues
 1. Check `backend-chat/.env`
-2. Verify `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`
-3. Test Supabase connection
+2. Verify `MONGODB_URI`
+3. Test MongoDB connection
 4. Check port 3001 availability
-5. Ensure Realtime is enabled
+5. Verify WebSocket support
+6. Check Socket.io connection
 
 ## Quick Commands
 
-```powershell
-# Start both
-.\start-all-services.ps1
+### Start Services
 
-# Start individually
-.\start-backend-api.ps1
-.\start-backend-chat.ps1
+**Local:**
+```bash
+# Main API
+cd backend-api && npm start
 
-# Health checks
+# Chat Service
+cd backend-chat && npm start
+```
+
+**Docker:**
+```bash
+docker-compose up -d
+```
+
+### Health Checks
+```bash
 curl http://localhost:3000/health  # Main API
 curl http://localhost:3001/health  # Chat Service
 ```
 
+### View Logs
+
+**Docker:**
+```bash
+docker-compose logs -f api
+docker-compose logs -f chat
+```
+
+**PM2:**
+```bash
+pm2 logs exam-api
+pm2 logs exam-chat
+```
+
+## Differences
+
+| Aspect | Main API | Chat Service |
+|--------|----------|--------------|
+| **Primary Function** | CRUD operations | Real-time messaging |
+| **Communication** | REST API | REST + WebSocket |
+| **Data Focus** | Exams, students, teachers | Messages, conversations |
+| **Real-time** | No | Yes (Socket.io) |
+| **Rate Limiting** | Yes | Yes |
+| **Input Sanitization** | Yes | Yes |
+
+## Similarities
+
+- Both use MongoDB
+- Both use Node.js + Express
+- Both have rate limiting
+- Both have input sanitization
+- Both support CORS
+- Both have health check endpoints
+- Both can share the same database
+
+## Next Steps
+
+- Read [BACKEND_SETUP.md](BACKEND_SETUP.md) for detailed setup
+- Read [README_BACKEND.md](README_BACKEND.md) for quick reference
+- Read [DEPLOYMENT.md](DEPLOYMENT.md) for deployment guide
+
+---
+
+**Last Updated**: 2024

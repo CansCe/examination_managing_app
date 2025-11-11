@@ -1,209 +1,318 @@
-# Backend Services Setup Guide
+# Backend Setup Guide
 
-This project has **two separate backend services** that run independently.
+This guide provides detailed instructions for setting up and configuring the backend services for the Exam Management App.
 
-## Services Overview
+## Architecture Overview
 
-### 1. Main API Service (`backend-api/`)
-- **Database**: MongoDB
-- **Port**: 3000
-- **Purpose**: Core exam management (auth, exams, students, teachers, questions, results)
-- **Configuration**: `backend-api/.env`
+The backend consists of two separate services:
 
-### 2. Chat Service (`backend-chat/`)
-- **Database**: Supabase (PostgreSQL)
-- **Port**: 3001
-- **Purpose**: Real-time chat messaging
-- **Configuration**: `backend-chat/.env`
+1. **Main API Service** (`backend-api`): REST API for exams, students, teachers, questions, and results
+2. **Chat Service** (`backend-chat`): WebSocket-based real-time chat service
 
-## Quick Start
+Both services use MongoDB as the database and can share the same database instance.
 
-### Option 1: Start Both Services (Windows)
+## Prerequisites
 
-```powershell
-.\start-all-services.ps1
+- Node.js 18.0.0 or higher
+- MongoDB Atlas account or local MongoDB instance
+- npm or yarn package manager
+
+## Main API Service Setup
+
+### Directory Structure
+
+```
+backend-api/
+├── config/
+│   └── database.js          # MongoDB connection
+├── controllers/              # Request handlers
+│   ├── auth.controller.js
+│   ├── exam.controller.js
+│   ├── examResult.controller.js
+│   ├── question.controller.js
+│   ├── student.controller.js
+│   └── teacher.controller.js
+├── middleware/
+│   ├── errorHandler.js      # Error handling middleware
+│   └── rateLimiter.js       # Rate limiting middleware
+├── routes/                   # API routes
+│   ├── auth.routes.js
+│   ├── exam.routes.js
+│   ├── examResult.routes.js
+│   ├── question.routes.js
+│   ├── student.routes.js
+│   └── teacher.routes.js
+├── utils/
+│   └── inputSanitizer.js    # Input sanitization utilities
+├── server.js                 # Express server
+├── package.json
+└── ENV_EXAMPLE.txt          # Environment variables template
 ```
 
-This will start both services in separate PowerShell windows.
+### Installation
 
-### Option 2: Start Services Individually
+1. **Navigate to backend-api directory**
+   ```bash
+   cd backend-api
+   ```
 
-**Main API:**
-```powershell
-.\start-backend-api.ps1
-# or
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Create environment file**
+   ```bash
+   # Windows
+   copy ENV_EXAMPLE.txt .env
+   
+   # Linux/Mac
+   cp ENV_EXAMPLE.txt .env
+   ```
+
+### Environment Variables
+
+Edit `.env` file with your configuration:
+
+```env
+# MongoDB Connection String
+# Format: mongodb+srv://username:password@cluster.mongodb.net/database?retryWrites=true&w=majority
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/exam_management?retryWrites=true&w=majority
+MONGODB_DB=exam_management
+
+# Server Configuration
+PORT=3000
+NODE_ENV=development
+
+# CORS Configuration (comma-separated origins)
+# For local development:
+ALLOWED_ORIGINS=http://localhost:8080,http://localhost:3000,http://localhost:3001
+# For production, add your domains:
+# ALLOWED_ORIGINS=https://exam-app-api.duckdns.org,https://backend-chat.duckdns.org,http://exam-app-api.duckdns.org,http://backend-chat.duckdns.org
+
+# Optional: Shutdown token for development
+# SHUTDOWN_TOKEN=your-secret-token
+```
+
+### Starting the Service
+
+```bash
+npm start
+```
+
+The service will:
+- Connect to MongoDB
+- Start Express server on port 3000
+- Initialize rate limiting middleware
+- Set up CORS
+- Register all API routes
+
+### API Endpoints
+
+- **Health Check**: `GET /health`
+- **Authentication**: `POST /api/auth/login`
+- **Exams**: `GET /api/exams`, `POST /api/exams`, etc.
+- **Students**: `GET /api/students`, `POST /api/students`, etc.
+- **Teachers**: `GET /api/teachers`, `POST /api/teachers`, etc.
+- **Questions**: `GET /api/questions`, `POST /api/questions`, etc.
+- **Results**: `GET /api/exam-results`, `POST /api/exam-results`, etc.
+
+## Chat Service Setup
+
+### Directory Structure
+
+```
+backend-chat/
+├── config/
+│   ├── database.js          # MongoDB connection
+│   └── socket.js            # Socket.io configuration
+├── controllers/
+│   └── chat.controller.js   # Chat request handlers
+├── routes/
+│   └── chat.routes.js        # Chat HTTP routes
+├── scripts/
+│   └── cleanup-old-messages.js  # Message cleanup script
+├── middleware/
+│   ├── errorHandler.js      # Error handling middleware
+│   └── rateLimiter.js       # Rate limiting middleware
+├── utils/
+│   └── supabase-helpers.js  # Utility functions (legacy)
+├── server.js                # Express + Socket.io server
+├── package.json
+└── ENV_EXAMPLE.txt          # Environment variables template
+```
+
+### Installation
+
+1. **Navigate to backend-chat directory**
+   ```bash
+   cd backend-chat
+   ```
+
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Create environment file**
+   ```bash
+   # Windows
+   copy ENV_EXAMPLE.txt .env
+   
+   # Linux/Mac
+   cp ENV_EXAMPLE.txt .env
+   ```
+
+### Environment Variables
+
+Edit `.env` file with your configuration:
+
+```env
+# MongoDB Connection URI (same as backend-api)
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/exam_management?retryWrites=true&w=majority
+MONGODB_DB=exam_management
+
+# Optional: Default Admin ID (MongoDB ObjectId format)
+# DEFAULT_ADMIN_ID=507f1f77bcf86cd799439011
+
+# Server Configuration
+PORT=3001
+NODE_ENV=development
+
+# CORS Configuration (comma-separated origins)
+# For local development:
+ALLOWED_ORIGINS=http://localhost:8080,http://localhost:3000,http://localhost:3001
+# For production, add your domains:
+# ALLOWED_ORIGINS=https://exam-app-api.duckdns.org,https://backend-chat.duckdns.org,http://exam-app-api.duckdns.org,http://backend-chat.duckdns.org
+
+# Optional: Shutdown token for development
+# SHUTDOWN_TOKEN=your-secret-token
+```
+
+### Starting the Service
+
+```bash
+npm start
+```
+
+The service will:
+- Connect to MongoDB
+- Initialize Socket.io server
+- Start Express server on port 3001
+- Set up WebSocket event handlers
+- Register chat routes
+
+### Chat Endpoints
+
+- **Health Check**: `GET /health`
+- **Get Conversations**: `GET /api/chat/conversations/:userId`
+- **Get Messages**: `GET /api/chat/messages/:conversationId`
+- **WebSocket**: Connect to `ws://localhost:3001` (or your domain)
+
+## Security Features
+
+### Rate Limiting
+
+Both services implement rate limiting to prevent abuse:
+
+- **Authentication endpoints**: 5 requests per 15 minutes
+- **Read operations**: 100 requests per 15 minutes
+- **Write operations**: 20 requests per 15 minutes
+- **Health checks**: 200 requests per 15 minutes
+
+### Input Sanitization
+
+All user inputs are sanitized to prevent NoSQL injection:
+
+- String inputs are sanitized
+- ObjectId inputs are validated
+- Query parameters are sanitized
+- Username and password inputs are validated
+
+### CORS Configuration
+
+CORS is configured to allow only specified origins. Update `ALLOWED_ORIGINS` in `.env` files to include your client domains.
+
+## Database Collections
+
+Both services use the following MongoDB collections:
+
+- `exams`: Exam definitions
+- `students`: Student profiles
+- `teachers`: Teacher profiles
+- `questions`: Question bank
+- `student_exams`: Exam assignments (junction table)
+- `exam_results`: Exam submissions and results
+- `messages`: Chat messages (chat service only)
+- `conversations`: Chat conversation metadata (chat service only)
+
+## Running Both Services
+
+### Option 1: Separate Terminals
+
+Open two terminals:
+
+**Terminal 1 (API Service):**
+```bash
 cd backend-api
 npm start
 ```
 
-**Chat Service:**
-```powershell
-.\start-backend-chat.ps1
-# or
+**Terminal 2 (Chat Service):**
+```bash
 cd backend-chat
 npm start
 ```
 
-### Option 3: Using Batch Files
+### Option 2: Docker Compose
 
-```cmd
-start-backend-api.bat
-start-backend-chat.bat
-```
-
-## Configuration
-
-### Main API Service (`backend-api/.env`)
-
-1. Copy `ENV_EXAMPLE.txt` to `.env`:
-   ```powershell
-   cd backend-api
-   copy ENV_EXAMPLE.txt .env
-   ```
-
-2. Edit `.env` and add your MongoDB connection:
-   ```env
-   MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/exam_management
-   MONGODB_DB=exam_management
-   PORT=3000
-   ```
-
-### Chat Service (`backend-chat/.env`)
-
-1. Copy `ENV_EXAMPLE.txt` to `.env`:
-   ```powershell
-   cd backend-chat
-   copy ENV_EXAMPLE.txt .env
-   ```
-
-2. Edit `.env` and add your Supabase credentials:
-   ```env
-   SUPABASE_URL=https://your-project.supabase.co
-   SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
-   PORT=3001
-   ```
-
-## Error Identification
-
-Each service has **distinct error messages** to help you identify which service has issues:
-
-### Main API Service Errors
-- Look for: `MAIN API SERVICE` in error messages
-- Color: Cyan/Blue
-- Database: MongoDB
-- Port: 3000
-
-### Chat Service Errors
-- Look for: `CHAT SERVICE` in error messages
-- Color: Magenta/Purple
-- Database: Supabase
-- Port: 3001
-
-## Common Issues
-
-### "Service not found" or Connection Errors
-
-**Main API:**
-- Check `backend-api/.env` exists
-- Verify `MONGODB_URI` is correct
-- Ensure MongoDB is accessible
-- Check port 3000 is not in use
-
-**Chat Service:**
-- Check `backend-chat/.env` exists
-- Verify `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`
-- Ensure Supabase project is active
-- Check port 3001 is not in use
-
-### Port Already in Use
-
-If you see "port already in use" errors:
-
-**Main API (port 3000):**
-```powershell
-# Find process using port 3000
-netstat -ano | findstr :3000
-# Kill the process (replace PID)
-taskkill /PID <PID> /F
-```
-
-**Chat Service (port 3001):**
-```powershell
-# Find process using port 3001
-netstat -ano | findstr :3001
-# Kill the process (replace PID)
-taskkill /PID <PID> /F
-```
-
-Or change the port in the respective `.env` file.
-
-## Health Checks
-
-Test if services are running:
-
-**Main API:**
-```powershell
-curl http://localhost:3000/health
-```
-
-**Chat Service:**
-```powershell
-curl http://localhost:3001/health
-```
-
-## Development Workflow
-
-1. **Start Main API** in one terminal
-2. **Start Chat Service** in another terminal
-3. **Run Flutter app** - it will connect to both services
-
-## Docker Deployment
-
-See `docker-compose.yml` for running both services together:
-
-```bash
-docker-compose up -d
-```
+See [DOCKER_DEPLOYMENT.md](DOCKER_DEPLOYMENT.md) for Docker setup.
 
 ## Troubleshooting
 
+### MongoDB Connection Issues
+
+- **Check connection string**: Verify `MONGODB_URI` is correct
+- **Check network**: Ensure MongoDB Atlas IP whitelist includes your IP
+- **Check credentials**: Verify username and password are correct
+- **Check database name**: Ensure database exists or can be created
+
+### Port Already in Use
+
+- **Change port**: Update `PORT` in `.env` file
+- **Kill process**: Find and kill process using the port
+  ```bash
+  # Windows
+  netstat -ano | findstr :3000
+  taskkill /PID <pid> /F
+  
+  # Linux/Mac
+  lsof -ti:3000 | xargs kill
+  ```
+
 ### Service Won't Start
 
-1. Check `.env` file exists in the service directory
-2. Verify all required environment variables are set
-3. Check for syntax errors in `.env` file
-4. Ensure dependencies are installed: `npm install`
-5. Check the service-specific error messages (they're clearly labeled)
+- **Check Node.js version**: Requires Node.js 18.0.0+
+- **Check dependencies**: Run `npm install` again
+- **Check .env file**: Ensure `.env` file exists and is properly formatted
+- **Check logs**: Look for error messages in console output
 
-### Database Connection Issues
+## Production Considerations
 
-**MongoDB (Main API):**
-- Verify connection string format
-- Check network access to MongoDB
-- Ensure database name is correct
+- Use environment variables for all sensitive data
+- Enable HTTPS in production
+- Configure proper CORS origins
+- Set up monitoring and logging
+- Use process manager (PM2) for production
+- Set up automatic message cleanup (chat service)
+- Configure rate limiting appropriately for production load
 
-**Supabase (Chat Service):**
-- Verify project URL is correct
-- Check service role key (not anon key)
-- Ensure Realtime is enabled for `chat_messages` table
+## Next Steps
 
-## Service Status
+- Read [DEPLOYMENT.md](DEPLOYMENT.md) for production deployment
+- Read [DOCKER_DEPLOYMENT.md](DOCKER_DEPLOYMENT.md) for Docker setup
+- Read [CHAT_IMPLEMENTATION.md](CHAT_IMPLEMENTATION.md) for chat service details
 
-Each service displays its status on startup:
+---
 
-```
-╔══════════════════════════════════════════════════════════╗
-║     MAIN API SERVICE - Running                           ║
-╚══════════════════════════════════════════════════════════╝
-```
-
-or
-
-```
-╔══════════════════════════════════════════════════════════╗
-║     CHAT SERVICE - Running                               ║
-╚══════════════════════════════════════════════════════════╝
-```
-
-This makes it easy to identify which service is running and which has errors.
-
+**Last Updated**: 2024

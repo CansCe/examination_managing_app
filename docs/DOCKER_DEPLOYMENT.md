@@ -1,210 +1,421 @@
-# Docker Deployment Guide (Local Development)
+# Docker Deployment Guide
 
-This guide explains how to run the backend services locally using Docker for development purposes.
+This guide covers deploying the Exam Management App using Docker and Docker Compose.
 
-**For production deployment to a dedicated server, see [PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md)**
+## Prerequisites
+
+- Docker Engine 20.10+
+- Docker Compose 2.0+
+- MongoDB Atlas account or MongoDB instance
 
 ## Quick Start
 
-### 1. Start Docker Services
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd exam_management_app
+   ```
 
-```bash
-# Start both API and Chat services
-docker-compose up -d
+2. **Configure environment files**
+   ```bash
+   # Backend API
+   cd backend-api
+   cp ENV_EXAMPLE.txt .env
+   # Edit .env with your MongoDB URI
+   
+   # Chat Service
+   cd ../backend-chat
+   cp ENV_EXAMPLE.txt .env
+   # Edit .env with your MongoDB URI
+   ```
 
-# Check status
-docker ps
+3. **Start services**
+   ```bash
+   cd ..
+   docker-compose up -d
+   ```
 
-# View logs
-docker-compose logs -f
+4. **Verify services**
+   ```bash
+   curl http://localhost:3000/health
+   curl http://localhost:3001/health
+   ```
+
+## Docker Compose Configuration
+
+The `docker-compose.yml` file defines two services:
+
+### API Service
+
+```yaml
+api:
+  build:
+    context: ./backend-api
+    dockerfile: Dockerfile
+  container_name: exam-management-api
+  ports:
+    - "127.0.0.1:3000:3000"
+  env_file:
+    - ./backend-api/.env
+  environment:
+    - PORT=3000
+    - NODE_ENV=production
+  restart: unless-stopped
+  networks:
+    - exam-management-network
 ```
 
-### 2. Configure Flutter App
+### Chat Service
 
-Edit `lib/config/api_config.dart` based on your platform:
-
-**For Desktop/Web:**
-```dart
-static const String baseUrl = 'http://localhost:3000';
-static const String chatBaseUrl = 'http://localhost:3001';
+```yaml
+chat:
+  build:
+    context: ./backend-chat
+    dockerfile: Dockerfile
+  container_name: exam-management-chat
+  ports:
+    - "127.0.0.1:3001:3001"
+  env_file:
+    - ./backend-chat/.env
+  environment:
+    - PORT=3001
+    - NODE_ENV=production
+  restart: unless-stopped
+  networks:
+    - exam-management-network
 ```
-
-**For Android Emulator:**
-```dart
-static const String baseUrl = 'http://10.0.2.2:3000';
-static const String chatBaseUrl = 'http://10.0.2.2:3001';
-```
-
-**For Physical Device:**
-```dart
-// Replace with your computer's IP (e.g., 192.168.1.100)
-static const String baseUrl = 'http://192.168.1.100:3000';
-static const String chatBaseUrl = 'http://192.168.1.100:3001';
-```
-
-**For Production:**
-```dart
-static const String baseUrl = 'https://api.yourdomain.com';
-static const String chatBaseUrl = 'https://chat.yourdomain.com';
-```
-
-## How It Works
-
-### Docker Network Architecture
-
-```
-┌─────────────────────────────────────────┐
-│         Docker Network                  │
-│  ┌──────────┐      ┌──────────┐         │
-│  │   API    │      │   Chat   │         │
-│  │ :3000    │◄────►│  :3001   │         │
-│  └────┬─────┘      └────┬─────┘         │
-└───────┼──────────────────┼──────────────┘
-        │                  │
-        │ Port Mapping     │ Port Mapping
-        │ 3000:3000        │ 3001:3001
-        │                  │
-┌───────┴──────────────────┴──────────────┐
-│         Host Machine                    │
-│  ┌──────────────────────────────┐       │
-│  │    Flutter App               │       │
-│  │  Connects via:               │       │
-│  │  - localhost:3000 (API)      │       │
-│  │  - localhost:3001 (Chat)     │       │
-│  └──────────────────────────────┘       │
-└─────────────────────────────────────────┘
-```
-
-### Connection Flow
-
-1. **Docker Services:**
-   - `api` service runs on port 3000 inside container
-   - `chat` service runs on port 3001 inside container
-   - Both exposed to host via port mapping
-
-2. **Flutter App:**
-   - Connects to `baseUrl` for REST API calls
-   - Connects to `chatBaseUrl` for HTTP and WebSocket (Socket.io)
-
-3. **WebSocket:**
-   - Socket.io automatically converts HTTP URL to WebSocket
-   - `http://localhost:3001` → `ws://localhost:3001`
-   - `https://chat.yourdomain.com` → `wss://chat.yourdomain.com`
-
-## Platform-Specific Configuration
-
-### Android Emulator
-- Use `10.0.2.2` instead of `localhost`
-- This is Android's special IP for host machine
-
-### iOS Simulator
-- Use `localhost` directly
-- Works the same as desktop
-
-### Physical Device
-- Find your computer's IP: `ipconfig` (Windows) or `ifconfig` (Mac/Linux)
-- Use that IP address in the config
-- Ensure device and computer are on same network
-
-### Production
-- Use domain names with HTTPS
-- Set up reverse proxy (nginx/traefik)
-- Configure SSL certificates
-
-## Troubleshooting
-
-### "Connection refused"
-1. Check Docker is running: `docker ps`
-2. Check services are up: `docker-compose logs`
-3. Test endpoints: `curl http://localhost:3000/health`
-
-### Android Emulator Issues
-- Always use `10.0.2.2`, never `localhost`
-- Ensure Docker is running on host machine
-
-### WebSocket Connection Fails
-- Check chat service health: `curl http://localhost:3001/health`
-- Verify CORS settings in docker-compose.yml
-- For production, ensure reverse proxy supports WebSocket upgrades
 
 ## Environment Variables
 
-### SECURITY: .env Files Are NOT Copied Into Docker Images
+### Backend API (.env)
 
-**.env files are excluded from Docker images for security.** They are loaded at runtime via `docker-compose.yml`.
-
-### Setup Instructions
-
-1. **Create .env files** (they are gitignored and not in the repository):
-
-**backend-api/.env:**
 ```env
-MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/exam_management
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/exam_management?retryWrites=true&w=majority
 MONGODB_DB=exam_management
 PORT=3000
 NODE_ENV=production
-ALLOWED_ORIGINS=http://localhost:8080,http://localhost:3000
+ALLOWED_ORIGINS=https://exam-app-api.duckdns.org,https://backend-chat.duckdns.org
 ```
 
-**backend-chat/.env:**
+### Chat Service (.env)
+
 ```env
-MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/exam_management
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/exam_management?retryWrites=true&w=majority
 MONGODB_DB=exam_management
 PORT=3001
 NODE_ENV=production
-ALLOWED_ORIGINS=http://localhost:8080,http://localhost:3000,http://localhost:3001
-DEFAULT_ADMIN_ID=optional-admin-objectid
+ALLOWED_ORIGINS=https://exam-app-api.duckdns.org,https://backend-chat.duckdns.org
+DEFAULT_ADMIN_ID=507f1f77bcf86cd799439011
 ```
-
-2. **Copy from examples:**
-```bash
-# Copy example files and edit them
-cp backend-api/ENV_EXAMPLE.txt backend-api/.env
-cp backend-chat/ENV_EXAMPLE.txt backend-chat/.env
-
-# Edit the .env files with your actual credentials
-```
-
-3. **Verify .env files are NOT in Docker image:**
-```bash
-# Build and check
-docker-compose build
-docker-compose run --rm api ls -la /app/.env  # Should fail - file doesn't exist in image
-```
-
-### How It Works
-
-- **.dockerignore** files exclude `.env` from Docker images
-- **docker-compose.yml** loads `.env` files from host at runtime
-- Environment variables are injected into containers, not baked into images
-- This prevents secrets from being stored in Docker images
 
 ## Docker Commands
 
+### Start Services
+
 ```bash
-# Start services
+# Start in detached mode
 docker-compose up -d
 
-# Stop services
-docker-compose down
+# Start with logs
+docker-compose up
+```
 
-# Rebuild after code changes
+### Stop Services
+
+```bash
+# Stop services
+docker-compose stop
+
+# Stop and remove containers
+docker-compose down
+```
+
+### View Logs
+
+```bash
+# All services
+docker-compose logs
+
+# Specific service
+docker-compose logs api
+docker-compose logs chat
+
+# Follow logs
+docker-compose logs -f
+```
+
+### Restart Services
+
+```bash
+# Restart all
+docker-compose restart
+
+# Restart specific service
+docker-compose restart api
+```
+
+### Rebuild Services
+
+```bash
+# Rebuild and restart
 docker-compose up -d --build
 
-# View logs
-docker-compose logs -f api
-docker-compose logs -f chat
+# Rebuild specific service
+docker-compose build api
+docker-compose up -d api
+```
 
-# Check service health
+## Dockerfiles
+
+### Backend API Dockerfile
+
+```dockerfile
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production
+
+# Copy application files
+COPY . .
+
+# Expose port
+EXPOSE 3000
+
+# Start service
+CMD ["node", "server.js"]
+```
+
+### Chat Service Dockerfile
+
+```dockerfile
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production
+
+# Copy application files
+COPY . .
+
+# Expose port
+EXPOSE 3001
+
+# Start service
+CMD ["node", "server.js"]
+```
+
+## Production Deployment
+
+### With Nginx Reverse Proxy
+
+1. **Update docker-compose.yml** to bind to localhost only:
+   ```yaml
+   ports:
+     - "127.0.0.1:3000:3000"
+   ```
+
+2. **Configure Nginx** to proxy to containers:
+   ```nginx
+   server {
+       listen 80;
+       server_name api.yourdomain.com;
+       
+       location / {
+           proxy_pass http://localhost:3000;
+           proxy_http_version 1.1;
+           proxy_set_header Upgrade $http_upgrade;
+           proxy_set_header Connection 'upgrade';
+           proxy_set_header Host $host;
+           proxy_cache_bypass $http_upgrade;
+       }
+   }
+   ```
+
+### With SSL/TLS
+
+Use Let's Encrypt with Certbot:
+
+```bash
+sudo certbot --nginx -d api.yourdomain.com
+sudo certbot --nginx -d chat.yourdomain.com
+```
+
+## Health Checks
+
+Both services include health check endpoints:
+
+```bash
+# API Service
 curl http://localhost:3000/health
+
+# Chat Service
 curl http://localhost:3001/health
 ```
 
-## Summary
+Docker Compose health checks are configured:
 
-1. **Docker exposes services** on `localhost:3000` and `localhost:3001`
-2. **Flutter app connects** via these URLs (or IP for physical devices)
-3. **WebSocket automatically** converts HTTP to WS/WSS
-4. **Update `api_config.dart`** based on your platform
+```yaml
+healthcheck:
+  test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 40s
+```
 
-For more details, see the comments in `lib/config/api_config.dart`.
+## Networking
+
+Services are on a shared Docker network:
+
+```yaml
+networks:
+  exam-management-network:
+    driver: bridge
+```
+
+Services can communicate using container names:
+- API Service: `exam-management-api`
+- Chat Service: `exam-management-chat`
+
+## Volume Mounting (Optional)
+
+For persistent data or configuration:
+
+```yaml
+volumes:
+  - ./backend-api/.env:/app/.env:ro
+  - ./logs:/app/logs
+```
+
+## Resource Limits
+
+Set resource limits for production:
+
+```yaml
+deploy:
+  resources:
+    limits:
+      cpus: '0.5'
+      memory: 512M
+    reservations:
+      cpus: '0.25'
+      memory: 256M
+```
+
+## Troubleshooting
+
+### Containers Won't Start
+
+- **Check logs**: `docker-compose logs`
+- **Check environment**: Verify `.env` files exist
+- **Check ports**: Ensure ports 3000 and 3001 are available
+- **Check MongoDB**: Verify MongoDB connection string
+
+### Services Can't Connect to MongoDB
+
+- **Check network**: Ensure containers can reach MongoDB
+- **Check credentials**: Verify MongoDB username/password
+- **Check IP whitelist**: Add server IP to MongoDB Atlas whitelist
+
+### Port Conflicts
+
+- **Change ports**: Update `docker-compose.yml` port mappings
+- **Kill processes**: Find and kill processes using ports
+
+### Container Restarts
+
+- **Check logs**: `docker-compose logs -f`
+- **Check health**: Verify health check endpoints
+- **Check resources**: Monitor container resource usage
+
+## Updating Services
+
+1. **Pull latest code**
+   ```bash
+   git pull
+   ```
+
+2. **Rebuild and restart**
+   ```bash
+   docker-compose up -d --build
+   ```
+
+3. **Verify services**
+   ```bash
+   docker-compose ps
+   curl http://localhost:3000/health
+   ```
+
+## Backup and Restore
+
+### Backup Configuration
+
+```bash
+# Backup .env files
+tar -czf backup-env.tar.gz backend-api/.env backend-chat/.env
+
+# Backup docker-compose.yml
+cp docker-compose.yml docker-compose.yml.backup
+```
+
+### Restore
+
+```bash
+# Restore .env files
+tar -xzf backup-env.tar.gz
+
+# Restore docker-compose.yml
+cp docker-compose.yml.backup docker-compose.yml
+```
+
+## Monitoring
+
+### Container Status
+
+```bash
+docker-compose ps
+```
+
+### Resource Usage
+
+```bash
+docker stats
+```
+
+### Logs
+
+```bash
+# All services
+docker-compose logs -f
+
+# Specific service
+docker-compose logs -f api
+```
+
+## Security Best Practices
+
+1. **Use .env files**: Never commit `.env` files to Git
+2. **Bind to localhost**: Use `127.0.0.1:port` for internal services
+3. **Use reverse proxy**: Nginx for SSL termination
+4. **Keep images updated**: Regularly update base images
+5. **Limit resources**: Set resource limits
+6. **Use secrets**: For sensitive data, use Docker secrets
+
+## Next Steps
+
+- Read [DEPLOYMENT.md](DEPLOYMENT.md) for general deployment guide
+- Read [PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md) for production setup
+- Read [SERVER_DEPLOYMENT_WITH_DOMAINS.md](SERVER_DEPLOYMENT_WITH_DOMAINS.md) for domain setup
+
+---
+
+**Last Updated**: 2024
