@@ -1395,12 +1395,4 @@ curl https://backend-chat.duckdns.org/health
 
 ---
 
-## Next Steps
-
-1. Follow the steps above to configure public access
-2. Test your endpoints from a browser or external machine
-3. Update your Flutter app to use the public URLs
-4. Monitor logs for any issues
-
-For complete deployment guide, see `SERVER_DEPLOYMENT_WITH_DOMAINS.md`.
 

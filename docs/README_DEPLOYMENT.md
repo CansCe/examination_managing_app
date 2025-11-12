@@ -189,5 +189,3 @@ curl https://backend-chat.duckdns.org/health
 - [ ] Regular backups
 
 ---
-
-**Last Updated**: 2024

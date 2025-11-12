@@ -247,5 +247,3 @@ await ApiConfig.setChatBaseUrl('https://chat.yourdomain.com');
 However, auto-discovery is recommended as it provides better flexibility and user experience.
 
 ---
-
-**Last Updated**: 2024

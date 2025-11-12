@@ -453,13 +453,4 @@ cd ../backend-chat
 npm update
 pm2 restart exam-chat
 ```
-
-## Next Steps
-
-- Read [DEPLOYMENT.md](DEPLOYMENT.md) for general deployment guide
-- Read [DOCKER_DEPLOYMENT.md](DOCKER_DEPLOYMENT.md) for Docker setup
-- Read [SERVER_DEPLOYMENT_WITH_DOMAINS.md](SERVER_DEPLOYMENT_WITH_DOMAINS.md) for domain configuration
-
 ---
-
-**Last Updated**: 2024

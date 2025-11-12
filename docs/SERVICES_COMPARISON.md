@@ -212,12 +212,4 @@ pm2 logs exam-chat
 - Both have health check endpoints
 - Both can share the same database
 
-## Next Steps
-
-- Read [BACKEND_SETUP.md](BACKEND_SETUP.md) for detailed setup
-- Read [README_BACKEND.md](README_BACKEND.md) for quick reference
-- Read [DEPLOYMENT.md](DEPLOYMENT.md) for deployment guide
-
 ---
-
-**Last Updated**: 2024

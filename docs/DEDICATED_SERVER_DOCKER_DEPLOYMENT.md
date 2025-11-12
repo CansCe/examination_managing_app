@@ -518,22 +518,4 @@ For most users, **cloud VPS is better** because:
 
 ---
 
-## Next Steps
-
-1. **Choose your server type:**
-   - Cloud VPS (recommended) - see `SERVER_PROVIDERS_GUIDE.md`
-   - Physical dedicated server - follow this guide
-   - Your own hardware - follow this guide
-
-2. **Install Docker** on your server
-
-3. **Deploy your app** using Docker Compose
-
-4. **Configure Nginx** as reverse proxy
-
-5. **Setup SSL** certificates
-
-6. **Monitor and maintain** your deployment
-
-For detailed deployment steps, see `SERVER_DEPLOYMENT_WITH_DOMAINS.md`.
 

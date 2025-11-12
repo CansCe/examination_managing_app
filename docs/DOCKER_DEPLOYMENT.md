@@ -409,13 +409,3 @@ docker-compose logs -f api
 4. **Keep images updated**: Regularly update base images
 5. **Limit resources**: Set resource limits
 6. **Use secrets**: For sensitive data, use Docker secrets
-
-## Next Steps
-
-- Read [DEPLOYMENT.md](DEPLOYMENT.md) for general deployment guide
-- Read [PRODUCTION_DEPLOYMENT.md](PRODUCTION_DEPLOYMENT.md) for production setup
-- Read [SERVER_DEPLOYMENT_WITH_DOMAINS.md](SERVER_DEPLOYMENT_WITH_DOMAINS.md) for domain setup
-
----
-
-**Last Updated**: 2024

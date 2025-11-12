@@ -131,12 +131,7 @@ Internet → Nginx (ports 80/443) → Docker Containers (ports 3000/3001 interna
 - `docker-compose.production.yml` - Production Docker Compose config
 - `deploy-server.sh` - Automated deployment script
 
-## Next Steps
 
-1. Follow `SERVER_DEPLOYMENT_WITH_DOMAINS.md` for detailed instructions
-2. Test your endpoints
-3. Build and distribute your Flutter app
-4. Monitor logs and performance
 
 ## Troubleshooting
 

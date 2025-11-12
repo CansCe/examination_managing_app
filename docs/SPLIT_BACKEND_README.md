@@ -157,13 +157,3 @@ MONGODB_DB=exam_management
 MONGODB_URI=mongodb+srv://.../exam_management_chat
 MONGODB_DB=exam_management_chat
 ```
-
-## Next Steps
-
-- Read [BACKEND_SETUP.md](BACKEND_SETUP.md) for detailed setup
-- Read [DEPLOYMENT.md](DEPLOYMENT.md) for deployment guide
-- Read [DOCKER_DEPLOYMENT.md](DOCKER_DEPLOYMENT.md) for Docker setup
-
----
-
-**Last Updated**: 2024

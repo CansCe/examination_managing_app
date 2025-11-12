@@ -245,5 +245,3 @@ To populate the database with sample data:
 - **Database Access**: Use MongoDB Compass or Atlas web interface to view data
 
 ---
-
-**Last Updated**: 2024

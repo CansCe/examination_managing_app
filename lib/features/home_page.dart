@@ -1067,7 +1067,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           end: Alignment.centerRight,
                           colors: [
                             Colors.blue.shade600,
-                            Colors.blue.shade600.withOpacity(0.0),
                           ],
                         ),
                       ),
@@ -1086,7 +1085,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           end: Alignment.centerLeft,
                           colors: [
                             Colors.blue.shade600,
-                            Colors.blue.shade600.withOpacity(0.0),
                           ],
                         ),
                       ),
