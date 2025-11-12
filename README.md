@@ -344,6 +344,16 @@ flutter build apk --release \
 - **[docs/CHAT_IMPLEMENTATION.md](docs/CHAT_IMPLEMENTATION.md)** - Chat service documentation
 - **[docs/CHAT_SERVICE_USAGE.md](docs/CHAT_SERVICE_USAGE.md)** - How to use the chat service
 
+### Platform-Specific Deployment
+- **[docs/IOS_DEPLOYMENT.md](docs/IOS_DEPLOYMENT.md)** - Complete guide for deploying to iOS App Store
+
+### Vietnamese Documentation (Tài Liệu Tiếng Việt)
+- **[Vi-README.md](Vi-README.md)** - README tiếng Việt
+- **[docs/Vi-QUICK_START.md](docs/Vi-QUICK_START.md)** - Hướng dẫn bắt đầu nhanh tiếng Việt
+- **[docs/Vi-HTTPS_UPGRADE.md](docs/Vi-HTTPS_UPGRADE.md)** - Hướng dẫn nâng cấp HTTPS tiếng Việt
+- **[docs/Vi-DEPLOYMENT.md](docs/Vi-DEPLOYMENT.md)** - Hướng dẫn triển khai tiếng Việt
+- **[docs/Vi-IOS_DEPLOYMENT.md](docs/Vi-IOS_DEPLOYMENT.md)** - Hướng dẫn triển khai iOS tiếng Việt
+
 ## 🛠️ Development
 
 ### Running Tests

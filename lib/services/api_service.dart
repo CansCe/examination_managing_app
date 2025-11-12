@@ -6,8 +6,10 @@ import 'package:mongo_dart/mongo_dart.dart';
 import 'package:uuid/uuid.dart';
 import 'package:exam_management_app/config/api_config.dart';
 import 'package:exam_management_app/models/index.dart';
+import 'package:exam_management_app/services/api_discovery_service.dart';
 
 import '../utils/index.dart';
+import '../utils/retry_handler.dart';
 
 class ApiService {
   static const List<int> _chatIdPrefix = [0x45, 0x4d, 0x41, 0x50]; // 'EMAP'
@@ -954,9 +956,9 @@ class ApiService {
     required String username,
     required String password,
   }) async {
-    final uri = _buildUri('/api/auth/login');
+    Uri uri = _buildUri('/api/auth/login');
     try {
-      final response = await _client.post(
+      var response = await _client.post(
         uri,
         headers: {
           'content-type': 'application/json',
@@ -967,6 +969,29 @@ class ApiService {
           'password': password,
         }),
       );
+
+      // Handle HTTP to HTTPS redirect (301/302)
+      if (response.statusCode == 301 || response.statusCode == 302) {
+        final location = response.headers['location'];
+        if (location != null) {
+          // Upgrade to HTTPS and retry
+          final httpsUrl = location.replaceFirst('/api/auth/login', '');
+          await ApiDiscoveryService.setApiUrl(httpsUrl);
+          // Rebuild URI with HTTPS
+          uri = Uri.parse('$httpsUrl/api/auth/login');
+          response = await _client.post(
+            uri,
+            headers: {
+              'content-type': 'application/json',
+              'accept': 'application/json',
+            },
+            body: json.encode({
+              'username': username,
+              'password': password,
+            }),
+          );
+        }
+      }
 
       if (response.statusCode == 200) {
         final decoded = json.decode(response.body) as Map<String, dynamic>;
@@ -1146,54 +1171,38 @@ class ApiService {
       'accept-encoding': 'gzip', // Request compression
       'connection': 'keep-alive', // Reuse connections
     };
+    // Use appropriate client based on whether it's a chat request
+    final client = isChat ? _chatClient : _client;
+    
     try {
-      print('🌐 API Request: GET $uri');
-      // Use appropriate client based on whether it's a chat request
-      final client = isChat ? _chatClient : _client;
-      final response = await client.get(uri, headers: headers);
-      print('📡 API Response status: ${response.statusCode}');
+      // Use smart retry handler that respects rate limits
+      final response = await RetryHandler.executeWithRetry(
+        request: () => client.get(uri, headers: headers),
+        maxRetries: 3,
+        baseDelay: const Duration(seconds: 2),
+        respectRateLimit: true,
+      );
       
       if (response.statusCode == 200) {
         final body = response.body.trim();
         if (body.isEmpty) {
-          print('⚠️ Empty response body');
           return [];
         }
         
-        print('📦 Response body (first 500 chars): ${body.length > 500 ? body.substring(0, 500) : body}');
-        
         final decoded = json.decode(body) as Map<String, dynamic>;
-        print('✅ Decoded JSON: success=${decoded['success']}, has data=${decoded.containsKey('data')}');
         
         if (decoded['success'] == true && decoded['data'] is List) {
           final dataList = (decoded['data'] as List).cast<Map<String, dynamic>>();
-          print('📊 Extracted ${dataList.length} item(s) from data array');
-          if (dataList.isNotEmpty) {
-            print('📝 First item sample: ${dataList.first}');
-          }
           return dataList;
-        } else {
-          print('⚠️ Unexpected response format:');
-          print('   success: ${decoded['success']}');
-          print('   data type: ${decoded['data']?.runtimeType}');
-          print('   data value: ${decoded['data']}');
-          if (decoded.containsKey('error')) {
-            print('   error: ${decoded['error']}');
-          }
         }
         return [];
       }
-      print('❌ API returned status ${response.statusCode}');
-      print('   Response body: ${response.body}');
       throw ApiException('$operation failed', response.statusCode, response.body);
-    } catch (e, stackTrace) {
+    } catch (e) {
       if (e is ApiException) {
-        print('❌ ApiException: ${e.message}');
         rethrow;
       }
       final errorMsg = e.toString();
-      print('❌ Error in _getPaginatedData: $errorMsg');
-      print('   Stack trace: $stackTrace');
       final isConnError = errorMsg.contains('Connection refused') ||
           errorMsg.contains('Failed host lookup') ||
           errorMsg.contains('Network is unreachable');
@@ -1927,6 +1936,78 @@ class ApiService {
         throw ApiException('POST /api/exam-results/submit failed: invalid response', response.statusCode, response.body);
       }
       throw ApiException('POST /api/exam-results/submit failed', response.statusCode, response.body);
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      final errorMsg = e.toString();
+      if (errorMsg.contains('Connection refused') ||
+          errorMsg.contains('Failed host lookup') ||
+          errorMsg.contains('Network is unreachable')) {
+        throw ApiException(
+          'Main API service is not running. Please start the main API at $_baseUrl',
+          0,
+          errorMsg,
+        );
+      }
+      rethrow;
+    }
+  }
+
+  /// Get exam result by exam ID and student ID
+  Future<Map<String, dynamic>?> getExamResult({
+    required String examId,
+    required String studentId,
+  }) async {
+    final uri = _buildUri('/api/exam-results/exam/$examId/student/$studentId');
+    try {
+      final response = await _client.get(uri, headers: {
+        'accept': 'application/json',
+        'accept-encoding': 'gzip',
+        'connection': 'keep-alive',
+      });
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        if (decoded['success'] == true && decoded['data'] != null) {
+          return decoded['data'] as Map<String, dynamic>;
+        }
+        return null;
+      }
+      if (response.statusCode == 404) {
+        return null; // No result found
+      }
+      throw ApiException('GET /api/exam-results/exam/student failed', response.statusCode, response.body);
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      final errorMsg = e.toString();
+      if (errorMsg.contains('Connection refused') ||
+          errorMsg.contains('Failed host lookup') ||
+          errorMsg.contains('Network is unreachable')) {
+        throw ApiException(
+          'Main API service is not running. Please start the main API at $_baseUrl',
+          0,
+          errorMsg,
+        );
+      }
+      rethrow;
+    }
+  }
+
+  /// Get all exam results for a student
+  Future<List<Map<String, dynamic>>> getStudentResults(String studentId) async {
+    final uri = _buildUri('/api/exam-results/student/$studentId');
+    try {
+      final response = await _client.get(uri, headers: {
+        'accept': 'application/json',
+        'accept-encoding': 'gzip',
+        'connection': 'keep-alive',
+      });
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        if (decoded['success'] == true && decoded['data'] != null) {
+          return List<Map<String, dynamic>>.from(decoded['data'] as List);
+        }
+        return [];
+      }
+      throw ApiException('GET /api/exam-results/student failed', response.statusCode, response.body);
     } catch (e) {
       if (e is ApiException) rethrow;
       final errorMsg = e.toString();

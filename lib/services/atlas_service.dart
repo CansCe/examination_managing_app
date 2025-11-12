@@ -406,24 +406,33 @@ class AtlasService {
         });
       }
 
+      // Format current time as HH:mm for examTime
+      final currentHour = now.hour.toString().padLeft(2, '0');
+      final currentMinute = now.minute.toString().padLeft(2, '0');
+      final currentTime = '$currentHour:$currentMinute';
+
       final examPayload = {
         'title': 'Demo Exam ${now.millisecondsSinceEpoch}',
         'description': 'Automatically generated exam for quick testing. This is a dummy exam that can be started at any time by teachers or admins.',
         'subject': subject,
         'difficulty': 'medium',
         'examDate': now.toIso8601String(), // Use current date
-        'examTime': 'NaN', // Special value to indicate can start at any time
-        'duration': 45,
+        'examTime': currentTime, // Set to current time (but isDummy flag allows starting anytime)
+        'duration': 15, // 15 minutes for test/dummy exams
         'maxStudents': 30,
         'questions': questionIds,
         'createdBy': teacherId,
         'status': 'available', // Available status for dummy exams
-        'isDummy': true, // Flag to identify dummy exam
+        'isDummy': true, // Flag to identify dummy exam (allows starting anytime regardless of examTime)
       };
 
       final insertedExamId = await api.createExam(examPayload);
       final examMap = await api.getExam(insertedExamId);
       final exam = Exam.fromMap(examMap);
+
+      // Load questions for the exam
+      final questions = await MongoDBService.getQuestionsByIds(exam.questions);
+      exam.populatedQuestions = questions;
 
       Map<String, dynamic>? assignedStudent;
       Map<String, dynamic>? submission;

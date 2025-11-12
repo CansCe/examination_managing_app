@@ -3,6 +3,10 @@ import { ObjectId } from 'mongodb';
 import { validationResult } from 'express-validator';
 import { sanitizeUsername, sanitizePassword, sanitizeObjectId } from '../utils/inputSanitizer.js';
 
+// TEMPORARY: Set to false to disable multiple login prevention
+// Set to true to re-enable session management (prevents multiple simultaneous logins)
+const ENABLE_SESSION_MANAGEMENT = false;
+
 export const login = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -34,19 +38,22 @@ export const login = async (req, res) => {
       const userId = student._id.toString();
       const role = 'student';
 
-      // Check for existing active session
-      const existingSession = await db.collection('sessions').findOne({
-        userId: userId,
-        role: role,
-        isActive: true
-      });
-
-      if (existingSession) {
-        // User is already logged in from another device
-        return res.status(403).json({
-          success: false,
-          error: 'User is already logged in on another device. Please logout from the other device first.'
+      // TEMPORARY: Session management check (disabled for testing)
+      if (ENABLE_SESSION_MANAGEMENT) {
+        // Check for existing active session
+        const existingSession = await db.collection('sessions').findOne({
+          userId: userId,
+          role: role,
+          isActive: true
         });
+
+        if (existingSession) {
+          // User is already logged in from another device
+          return res.status(403).json({
+            success: false,
+            error: 'User is already logged in on another device. Please logout from the other device first.'
+          });
+        }
       }
 
       // Create new session
@@ -87,19 +94,22 @@ export const login = async (req, res) => {
       const userId = teacher._id.toString();
       const role = 'teacher';
 
-      // Check for existing active session
-      const existingSession = await db.collection('sessions').findOne({
-        userId: userId,
-        role: role,
-        isActive: true
-      });
-
-      if (existingSession) {
-        // User is already logged in from another device
-        return res.status(403).json({
-          success: false,
-          error: 'User is already logged in on another device. Please logout from the other device first.'
+      // TEMPORARY: Session management check (disabled for testing)
+      if (ENABLE_SESSION_MANAGEMENT) {
+        // Check for existing active session
+        const existingSession = await db.collection('sessions').findOne({
+          userId: userId,
+          role: role,
+          isActive: true
         });
+
+        if (existingSession) {
+          // User is already logged in from another device
+          return res.status(403).json({
+            success: false,
+            error: 'User is already logged in on another device. Please logout from the other device first.'
+          });
+        }
       }
 
       // Create new session
@@ -141,19 +151,22 @@ export const login = async (req, res) => {
       const userId = admin._id.toString();
       const role = 'admin';
 
-      // Check for existing active session
-      const existingSession = await db.collection('sessions').findOne({
-        userId: userId,
-        role: role,
-        isActive: true
-      });
-
-      if (existingSession) {
-        // User is already logged in from another device
-        return res.status(403).json({
-          success: false,
-          error: 'User is already logged in on another device. Please logout from the other device first.'
+      // TEMPORARY: Session management check (disabled for testing)
+      if (ENABLE_SESSION_MANAGEMENT) {
+        // Check for existing active session
+        const existingSession = await db.collection('sessions').findOne({
+          userId: userId,
+          role: role,
+          isActive: true
         });
+
+        if (existingSession) {
+          // User is already logged in from another device
+          return res.status(403).json({
+            success: false,
+            error: 'User is already logged in on another device. Please logout from the other device first.'
+          });
+        }
       }
 
       // Create new session

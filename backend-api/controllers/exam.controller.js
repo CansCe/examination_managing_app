@@ -105,12 +105,50 @@ export const createExam = async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid createdBy ID' });
     }
 
+    // Parse examDate
+    const dateValue = examData.examDate || examData.exam_date;
+    const examDateObj = dateValue ? new Date(dateValue) : new Date();
+    
+    // Extract or set examTime
+    let examTime = examData.examTime || examData.exam_time;
+    if (!examTime && dateValue) {
+      // If examTime not provided, extract from examDate ISO string
+      let hours = '09';
+      let minutes = '00';
+      
+      if (typeof dateValue === 'string') {
+        // Try to extract time from ISO string directly to avoid timezone issues
+        const timeMatch = dateValue.match(/T(\d{2}):(\d{2})/);
+        if (timeMatch) {
+          hours = timeMatch[1];
+          minutes = timeMatch[2];
+        } else {
+          // Fallback to UTC hours/minutes from Date object
+          hours = examDateObj.getUTCHours().toString().padStart(2, '0');
+          minutes = examDateObj.getUTCMinutes().toString().padStart(2, '0');
+        }
+      } else {
+        // If dateValue is already a Date object, use UTC methods
+        hours = examDateObj.getUTCHours().toString().padStart(2, '0');
+        minutes = examDateObj.getUTCMinutes().toString().padStart(2, '0');
+      }
+      examTime = `${hours}:${minutes}`;
+    } else if (!examTime) {
+      // Default to 09:00 if no time provided
+      examTime = '09:00';
+    }
+
     const examInsert = {
       title: examData.title,
+      description: examData.description || '',
       subject: examData.subject,
-      examDate: examData.examDate || examData.exam_date ? new Date(examData.examDate || examData.exam_date) : new Date(),
-      duration: examData.duration,
+      difficulty: examData.difficulty || 'medium',
+      examDate: examDateObj,
+      examTime: examTime, // Save examTime as string (HH:mm format)
+      duration: examData.duration || 60,
+      maxStudents: examData.maxStudents || 30,
       status: examData.status || 'scheduled',
+      isDummy: examData.isDummy === true || examData.isDummy === 'true' || examData.isDummy === 1,
       createdBy: examData.createdBy ? new ObjectId(examData.createdBy) : null,
       questions: questions && Array.isArray(questions) 
         ? questions.filter(q => isValidObjectId(q)).map(q => new ObjectId(q))
@@ -155,8 +193,39 @@ export const updateExam = async (req, res) => {
 
     if (updateData.title) examUpdate.title = updateData.title;
     if (updateData.subject) examUpdate.subject = updateData.subject;
+    // Allow direct examTime update if provided separately (takes priority)
+    if (updateData.examTime) {
+      examUpdate.examTime = updateData.examTime;
+    }
     if (updateData.examDate || updateData.exam_date) {
-      examUpdate.examDate = new Date(updateData.examDate || updateData.exam_date);
+      const dateValue = updateData.examDate || updateData.exam_date;
+      const newDate = new Date(dateValue);
+      examUpdate.examDate = newDate;
+      // Only extract time from examDate if examTime was not explicitly provided
+      if (!updateData.examTime) {
+        let hours = '09';
+        let minutes = '00';
+        
+        if (typeof dateValue === 'string') {
+          // Try to extract time from ISO string directly to avoid timezone issues
+          const timeMatch = dateValue.match(/T(\d{2}):(\d{2})/);
+          if (timeMatch) {
+            hours = timeMatch[1];
+            minutes = timeMatch[2];
+          } else {
+            // Fallback to UTC hours/minutes from Date object
+            hours = newDate.getUTCHours().toString().padStart(2, '0');
+            minutes = newDate.getUTCMinutes().toString().padStart(2, '0');
+          }
+        } else {
+          // If dateValue is already a Date object, use UTC methods
+          hours = newDate.getUTCHours().toString().padStart(2, '0');
+          minutes = newDate.getUTCMinutes().toString().padStart(2, '0');
+        }
+        
+        examUpdate.examTime = `${hours}:${minutes}`;
+        console.log(`[updateExam] Updated exam time: ${examUpdate.examTime} from examDate: ${dateValue}`);
+      }
     }
     if (updateData.duration) examUpdate.duration = updateData.duration;
     if (updateData.status) examUpdate.status = updateData.status;
@@ -213,9 +282,34 @@ export const updateExamStatus = async (req, res) => {
       updatedAt: new Date()
     };
 
-    // If status is delayed and newDate is provided, update the date
+    // If status is delayed and newDate is provided, update both date and time
     if (status === 'delayed' && newDate) {
-      updateData.examDate = new Date(newDate);
+      const newDateTime = new Date(newDate);
+      updateData.examDate = newDateTime;
+      // Extract time from the ISO string to avoid timezone issues
+      // The ISO string format is: "YYYY-MM-DDTHH:mm:ss.sssZ" or "YYYY-MM-DDTHH:mm:ss.sss+HH:mm"
+      let hours = '09';
+      let minutes = '00';
+      
+      if (typeof newDate === 'string') {
+        // Try to extract time from ISO string directly
+        const timeMatch = newDate.match(/T(\d{2}):(\d{2})/);
+        if (timeMatch) {
+          hours = timeMatch[1];
+          minutes = timeMatch[2];
+        } else {
+          // Fallback to UTC hours/minutes from Date object
+          hours = newDateTime.getUTCHours().toString().padStart(2, '0');
+          minutes = newDateTime.getUTCMinutes().toString().padStart(2, '0');
+        }
+      } else {
+        // If newDate is already a Date object, use UTC methods
+        hours = newDateTime.getUTCHours().toString().padStart(2, '0');
+        minutes = newDateTime.getUTCMinutes().toString().padStart(2, '0');
+      }
+      
+      updateData.examTime = `${hours}:${minutes}`;
+      console.log(`[updateExamStatus] Updated exam time: ${updateData.examTime} from newDate: ${newDate}`);
     }
 
     const result = await db.collection('exams').updateOne(

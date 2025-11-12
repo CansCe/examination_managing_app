@@ -318,19 +318,40 @@ class ApiDiscoveryService {
   }
 
   /// Get API URL with auto-discovery and fallback
+  /// Priority: localhost > HTTPS > HTTP
   /// Automatically upgrades HTTP URLs to HTTPS if server redirects
   static Future<String> getApiUrl({
     bool forceRediscovery = false,
     List<String>? customUrls,
   }) async {
-    // 1. Try stored URL first (if not forcing rediscovery)
+    // 1. First, check if localhost is available (highest priority)
+    if (!forceRediscovery) {
+      final localhostUrls = ['http://localhost:3000', 'http://10.0.2.2:3000'];
+      for (final localhostUrl in localhostUrls) {
+        try {
+          final healthUrl = '$localhostUrl/health';
+          final response = await http
+              .get(Uri.parse(healthUrl))
+              .timeout(const Duration(seconds: 2));
+          if (response.statusCode == 200) {
+            print('✅ Localhost available, using: $localhostUrl');
+            await _saveApiUrl(localhostUrl);
+            return localhostUrl;
+          }
+        } catch (e) {
+          // Localhost not available, continue
+        }
+      }
+    }
+
+    // 2. Try stored URL (if not forcing rediscovery and not localhost)
     if (!forceRediscovery) {
       final storedUrl = await getStoredApiUrl();
-      if (storedUrl != null) {
+      if (storedUrl != null && !_isLocalhost(storedUrl)) {
         final isValid = await validateStoredApiUrl();
         if (isValid) {
           // Check if stored URL is HTTP and should be upgraded to HTTPS
-          if (storedUrl.startsWith('http://') && !storedUrl.contains('localhost') && !storedUrl.contains('10.0.2.2')) {
+          if (storedUrl.startsWith('http://') && !_isLocalhost(storedUrl)) {
             final httpsUrl = storedUrl.replaceFirst('http://', 'https://');
             print('🔒 Attempting HTTPS upgrade: $httpsUrl');
             try {
@@ -355,38 +376,59 @@ class ApiDiscoveryService {
       }
     }
 
-    // 2. Try to discover new URL
+    // 3. Try to discover new URL (with priority: localhost > HTTPS > HTTP)
     final discoveredUrl = await discoverApiUrl(urlsToTry: customUrls);
     if (discoveredUrl != null) {
       return discoveredUrl;
     }
 
-    // 3. Fallback to stored URL even if invalid (might work later)
+    // 4. Fallback to stored URL even if invalid (might work later)
     final storedUrl = await getStoredApiUrl();
     if (storedUrl != null) {
       print('⚠️ Using stored URL as fallback: $storedUrl');
       return storedUrl;
     }
 
-    // 4. Ultimate fallback to localhost
+    // 5. Ultimate fallback to localhost
     print('⚠️ No API URL found, using localhost fallback');
     return 'http://localhost:3000';
   }
 
   /// Get Chat URL with auto-discovery and fallback
+  /// Priority: localhost > HTTPS > HTTP
   /// Automatically upgrades HTTP URLs to HTTPS if server redirects
   static Future<String> getChatUrl({
     bool forceRediscovery = false,
     List<String>? customUrls,
   }) async {
-    // 1. Try stored URL first (if not forcing rediscovery)
+    // 1. First, check if localhost is available (highest priority)
+    if (!forceRediscovery) {
+      final localhostUrls = ['http://localhost:3001', 'http://10.0.2.2:3001'];
+      for (final localhostUrl in localhostUrls) {
+        try {
+          final healthUrl = '$localhostUrl/health';
+          final response = await http
+              .get(Uri.parse(healthUrl))
+              .timeout(const Duration(seconds: 2));
+          if (response.statusCode == 200) {
+            print('✅ Localhost available, using: $localhostUrl');
+            await _saveChatUrl(localhostUrl);
+            return localhostUrl;
+          }
+        } catch (e) {
+          // Localhost not available, continue
+        }
+      }
+    }
+
+    // 2. Try stored URL (if not forcing rediscovery and not localhost)
     if (!forceRediscovery) {
       final storedUrl = await getStoredChatUrl();
-      if (storedUrl != null) {
+      if (storedUrl != null && !_isLocalhost(storedUrl)) {
         final isValid = await validateStoredChatUrl();
         if (isValid) {
           // Check if stored URL is HTTP and should be upgraded to HTTPS
-          if (storedUrl.startsWith('http://') && !storedUrl.contains('localhost') && !storedUrl.contains('10.0.2.2')) {
+          if (storedUrl.startsWith('http://') && !_isLocalhost(storedUrl)) {
             final httpsUrl = storedUrl.replaceFirst('http://', 'https://');
             print('🔒 Attempting HTTPS upgrade: $httpsUrl');
             try {
@@ -411,22 +453,27 @@ class ApiDiscoveryService {
       }
     }
 
-    // 2. Try to discover new URL
+    // 3. Try to discover new URL (with priority: localhost > HTTPS > HTTP)
     final discoveredUrl = await discoverChatUrl(urlsToTry: customUrls);
     if (discoveredUrl != null) {
       return discoveredUrl;
     }
 
-    // 3. Fallback to stored URL even if invalid (might work later)
+    // 4. Fallback to stored URL even if invalid (might work later)
     final storedUrl = await getStoredChatUrl();
     if (storedUrl != null) {
       print('⚠️ Using stored URL as fallback: $storedUrl');
       return storedUrl;
     }
 
-    // 4. Ultimate fallback to localhost
+    // 5. Ultimate fallback to localhost
     print('⚠️ No Chat URL found, using localhost fallback');
     return 'http://localhost:3001';
+  }
+
+  /// Check if URL is localhost
+  static bool _isLocalhost(String url) {
+    return url.contains('localhost') || url.contains('10.0.2.2') || url.contains('127.0.0.1');
   }
 
   /// Add custom URLs to the discovery list

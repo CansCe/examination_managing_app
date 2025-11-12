@@ -27,33 +27,156 @@ class _ExaminationPageState extends State<ExaminationPage> {
   bool _isExamSubmitted = false;
   bool _isSubmitting = false;
   bool _isTimeUp = false;
-  bool get _isDummyExam => widget.exam.isDummy || widget.exam.examTime.toUpperCase() == 'NAN';
-
+  DateTime? _examStartDateTime;
+  DateTime? _examEndDateTime;
   @override
   void initState() {
     super.initState();
-    _remainingTime = Duration(minutes: widget.exam.duration);
-    // Only start timer for non-dummy exams (dummy exams have no time restrictions)
-    if (!_isDummyExam) {
-      _startTimer();
+    
+    // All exams (dummy and normal) use the same algorithm
+    // Calculate start time and end time for all exams
+    _calculateExamTimes();
+    
+    // Check if exam has already ended - if so, auto-submit immediately
+    // Otherwise, start the timer for real-time monitoring
+    if (_examEndDateTime != null) {
+      final now = DateTime.now();
+      // Auto-submit when: currentTime >= (startTime + examDuration)
+      // This is equivalent to: currentTime >= endTime
+      if (now.isAfter(_examEndDateTime!) || now.isAtSameMomentAs(_examEndDateTime!)) {
+        // Exam has already ended - submit immediately
+        Future.microtask(() {
+          if (mounted && !_isExamSubmitted) {
+            _submitExam(isTimeUp: true);
+          }
+        });
+      } else {
+        // Exam is still in progress - start timer for real-time monitoring
+        _startTimer();
+      }
+    }
+  }
+
+  void _calculateExamTimes() {
+    // All exams (dummy and normal) use the same calculation
+    // Calculate actual exam start and end times
+    // End time = Start time + Exam duration (in 24-hour format)
+    try {
+      // Get exam date (ensure it's a valid DateTime)
+      final examDate = widget.exam.examDate;
+      
+      // Parse examTime (format: HH:mm in 24-hour format)
+      final examTimeStr = widget.exam.examTime;
+      if (examTimeStr.isEmpty || !examTimeStr.contains(':')) {
+        // Invalid examTime format - use default
+        _examStartDateTime = DateTime(
+          examDate.year,
+          examDate.month,
+          examDate.day,
+          9,
+          0,
+        );
+      } else {
+        final timeParts = examTimeStr.split(':');
+        if (timeParts.length == 2) {
+          final hour = int.parse(timeParts[0]); // 24-hour format (0-23)
+          final minute = int.parse(timeParts[1]); // 0-59
+          
+          // Validate hour and minute
+          if (hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+            // Invalid time values - use default
+            _examStartDateTime = DateTime(
+              examDate.year,
+              examDate.month,
+              examDate.day,
+              9,
+              0,
+            );
+          } else {
+            // Create start DateTime from examDate and examTime
+            _examStartDateTime = DateTime(
+              examDate.year,
+              examDate.month,
+              examDate.day,
+              hour,
+              minute,
+            );
+          }
+        } else {
+          // Default to 9:00 (09:00) if parsing fails
+          _examStartDateTime = DateTime(
+            examDate.year,
+            examDate.month,
+            examDate.day,
+            9,
+            0,
+          );
+        }
+      }
+      
+      // Calculate end time: start time + exam duration (in minutes)
+      // Example: Start 14:30 + Duration 15 minutes = End 14:45
+      _examEndDateTime = _examStartDateTime!.add(Duration(minutes: widget.exam.duration));
+      
+      // Calculate remaining time based on actual exam end time
+      // Use real-time calculation for accuracy
+      final now = DateTime.now();
+      if (now.isBefore(_examEndDateTime!)) {
+        // Exam is still in progress - calculate remaining time
+        _remainingTime = _examEndDateTime!.difference(now);
+      } else {
+        // Exam has already ended (currentTime >= startTime + duration)
+        _remainingTime = Duration.zero;
+      }
+    } catch (e) {
+      // If calculation fails, we can't determine end time
+      // Timer won't start, and exam won't auto-submit
+      _examStartDateTime = null;
+      _examEndDateTime = null;
+      _remainingTime = Duration(minutes: widget.exam.duration);
     }
   }
 
   void _startTimer() {
+    // Ensure we have a valid end time calculated
+    if (_examEndDateTime == null) {
+      // If end time couldn't be calculated, we can't auto-submit
+      return;
+    }
+    
+    // All exams (dummy and normal) use the same timer logic
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!mounted || _isExamSubmitted) {
         timer.cancel();
         return;
       }
       
-      setState(() {
-        if (_remainingTime.inSeconds > 0) {
-          _remainingTime = _remainingTime - const Duration(seconds: 1);
-        } else {
-          timer.cancel();
-          _submitExam(isTimeUp: true);
-        }
-      });
+      final now = DateTime.now();
+      
+      // Safety check: ensure end time is still valid
+      if (_examEndDateTime == null) {
+        timer.cancel();
+        return;
+      }
+      
+      // Auto-submit when: currentTime >= (startTime + examDuration)
+      // This is equivalent to: currentTime >= endTime
+      // All exams use the same algorithm
+      if (now.isAfter(_examEndDateTime!) || now.isAtSameMomentAs(_examEndDateTime!)) {
+        timer.cancel();
+        _submitExam(isTimeUp: true);
+        return;
+      }
+      
+      // Update remaining time based on actual end time (start time + duration)
+      // This ensures real-time accuracy - recalculates every second
+      _remainingTime = _examEndDateTime!.difference(now);
+      
+      if (mounted) {
+        setState(() {
+          // State updated above
+        });
+      }
     });
   }
 
@@ -62,6 +185,9 @@ class _ExaminationPageState extends State<ExaminationPage> {
     if (_isSubmitting || _isExamSubmitted) {
       return;
     }
+
+    // All exams (dummy and normal) use the same submission logic
+    // No special handling needed
 
     _isSubmitting = true;
     
@@ -316,32 +442,29 @@ class _ExaminationPageState extends State<ExaminationPage> {
 
   @override
   Widget build(BuildContext context) {
-    final currentQuestion = widget.questions[_currentQuestionIndex];
-    final isDisabled = _isExamSubmitted || _isSubmitting;
-    // For dummy exams, time never runs out
-    final isTimeRunningOut = !_isDummyExam && 
-                             _remainingTime.inMinutes < 5 && 
-                             _remainingTime.inMinutes > 0 && 
-                             !isDisabled;
+        final currentQuestion = widget.questions[_currentQuestionIndex];
+        final isDisabled = _isExamSubmitted || _isSubmitting;
+        // Check if time is running out (less than 5 minutes remaining)
+        final isTimeRunningOut = _remainingTime.inMinutes < 5 && 
+                                 _remainingTime.inMinutes > 0 && 
+                                 !isDisabled;
 
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.exam.title),
         actions: [
           Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Text(
-                _isDummyExam ? 'NaN' : _formatDuration(_remainingTime),
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: _isDummyExam 
-                      ? Colors.orange 
-                      : (isTimeRunningOut ? Colors.red : Colors.white),
-                ),
-              ),
-            ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Text(
+                      _formatDuration(_remainingTime),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: isTimeRunningOut ? Colors.red : Colors.white,
+                      ),
+                    ),
+                  ),
           ),
         ],
       ),

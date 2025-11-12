@@ -5,7 +5,6 @@ import '../services/index.dart';
 import '../config/routes.dart'; // For AppRoutes.login
 import '../models/index.dart';
 import '../features/index.dart';
-import 'admin/admin_student_edit_page.dart';
 import '../utils/dialog_helper.dart';
 import '../utils/logger.dart';
 
@@ -116,18 +115,14 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
       if (widget.userRole == UserRole.student && widget.studentId != null) {
         // For students, load only their assigned exams on initial data load
-        print('🎓 Loading exams for student: ${widget.studentId}');
         final assignedExams = await AtlasService.getStudentExams(
           studentId: widget.studentId!,
           page: _currentPage,
           limit: _pageSize,
         );
         
-        print('📚 Received ${assignedExams.length} exam(s) from API');
-        
         // For students, separate upcoming and past exams
         final now = DateTime.now();
-        print('⏰ Current time: $now');
         
         final upcomingExams = <Exam>[];
         final pastExams = <Exam>[];
@@ -136,7 +131,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           try {
             // Skip dummy exams for students (only teachers/admins can access them)
             if (exam.isDummy || exam.examTime.toUpperCase() == 'NAN') {
-              print('   ⏭️ Skipping dummy exam (students cannot access)');
               continue;
             }
             
@@ -145,46 +139,35 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             
             // Skip if exam has no valid start/end time
             if (examStartDateTime == null || examEndDateTime == null) {
-              print('   ⏭️ Skipping exam with invalid time');
               continue;
             }
             
-            print('📅 Exam: ${exam.title}');
-            print('   Start: $examStartDateTime');
-            print('   End: $examEndDateTime');
-            print('   Now: $now');
-            
             // Upcoming exams: exams that haven't started yet (or are starting now)
             if (examStartDateTime.isAfter(now) || examStartDateTime.isAtSameMomentAs(now)) {
-              print('   ✅ Added to UPCOMING');
               upcomingExams.add(exam);
             }
             // Past exams: exams that have already ended
             else if (examEndDateTime.isBefore(now)) {
-              print('   ✅ Added to PAST');
               pastExams.add(exam);
             }
             // Exams currently in progress: show as upcoming
             else if (examStartDateTime.isBefore(now) && examEndDateTime.isAfter(now)) {
-              print('   ✅ Added to UPCOMING (in progress)');
               upcomingExams.add(exam);
-            } else {
-              print('   ⚠️ Not categorized (start: $examStartDateTime, end: $examEndDateTime, now: $now)');
             }
-          } catch (e, stackTrace) {
-            print('❌ Error processing exam ${exam.title}: $e');
-            print('   Stack trace: $stackTrace');
+          } catch (e) {
+            // Silently skip exams with errors
+            continue;
           }
         }
         
-        print('📊 Categorized: ${upcomingExams.length} upcoming, ${pastExams.length} past');
-        
         // Sort upcoming exams by start date (nearest to farthest)
         if (upcomingExams.isNotEmpty) {
-          upcomingExams.sort((a, b) => a.getExamStartDateTime().compareTo(b.getExamStartDateTime()));
-          print('🎯 Upcoming exams sorted: ${upcomingExams.map((e) => e.title).join(", ")}');
-        } else {
-          print('⚠️ No upcoming exams found');
+          upcomingExams.sort((a, b) {
+            final aStart = a.getExamStartDateTime();
+            final bStart = b.getExamStartDateTime();
+            if (aStart == null || bStart == null) return 0;
+            return aStart.compareTo(bStart);
+          });
         }
         
         setState(() {
@@ -193,8 +176,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           _exams = pastExams; // Use _exams for past exams list
           _hasMoreData = assignedExams.length == _pageSize;
         });
-        
-        print('✅ State updated: ${_pastExams.length} past exams, ${_upcomingExams.length} upcoming exams');
       } else {
         // For teachers and admins, load all relevant data in parallel for faster loading
         final results = await Future.wait([
@@ -520,7 +501,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   tooltip: 'Question Bank',
                   onPressed: _openQuestionBankPage,
                 ),
-              if (widget.userRole == UserRole.teacher)
+              if (widget.userRole == UserRole.teacher || widget.userRole == UserRole.admin)
                 IconButton(
                   icon: const Icon(Icons.add_circle_outline),
                   tooltip: 'Create Exam',
@@ -624,6 +605,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       _showAddStudentDialog();
                     } else if (value == 'testChat') {
                       await _testChatSocket();
+                    } else if (value == 'testExam') {
+                      await _testExaminationPage();
                     }
                   },
                   itemBuilder: (context) => [
@@ -654,6 +637,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           Icon(Icons.wifi_tethering, size: 20),
                           SizedBox(width: 8),
                           Text('Test Chat Socket'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'testExam',
+                      child: Row(
+                        children: [
+                          Icon(Icons.quiz, size: 20),
+                          SizedBox(width: 8),
+                          Text('Test Examination Page'),
                         ],
                       ),
                     ),
@@ -730,15 +723,31 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ],
                   ],
                 ),
-          floatingActionButton: FloatingActionButton(
-            onPressed: () {
-              if (widget.userRole == UserRole.teacher) {
-                _loadTeacherData();
-              } else {
-                _loadData(refresh: true);
-              }
-            },
-            child: const Icon(Icons.refresh),
+          floatingActionButton: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Create Exam button (on top)
+              if (widget.userRole == UserRole.teacher || widget.userRole == UserRole.admin)
+                FloatingActionButton(
+                  onPressed: _createNewExam,
+                  heroTag: 'createExam',
+                  backgroundColor: Colors.green,
+                  child: const Icon(Icons.add),
+                ),
+              const SizedBox(height: 16),
+              // Refresh button (below)
+              FloatingActionButton(
+                onPressed: () {
+                  if (widget.userRole == UserRole.teacher) {
+                    _loadTeacherData();
+                  } else {
+                    _loadData(refresh: true);
+                  }
+                },
+                heroTag: 'refresh',
+                child: const Icon(Icons.refresh),
+              ),
+            ],
           ),
         ),
       ],
@@ -1685,6 +1694,65 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     }
   }
 
+  Future<void> _testExaminationPage() async {
+    final adminId = widget.adminId ?? widget.studentId ?? widget.teacherId ?? widget.username;
+    if (adminId == null || adminId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Unable to test: Admin ID not found'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    try {
+      setState(() => _isLoading = true);
+      
+      // Create a dummy exam scenario for testing
+      final dummyExamSetup = await AtlasService.createDummyExamScenario(
+        teacherId: adminId,
+        assignSampleStudent: false, // Don't assign a student, we'll test as admin
+      );
+
+      // Check if questions were loaded
+      if (dummyExamSetup.exam.populatedQuestions == null || dummyExamSetup.exam.populatedQuestions!.isEmpty) {
+        // Try to load questions if not populated
+        final questions = await AtlasService.getQuestionsByIds(dummyExamSetup.exam.questions);
+        dummyExamSetup.exam.populatedQuestions = questions;
+      }
+
+      if (mounted && dummyExamSetup.exam.populatedQuestions != null && dummyExamSetup.exam.populatedQuestions!.isNotEmpty) {
+        // Navigate directly to examination page with the dummy exam
+        Navigator.pushNamed(
+          context,
+          AppRoutes.examination,
+          arguments: {
+            'exam': dummyExamSetup.exam,
+            'questions': dummyExamSetup.exam.populatedQuestions!,
+            'studentId': adminId, // Use admin ID for testing
+          },
+        );
+      } else {
+        throw Exception('Failed to create dummy exam or load questions. Questions count: ${dummyExamSetup.exam.populatedQuestions?.length ?? 0}');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error creating test exam: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   void _startChatWithStudent(Student student) {
     // Only allow admin to chat with students
     if (widget.userRole != UserRole.admin) {
@@ -2095,23 +2163,37 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   }
 
   void _createNewExam() {
-    Navigator.pushNamed(
-      context,
-      AppRoutes.examEdit,
-      arguments: {
-        'teacherId': _teacherId,
-        'userRole': UserRole.teacher,
-      },
-    ).then((_) {
-      if (!mounted) return;
-      if (widget.userRole == UserRole.teacher) {
+    if (widget.userRole == UserRole.admin) {
+      // Admin can create exams
+      final adminId = widget.adminId ?? widget.studentId ?? widget.teacherId ?? widget.username;
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ExamEditPage(
+            examId: null, // null means creating new exam
+            adminId: adminId,
+          ),
+        ),
+      ).then((_) {
+        if (!mounted) return;
+        _loadData(refresh: true);
+      });
+    } else if (widget.userRole == UserRole.teacher) {
+      // Teacher creates exam
+      Navigator.pushNamed(
+        context,
+        AppRoutes.examEdit,
+        arguments: {
+          'teacherId': _teacherId,
+          'userRole': UserRole.teacher,
+        },
+      ).then((_) {
+        if (!mounted) return;
         _currentPage = 0;
         _exams.clear();
         _loadTeacherData();
-      } else {
-        _loadData(refresh: true);
-      }
-    });
+      });
+    }
   }
 
   Future<void> _openQuestionBankPage() async {
@@ -2289,11 +2371,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
     DateTime? selectedDate;
     TimeOfDay? selectedTime;
+    // Capture the outer context before showing dialog
+    final outerContext = context;
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) {
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (dialogContext, setState) {
           return AlertDialog(
             title: const Text('Delay Exam'),
             content: Column(
@@ -2306,7 +2390,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   subtitle: Text(selectedDate?.toString().split(' ')[0] ?? 'Select date'),
                   onTap: () async {
                     final date = await showDatePicker(
-                      context: context,
+                      context: dialogContext,
                       initialDate: exam.examDate,
                       firstDate: DateTime.now(),
                       lastDate: DateTime.now().add(const Duration(days: 365)),
@@ -2320,7 +2404,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ),
                 ListTile(
                   title: const Text('Time'),
-                  subtitle: Text(selectedTime?.format(context) ?? 'Select time'),
+                  subtitle: Text(selectedTime?.format(dialogContext) ?? 'Select time'),
                   onTap: () async {
                     TimeOfDay initialTime;
                     try {
@@ -2342,7 +2426,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     }
 
                     final time = await showTimePicker(
-                      context: context,
+                      context: dialogContext,
                       initialTime: initialTime,
                     );
                     if (time != null) {
@@ -2356,13 +2440,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
+                onPressed: () => Navigator.pop(dialogContext),
                 child: const Text('Cancel'),
               ),
               TextButton(
                 onPressed: () async {
                   if (selectedDate == null || selectedTime == null) {
-                    ScaffoldMessenger.of(context).showSnackBar(
+                    ScaffoldMessenger.of(dialogContext).showSnackBar(
                       const SnackBar(content: Text('Please select both date and time')),
                     );
                     return;
@@ -2384,20 +2468,28 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     );
 
                     if (success) {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Exam delayed successfully')),
-                      );
-                      _loadData(refresh: true);
+                      // Close dialog first
+                      Navigator.pop(dialogContext);
+                      
+                      // Refresh data and show success message using outer context
+                      if (mounted) {
+                        ScaffoldMessenger.of(outerContext).showSnackBar(
+                          const SnackBar(content: Text('Exam delayed successfully')),
+                        );
+                        _loadData(refresh: true);
+                      }
                     } else {
                       throw Exception('Failed to delay exam');
                     }
                   } catch (e) {
-                    DialogHelper.showErrorDialog(
-                      context: context,
-                      title: 'Error Delaying Exam',
-                      message: 'An error occurred while delaying the exam: $e',
-                    );
+                    // Show error dialog using dialog context
+                    if (mounted) {
+                      DialogHelper.showErrorDialog(
+                        context: dialogContext,
+                        title: 'Error Delaying Exam',
+                        message: 'An error occurred while delaying the exam: $e',
+                      );
+                    }
                   }
                 },
                 child: const Text('Delay'),
