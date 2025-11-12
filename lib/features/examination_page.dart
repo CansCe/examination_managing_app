@@ -22,17 +22,21 @@ class ExaminationPage extends StatefulWidget {
 class _ExaminationPageState extends State<ExaminationPage> {
   int _currentQuestionIndex = 0;
   final Map<int, String> _answers = {};
-  late Timer _timer;
+  Timer? _timer; // Nullable for dummy exams
   late Duration _remainingTime;
   bool _isExamSubmitted = false;
   bool _isSubmitting = false;
   bool _isTimeUp = false;
+  bool get _isDummyExam => widget.exam.isDummy || widget.exam.examTime.toUpperCase() == 'NAN';
 
   @override
   void initState() {
     super.initState();
     _remainingTime = Duration(minutes: widget.exam.duration);
-    _startTimer();
+    // Only start timer for non-dummy exams (dummy exams have no time restrictions)
+    if (!_isDummyExam) {
+      _startTimer();
+    }
   }
 
   void _startTimer() {
@@ -62,8 +66,8 @@ class _ExaminationPageState extends State<ExaminationPage> {
     _isSubmitting = true;
     
     // Cancel timer if still running
-    if (_timer.isActive) {
-      _timer.cancel();
+    if (_timer?.isActive ?? false) {
+      _timer?.cancel();
     }
 
     // Mark time as up if timer expired
@@ -270,7 +274,7 @@ class _ExaminationPageState extends State<ExaminationPage> {
 
   @override
   void dispose() {
-    _timer.cancel();
+    _timer?.cancel();
     super.dispose();
   }
 
@@ -314,7 +318,9 @@ class _ExaminationPageState extends State<ExaminationPage> {
   Widget build(BuildContext context) {
     final currentQuestion = widget.questions[_currentQuestionIndex];
     final isDisabled = _isExamSubmitted || _isSubmitting;
-    final isTimeRunningOut = _remainingTime.inMinutes < 5 && 
+    // For dummy exams, time never runs out
+    final isTimeRunningOut = !_isDummyExam && 
+                             _remainingTime.inMinutes < 5 && 
                              _remainingTime.inMinutes > 0 && 
                              !isDisabled;
 
@@ -326,11 +332,13 @@ class _ExaminationPageState extends State<ExaminationPage> {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Text(
-                _formatDuration(_remainingTime),
+                _isDummyExam ? 'NaN' : _formatDuration(_remainingTime),
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: isTimeRunningOut ? Colors.red : Colors.white,
+                  color: _isDummyExam 
+                      ? Colors.orange 
+                      : (isTimeRunningOut ? Colors.red : Colors.white),
                 ),
               ),
             ),

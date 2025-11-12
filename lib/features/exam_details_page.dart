@@ -74,6 +74,12 @@ class _ExamDetailsPageState extends State<ExamDetailsPage> {
   }
 
   void _calculateExamStartTime() {
+    // Dummy exams can start at any time (no start time)
+    if (widget.exam.isDummy || widget.exam.examTime.toUpperCase() == 'NAN') {
+      _examStartDateTime = null;
+      return;
+    }
+    
     try {
       // Parse exam time (format: "HH:mm")
       final timeParts = widget.exam.examTime.split(':');
@@ -112,6 +118,28 @@ class _ExamDetailsPageState extends State<ExamDetailsPage> {
   }
 
   void _checkExamAvailability({bool suppressNotification = false}) {
+    // Dummy exams can always be started (only by teachers/admins)
+    if (widget.exam.isDummy || widget.exam.examTime.toUpperCase() == 'NAN') {
+      // Check if user is teacher or admin
+      if (widget.userRole == UserRole.teacher || widget.userRole == UserRole.admin) {
+        if (mounted) {
+          setState(() {
+            _canStartExam = true;
+            _examAvailabilityMessage = 'Dummy exam - can be started at any time (for testing)';
+          });
+        }
+      } else {
+        // Students cannot access dummy exams
+        if (mounted) {
+          setState(() {
+            _canStartExam = false;
+            _examAvailabilityMessage = 'This exam is only available to teachers and admins';
+          });
+        }
+      }
+      return;
+    }
+    
     final now = DateTime.now();
     
     if (_examStartDateTime == null) {
@@ -256,6 +284,20 @@ class _ExamDetailsPageState extends State<ExamDetailsPage> {
   }
 
   void _startExam() {
+    // For dummy exams, check if user is teacher or admin
+    if (widget.exam.isDummy || widget.exam.examTime.toUpperCase() == 'NAN') {
+      if (widget.userRole != UserRole.teacher && widget.userRole != UserRole.admin) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('This exam is only available to teachers and admins'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+    }
+    
     // Re-check availability before starting
     _checkExamAvailability();
     
@@ -453,11 +495,14 @@ class _ExamDetailsPageState extends State<ExamDetailsPage> {
                                           Icons.question_mark,
                                           'Questions: ${_questions.length}',
                                         ),
-                                        if (_examStartDateTime != null)
-                                          _buildInfoChip(
-                                            Icons.access_time,
-                                            'Start Time: ${_examStartDateTime!.toString().split(' ')[1].substring(0, 5)}',
-                                          ),
+                                        _buildInfoChip(
+                                          Icons.access_time,
+                                          widget.exam.isDummy || widget.exam.examTime.toUpperCase() == 'NAN'
+                                              ? 'Start Time: NaN (can start anytime)'
+                                              : _examStartDateTime != null
+                                                  ? 'Start Time: ${_examStartDateTime!.toString().split(' ')[1].substring(0, 5)}'
+                                                  : 'Start Time: N/A',
+                                        ),
                                         if (_examStartDateTime != null)
                                           _buildInfoChip(
                                             Icons.calendar_today,

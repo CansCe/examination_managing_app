@@ -16,6 +16,7 @@ class Exam {
   final DateTime createdAt;
   final DateTime updatedAt;
   final String? status;
+  final bool isDummy; // Flag to indicate if this is a dummy/test exam
   List<Question>? populatedQuestions;
 
   Exam({
@@ -33,6 +34,7 @@ class Exam {
     required this.createdAt,
     required this.updatedAt,
     this.status,
+    this.isDummy = false,
     this.populatedQuestions,
   });
 
@@ -52,6 +54,7 @@ class Exam {
       'createdAt': createdAt,
       'updatedAt': updatedAt,
       'status': status,
+      'isDummy': isDummy,
     };
   }
 
@@ -70,6 +73,7 @@ class Exam {
       'questions': questions.map((q) => q.toHexString()).toList(),
       'createdBy': createdBy.toHexString(),
       'status': status,
+      'isDummy': isDummy,
     };
   }
 
@@ -123,13 +127,17 @@ class Exam {
     }
 
     // Parse exam time (now stored as String)
+    // Handle "NaN" for dummy exams that can start at any time
     String parsedExamTime;
     try {
       if (map['examTime'] == null) {
         parsedExamTime = '09:00'; // Default to 09:00 if null
       } else if (map['examTime'] is String) {
         final timeStr = map['examTime'] as String;
-        if (timeStr.contains(':')) {
+        // Check if it's "NaN" (for dummy exams)
+        if (timeStr.toUpperCase() == 'NAN' || timeStr == 'NaN') {
+          parsedExamTime = 'NaN';
+        } else if (timeStr.contains(':')) {
           final parts = timeStr.split(':');
           if (parts.length == 2) {
             final hour = int.parse(parts[0]);
@@ -152,6 +160,9 @@ class Exam {
       print('Error parsing exam time: $e');
       parsedExamTime = '09:00';
     }
+    
+    // Parse isDummy flag
+    final isDummy = map['isDummy'] == true || map['isDummy'] == 'true' || map['isDummy'] == 1;
 
     return Exam(
       id: examId,
@@ -174,12 +185,19 @@ class Exam {
           ? DateTime.parse(map['updatedAt']) 
           : map['updatedAt'] ?? DateTime.now(),
       status: map['status'] as String?,
+      isDummy: isDummy,
       populatedQuestions: null, // This field will be populated separately
     );
   }
 
   // Calculate exam start DateTime
-  DateTime getExamStartDateTime() {
+  // Returns null for dummy exams (can start at any time)
+  DateTime? getExamStartDateTime() {
+    // Dummy exams can start at any time
+    if (isDummy || examTime.toUpperCase() == 'NAN') {
+      return null;
+    }
+    
     try {
       final timeParts = examTime.split(':');
       if (timeParts.length == 2) {
@@ -206,21 +224,33 @@ class Exam {
   }
 
   // Calculate exam end DateTime (start time + duration)
-  DateTime getExamEndDateTime() {
+  // Returns null for dummy exams
+  DateTime? getExamEndDateTime() {
     final startTime = getExamStartDateTime();
+    if (startTime == null) return null; // Dummy exam
     return startTime.add(Duration(minutes: duration));
   }
 
   // Check if exam has ended
+  // Always returns false for dummy exams (they can be taken at any time)
   bool isExamFinished() {
+    if (isDummy || examTime.toUpperCase() == 'NAN') {
+      return false; // Dummy exams never "finish"
+    }
     final endTime = getExamEndDateTime();
+    if (endTime == null) return false;
     final now = DateTime.now();
     return now.isAfter(endTime);
   }
 
   // Check if exam has started (current time >= start time)
+  // Always returns true for dummy exams (they can start at any time)
   bool isExamStarted() {
+    if (isDummy || examTime.toUpperCase() == 'NAN') {
+      return true; // Dummy exams can always be started
+    }
     final startTime = getExamStartDateTime();
+    if (startTime == null) return true;
     final now = DateTime.now();
     return now.isAfter(startTime) || now.isAtSameMomentAs(startTime);
   }
@@ -231,9 +261,18 @@ class Exam {
       return status!;
     }
     
+    // Dummy exams are always available
+    if (isDummy || examTime.toUpperCase() == 'NAN') {
+      return 'available';
+    }
+    
     final now = DateTime.now();
     final startTime = getExamStartDateTime();
     final endTime = getExamEndDateTime();
+    
+    if (startTime == null || endTime == null) {
+      return 'available';
+    }
 
     if (now.isBefore(startTime)) {
       return 'scheduled';

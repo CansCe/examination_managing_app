@@ -408,16 +408,17 @@ class AtlasService {
 
       final examPayload = {
         'title': 'Demo Exam ${now.millisecondsSinceEpoch}',
-        'description': 'Automatically generated exam for quick testing.',
+        'description': 'Automatically generated exam for quick testing. This is a dummy exam that can be started at any time by teachers or admins.',
         'subject': subject,
         'difficulty': 'medium',
-        'examDate': now.add(const Duration(days: 1)).toIso8601String(),
-        'examTime': '09:00',
+        'examDate': now.toIso8601String(), // Use current date
+        'examTime': 'NaN', // Special value to indicate can start at any time
         'duration': 45,
         'maxStudents': 30,
         'questions': questionIds,
         'createdBy': teacherId,
-        'status': 'scheduled',
+        'status': 'available', // Available status for dummy exams
+        'isDummy': true, // Flag to identify dummy exam
       };
 
       final insertedExamId = await api.createExam(examPayload);

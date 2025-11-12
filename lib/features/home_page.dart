@@ -134,8 +134,20 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         
         for (final exam in assignedExams) {
           try {
+            // Skip dummy exams for students (only teachers/admins can access them)
+            if (exam.isDummy || exam.examTime.toUpperCase() == 'NAN') {
+              print('   ⏭️ Skipping dummy exam (students cannot access)');
+              continue;
+            }
+            
             final examStartDateTime = exam.getExamStartDateTime();
             final examEndDateTime = exam.getExamEndDateTime();
+            
+            // Skip if exam has no valid start/end time
+            if (examStartDateTime == null || examEndDateTime == null) {
+              print('   ⏭️ Skipping exam with invalid time');
+              continue;
+            }
             
             print('📅 Exam: ${exam.title}');
             print('   Start: $examStartDateTime');
@@ -280,8 +292,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           final pastExams = <Exam>[];
           
           for (final exam in studentExams) {
+            // Skip dummy exams for students (only teachers/admins can access them)
+            if (exam.isDummy || exam.examTime.toUpperCase() == 'NAN') {
+              continue;
+            }
+            
             final examStartDateTime = exam.getExamStartDateTime();
             final examEndDateTime = exam.getExamEndDateTime();
+            
+            // Skip if exam has no valid start/end time
+            if (examStartDateTime == null || examEndDateTime == null) {
+              continue;
+            }
             
             // Upcoming exams: exams that haven't started yet (or are starting now)
             if (examStartDateTime.isAfter(now) || examStartDateTime.isAtSameMomentAs(now)) {
@@ -299,7 +321,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           
           // Sort upcoming exams by start date (nearest to farthest)
           if (upcomingExams.isNotEmpty) {
-            upcomingExams.sort((a, b) => a.getExamStartDateTime().compareTo(b.getExamStartDateTime()));
+            upcomingExams.sort((a, b) {
+              final aStart = a.getExamStartDateTime();
+              final bStart = b.getExamStartDateTime();
+              if (aStart == null || bStart == null) return 0;
+              return aStart.compareTo(bStart);
+            });
           }
           
           setState(() {
@@ -310,7 +337,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             } else {
               // Merge and re-sort upcoming exams
               _upcomingExams.addAll(upcomingExams);
-              _upcomingExams.sort((a, b) => a.getExamStartDateTime().compareTo(b.getExamStartDateTime()));
+              _upcomingExams.sort((a, b) {
+                final aStart = a.getExamStartDateTime();
+                final bStart = b.getExamStartDateTime();
+                if (aStart == null || bStart == null) return 0;
+                return aStart.compareTo(bStart);
+              });
               // Remove duplicates based on exam ID
               final seenIds = <String>{};
               _upcomingExams = _upcomingExams.where((exam) {
@@ -319,7 +351,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 seenIds.add(id);
                 return true;
               }).toList();
-              _upcomingExams.sort((a, b) => a.getExamStartDateTime().compareTo(b.getExamStartDateTime()));
+              _upcomingExams.sort((a, b) {
+                final aStart = a.getExamStartDateTime();
+                final bStart = b.getExamStartDateTime();
+                if (aStart == null || bStart == null) return 0;
+                return aStart.compareTo(bStart);
+              });
               
               _pastExams.addAll(pastExams);
               _exams = _pastExams;
@@ -1004,14 +1041,34 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text(
-                                    exam.title,
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: Text(
+                                          exam.title,
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                      if (exam.isDummy || exam.examTime.toUpperCase() == 'NAN')
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: Colors.orange,
+                                            borderRadius: BorderRadius.circular(12),
+                                          ),
+                                          child: const Text(
+                                            'TEST',
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                              color: Colors.white,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                   const SizedBox(height: 8),
                                   Row(
@@ -1528,15 +1585,31 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   void _navigateToExamDetails(Exam exam) {
     // For students, check if exam has finished before navigating
-    if (widget.userRole != UserRole.teacher && exam.isExamFinished()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('This exam has finished and is no longer available.'),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 3),
-        ),
-      );
-      return;
+    // Dummy exams are always accessible to teachers/admins
+    if (widget.userRole == UserRole.student) {
+      // Students cannot access dummy exams
+      if (exam.isDummy || exam.examTime.toUpperCase() == 'NAN') {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('This exam is only available to teachers and admins.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+      
+      // Check if exam has finished
+      if (exam.isExamFinished()) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('This exam has finished and is no longer available.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
     }
 
     Navigator.pushNamed(
