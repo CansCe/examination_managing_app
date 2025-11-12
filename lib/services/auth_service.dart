@@ -27,6 +27,7 @@ class AuthService {
         username: result['username']?.toString() ?? username,
         role: role,
         fullName: result['fullName']?.toString() ?? result['username']?.toString() ?? username,
+        sessionId: result['sessionId']?.toString(),
       );
     } catch (e) {
       print('Error during login: $e');
@@ -34,12 +35,20 @@ class AuthService {
     }
   }
 
-  static Future<void> logout() async {
-    // In a real app, you might want to:
-    // 1. Clear any stored tokens
-    // 2. Clear any cached user data
-    // 3. Notify the server about the logout
-    // For now, we'll just return
+  static Future<bool> logout(String? sessionId) async {
+    if (sessionId == null || sessionId.isEmpty) {
+      return true; // No session to logout
+    }
+
+    try {
+      final api = ApiService();
+      final response = await api.logout(sessionId: sessionId);
+      api.close();
+      return response;
+    } catch (e) {
+      print('Error during logout: $e');
+      return false;
+    }
   }
 
   static Future<bool> changePassword({

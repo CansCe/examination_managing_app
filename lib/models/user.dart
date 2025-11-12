@@ -9,12 +9,14 @@ class User {
   final String username;
   final UserRole role;
   final String fullName;
+  final String? sessionId;
 
   User({
     required this.id,
     required this.username,
     required this.role,
     required this.fullName,
+    this.sessionId,
   });
 
   factory User.fromMap(Map<String, dynamic> map) {

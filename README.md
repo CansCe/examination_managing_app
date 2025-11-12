@@ -98,6 +98,7 @@ exam_management_app/
 │   │   ├── chat_service.dart    # WebSocket chat client
 │   │   ├── auth_service.dart    # Authentication service
 │   │   ├── api_discovery_service.dart # Auto-discovery service
+│   │   ├── api_cache_service.dart # API response caching
 │   │   └── mongodb_service.dart # Direct MongoDB access
 │   ├── utils/                   # Utility functions
 │   └── main.dart                # App entry point
@@ -113,6 +114,7 @@ exam_management_app/
 │   │   └── database.js          # MongoDB connection
 │   ├── server.js                # Express server
 │   ├── package.json
+│   ├── Dockerfile               # Docker image configuration
 │   └── ENV_EXAMPLE.txt          # Environment variables template
 ├── backend-chat/                 # Chat service
 │   ├── controllers/             # Chat controllers
@@ -125,10 +127,19 @@ exam_management_app/
 │   │   └── socket.js            # Socket.io setup
 │   ├── server.js                # Express + Socket.io server
 │   ├── package.json
+│   ├── Dockerfile               # Docker image configuration
 │   └── ENV_EXAMPLE.txt
+├── nginx/                        # Nginx configuration files
+│   ├── exam-app-api.duckdns.org.conf  # API service config
+│   ├── backend-chat.duckdns.org.conf  # Chat service config
+│   └── nginx.conf.fix           # Nginx main config fixes
 ├── scripts/                      # Utility scripts
 │   └── generate_mock_data_standalone.bat
 ├── docs/                         # Documentation
+│   ├── HTTPS_UPGRADE.md         # HTTP to HTTPS upgrade guide
+│   ├── API_PERFORMANCE_OPTIMIZATION.md
+│   ├── DEPLOYMENT.md
+│   └── ... (other documentation)
 ├── docker-compose.yml            # Docker Compose configuration
 └── pubspec.yaml                  # Flutter dependencies
 ```
@@ -241,6 +252,7 @@ flutter build apk --release \
 - **CORS**: Configured to allow only specified origins
 - **Helmet**: Security headers middleware
 - **Environment Variables**: Sensitive data (MongoDB URI) stored in `.env` files, not in code
+- **HTTPS/SSL**: Support for HTTPS with Let's Encrypt SSL certificates (see [HTTPS_UPGRADE.md](docs/HTTPS_UPGRADE.md))
 
 ### Frontend Security
 - **API Discovery**: Validates endpoints before connecting
@@ -326,6 +338,7 @@ flutter build apk --release \
 - **[docs/DOCKER_DEPLOYMENT.md](docs/DOCKER_DEPLOYMENT.md)** - Docker deployment guide
 - **[docs/PRODUCTION_DEPLOYMENT.md](docs/PRODUCTION_DEPLOYMENT.md)** - Production server deployment
 - **[docs/SERVER_DEPLOYMENT_WITH_DOMAINS.md](docs/SERVER_DEPLOYMENT_WITH_DOMAINS.md)** - Deployment with domain names
+- **[docs/HTTPS_UPGRADE.md](docs/HTTPS_UPGRADE.md)** - Upgrade Nginx from HTTP to HTTPS with SSL certificates
 
 ### Features
 - **[docs/CHAT_IMPLEMENTATION.md](docs/CHAT_IMPLEMENTATION.md)** - Chat service documentation
@@ -396,6 +409,7 @@ DEFAULT_ADMIN_ID=507f1f77bcf86cd799439011
 - Check API discovery service logs
 - Ensure CORS is configured correctly
 - For Android emulator, use `10.0.2.2` instead of `localhost`
+- If using HTTPS, verify SSL certificates are valid and not expired
 
 ### Chat Not Working
 - Verify Socket.io connection in browser console

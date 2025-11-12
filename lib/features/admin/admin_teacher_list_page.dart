@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/index.dart';
 import '../../models/index.dart';
+import 'admin_teacher_edit_page.dart';
 
 class AdminTeacherListPage extends StatefulWidget {
   final String adminId;
@@ -91,6 +92,29 @@ class _AdminTeacherListPageState extends State<AdminTeacherListPage> {
         });
       }
     }
+  }
+
+  void _addTeacher() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AdminTeacherEditPage(
+          adminId: widget.adminId,
+        ),
+      ),
+    ).then((_) => _loadTeachers());
+  }
+
+  void _navigateToEditTeacher(Teacher teacher) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AdminTeacherEditPage(
+          adminId: widget.adminId,
+          teacher: teacher,
+        ),
+      ),
+    ).then((_) => _loadTeachers());
   }
 
   Future<void> _editTeacher(Teacher teacher) async {
@@ -186,6 +210,11 @@ class _AdminTeacherListPageState extends State<AdminTeacherListPage> {
           tooltip: 'Back',
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            onPressed: () => _addTeacher(),
+            tooltip: 'Add Teacher',
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadTeachers,
@@ -290,7 +319,7 @@ class _AdminTeacherListPageState extends State<AdminTeacherListPage> {
                               ),
                               trailing: IconButton(
                                 icon: const Icon(Icons.edit, size: 20),
-                                onPressed: () => _editTeacher(teacher),
+                                onPressed: () => _navigateToEditTeacher(teacher),
                                 tooltip: 'Edit Teacher',
                                 color: Colors.blue,
                               ),

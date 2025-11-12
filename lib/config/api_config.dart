@@ -19,6 +19,7 @@ import 'package:exam_management_app/services/api_discovery_service.dart';
 /// - App automatically discovers available API endpoints on first launch
 /// - Stores the working URL locally for future use
 /// - Re-validates on app startup
+/// - Automatically upgrades HTTP URLs to HTTPS when available
 /// 
 /// BUILD-TIME (Optional):
 /// flutter build apk --release \
@@ -28,7 +29,12 @@ import 'package:exam_management_app/services/api_discovery_service.dart';
 /// MANUAL CONFIGURATION:
 /// Users can manually configure API URL in app settings if auto-discovery fails
 /// 
-/// See PRODUCTION_DEPLOYMENT.md for detailed instructions
+/// HTTPS UPGRADE:
+/// - App automatically detects HTTP to HTTPS redirects
+/// - Upgrades stored HTTP URLs to HTTPS when server redirects
+/// - Prioritizes HTTPS URLs for production domains
+/// 
+/// See PRODUCTION_DEPLOYMENT.md and HTTPS_UPGRADE.md for detailed instructions
 class ApiConfig {
   static String? _cachedApiUrl;
   static String? _cachedChatUrl;

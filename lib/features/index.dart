@@ -6,6 +6,8 @@ export 'shared/helpdesk_chat.dart';
 export 'admin/admin_chat_page.dart';
 export 'admin/admin_student_exam_assignment_page.dart';
 export 'admin/admin_teacher_list_page.dart';
+export 'admin/admin_teacher_edit_page.dart';
+export 'admin/admin_student_edit_page.dart';
 export 'exams/exam_edit_page.dart';
 export 'questions/question_bank_page.dart';
 export 'questions/question_edit_page.dart'; 

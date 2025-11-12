@@ -16,26 +16,33 @@ class ApiDiscoveryService {
   // 1. Uncomment and update the examples below, OR
   // 2. Use addCustomApiUrls() at runtime
   // 3. Domains are tried in order (first one that responds is used)
+  // 
+  // PRIORITY ORDER:
+  // 1. Local development (localhost) - for development
+  // 2. HTTPS production URLs - secure production connections
+  // 3. HTTP production URLs - fallback only (should redirect to HTTPS)
   static final List<String> _defaultApiUrls = [
-    // Local development, try out local routes first before trying to connect to the internet
+    // Local development (tried first for development convenience)
     'http://localhost:3000',
     'http://10.0.2.2:3000', // Android emulator
-    // Production domains (HTTPS first, then HTTP fallback)
+    // Production domains (HTTPS first for security, HTTP as fallback)
     'https://exam-app-api.duckdns.org',
-    'http://exam-app-api.duckdns.org',
+    'http://exam-app-api.duckdns.org', // Fallback (will redirect to HTTPS if configured)
   ];
 
   // List of potential Chat domains to try
+  // Same priority order as API URLs
   static final List<String> _defaultChatUrls = [
-    // Local development, try out local routes first before trying to connect to the internet
+    // Local development (tried first for development convenience)
     'http://localhost:3001',
     'http://10.0.2.2:3001', // Android emulator
-    // Production domains (HTTPS first, then HTTP fallback)
+    // Production domains (HTTPS first for security, HTTP as fallback)
     'https://backend-chat.duckdns.org',
-    'http://backend-chat.duckdns.org',
+    'http://backend-chat.duckdns.org', // Fallback (will redirect to HTTPS if configured)
   ];
 
   /// Discover available API URL by trying multiple endpoints
+  /// Automatically handles HTTP to HTTPS redirects
   static Future<String?> discoverApiUrl({
     List<String>? urlsToTry,
     Duration timeout = const Duration(seconds: 3),
@@ -54,10 +61,31 @@ class ApiDiscoveryService {
             .get(Uri.parse(healthUrl))
             .timeout(timeout);
 
+        // Accept 200 (OK) or handle redirects to HTTPS
         if (response.statusCode == 200) {
           print('  ✅ Found working API: $url');
           await _saveApiUrl(url);
           return url;
+        } else if (response.statusCode == 301 || response.statusCode == 302) {
+          // HTTP redirects to HTTPS - use the HTTPS URL
+          final location = response.headers['location'];
+          if (location != null && location.startsWith('https://')) {
+            final httpsUrl = location.replaceFirst('/health', '');
+            print('  🔒 HTTP redirects to HTTPS: $httpsUrl');
+            // Verify HTTPS URL works
+            try {
+              final httpsResponse = await http
+                  .get(Uri.parse(location))
+                  .timeout(timeout);
+              if (httpsResponse.statusCode == 200) {
+                print('  ✅ Verified HTTPS URL: $httpsUrl');
+                await _saveApiUrl(httpsUrl);
+                return httpsUrl;
+              }
+            } catch (e) {
+              print('  ⚠️ HTTPS verification failed: $e');
+            }
+          }
         }
       } catch (e) {
         print('  ❌ Failed: $url - ${e.toString()}');
@@ -70,6 +98,7 @@ class ApiDiscoveryService {
   }
 
   /// Discover available Chat URL by trying multiple endpoints
+  /// Automatically handles HTTP to HTTPS redirects
   static Future<String?> discoverChatUrl({
     List<String>? urlsToTry,
     Duration timeout = const Duration(seconds: 3),
@@ -88,10 +117,31 @@ class ApiDiscoveryService {
             .get(Uri.parse(healthUrl))
             .timeout(timeout);
 
+        // Accept 200 (OK) or handle redirects to HTTPS
         if (response.statusCode == 200) {
           print('  ✅ Found working Chat: $url');
           await _saveChatUrl(url);
           return url;
+        } else if (response.statusCode == 301 || response.statusCode == 302) {
+          // HTTP redirects to HTTPS - use the HTTPS URL
+          final location = response.headers['location'];
+          if (location != null && location.startsWith('https://')) {
+            final httpsUrl = location.replaceFirst('/health', '');
+            print('  🔒 HTTP redirects to HTTPS: $httpsUrl');
+            // Verify HTTPS URL works
+            try {
+              final httpsResponse = await http
+                  .get(Uri.parse(location))
+                  .timeout(timeout);
+              if (httpsResponse.statusCode == 200) {
+                print('  ✅ Verified HTTPS URL: $httpsUrl');
+                await _saveChatUrl(httpsUrl);
+                return httpsUrl;
+              }
+            } catch (e) {
+              print('  ⚠️ HTTPS verification failed: $e');
+            }
+          }
         }
       } catch (e) {
         print('  ❌ Failed: $url - ${e.toString()}');
@@ -213,7 +263,23 @@ class ApiDiscoveryService {
       final response = await http
           .get(Uri.parse(healthUrl))
           .timeout(const Duration(seconds: 3));
-      return response.statusCode == 200;
+      
+      // Accept 200 (OK) or 301/302 (redirect to HTTPS)
+      if (response.statusCode == 200) {
+        return true;
+      }
+      
+      // If HTTP redirects to HTTPS, try the HTTPS version
+      if (response.statusCode == 301 || response.statusCode == 302) {
+        final location = response.headers['location'];
+        if (location != null && location.startsWith('https://')) {
+          print('🔄 HTTP redirects to HTTPS, upgrading stored URL...');
+          await _saveApiUrl(location.replaceFirst('/health', ''));
+          return true;
+        }
+      }
+      
+      return false;
     } catch (e) {
       return false;
     }
@@ -229,13 +295,30 @@ class ApiDiscoveryService {
       final response = await http
           .get(Uri.parse(healthUrl))
           .timeout(const Duration(seconds: 3));
-      return response.statusCode == 200;
+      
+      // Accept 200 (OK) or 301/302 (redirect to HTTPS)
+      if (response.statusCode == 200) {
+        return true;
+      }
+      
+      // If HTTP redirects to HTTPS, try the HTTPS version
+      if (response.statusCode == 301 || response.statusCode == 302) {
+        final location = response.headers['location'];
+        if (location != null && location.startsWith('https://')) {
+          print('🔄 HTTP redirects to HTTPS, upgrading stored URL...');
+          await _saveChatUrl(location.replaceFirst('/health', ''));
+          return true;
+        }
+      }
+      
+      return false;
     } catch (e) {
       return false;
     }
   }
 
   /// Get API URL with auto-discovery and fallback
+  /// Automatically upgrades HTTP URLs to HTTPS if server redirects
   static Future<String> getApiUrl({
     bool forceRediscovery = false,
     List<String>? customUrls,
@@ -246,6 +329,24 @@ class ApiDiscoveryService {
       if (storedUrl != null) {
         final isValid = await validateStoredApiUrl();
         if (isValid) {
+          // Check if stored URL is HTTP and should be upgraded to HTTPS
+          if (storedUrl.startsWith('http://') && !storedUrl.contains('localhost') && !storedUrl.contains('10.0.2.2')) {
+            final httpsUrl = storedUrl.replaceFirst('http://', 'https://');
+            print('🔒 Attempting HTTPS upgrade: $httpsUrl');
+            try {
+              final healthUrl = '$httpsUrl/health';
+              final response = await http
+                  .get(Uri.parse(healthUrl))
+                  .timeout(const Duration(seconds: 3));
+              if (response.statusCode == 200) {
+                print('✅ Upgraded to HTTPS: $httpsUrl');
+                await _saveApiUrl(httpsUrl);
+                return httpsUrl;
+              }
+            } catch (e) {
+              print('⚠️ HTTPS upgrade failed, using stored HTTP URL');
+            }
+          }
           print('✅ Using stored API URL: $storedUrl');
           return storedUrl;
         } else {
@@ -273,6 +374,7 @@ class ApiDiscoveryService {
   }
 
   /// Get Chat URL with auto-discovery and fallback
+  /// Automatically upgrades HTTP URLs to HTTPS if server redirects
   static Future<String> getChatUrl({
     bool forceRediscovery = false,
     List<String>? customUrls,
@@ -283,6 +385,24 @@ class ApiDiscoveryService {
       if (storedUrl != null) {
         final isValid = await validateStoredChatUrl();
         if (isValid) {
+          // Check if stored URL is HTTP and should be upgraded to HTTPS
+          if (storedUrl.startsWith('http://') && !storedUrl.contains('localhost') && !storedUrl.contains('10.0.2.2')) {
+            final httpsUrl = storedUrl.replaceFirst('http://', 'https://');
+            print('🔒 Attempting HTTPS upgrade: $httpsUrl');
+            try {
+              final healthUrl = '$httpsUrl/health';
+              final response = await http
+                  .get(Uri.parse(healthUrl))
+                  .timeout(const Duration(seconds: 3));
+              if (response.statusCode == 200) {
+                print('✅ Upgraded to HTTPS: $httpsUrl');
+                await _saveChatUrl(httpsUrl);
+                return httpsUrl;
+              }
+            } catch (e) {
+              print('⚠️ HTTPS upgrade failed, using stored HTTP URL');
+            }
+          }
           print('✅ Using stored Chat URL: $storedUrl');
           return storedUrl;
         } else {

@@ -5,6 +5,7 @@ import '../services/index.dart';
 import '../config/routes.dart'; // For AppRoutes.login
 import '../models/index.dart';
 import '../features/index.dart';
+import 'admin/admin_student_edit_page.dart';
 import '../utils/dialog_helper.dart';
 import '../utils/logger.dart';
 
@@ -183,15 +184,17 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         
         print('✅ State updated: ${_pastExams.length} past exams, ${_upcomingExams.length} upcoming exams');
       } else {
-        // For teachers and admins, load all relevant data
-        final teachers = await AtlasService.findTeachers();
-        final students = await AtlasService.findStudents();
-        final exams = await AtlasService.findExams();
+        // For teachers and admins, load all relevant data in parallel for faster loading
+        final results = await Future.wait([
+          AtlasService.findTeachers(),
+          AtlasService.findStudents(),
+          AtlasService.findExams(),
+        ]);
 
         setState(() {
-          _teachers = teachers;
-          _students = students;
-          _exams = exams;
+          _teachers = results[0] as List<Teacher>;
+          _students = results[1] as List<Student>;
+          _exams = results[2] as List<Exam>;
         });
       }
       setState(() {
@@ -564,7 +567,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.admin_panel_settings),
                   tooltip: 'Admin Tools',
-                  onSelected: (value) {
+                  onSelected: (value) async {
                     final adminId = widget.adminId ?? widget.studentId ?? widget.teacherId ?? widget.username;
                     if (value == 'chat') {
                       Navigator.push(
@@ -582,6 +585,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       );
                     } else if (value == 'addStudent') {
                       _showAddStudentDialog();
+                    } else if (value == 'testChat') {
+                      await _testChatSocket();
                     }
                   },
                   itemBuilder: (context) => [
@@ -602,6 +607,16 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                           Icon(Icons.people, size: 20),
                           SizedBox(width: 8),
                           Text('Teachers'),
+                        ],
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'testChat',
+                      child: Row(
+                        children: [
+                          Icon(Icons.wifi_tethering, size: 20),
+                          SizedBox(width: 8),
+                          Text('Test Chat Socket'),
                         ],
                       ),
                     ),
@@ -1542,101 +1557,59 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     });
   }
 
-  Future<void> _editStudent(Student student) async {
-    final nameController = TextEditingController(text: student.fullName);
-    final emailController = TextEditingController(text: student.email);
-    final rollNumberController = TextEditingController(text: student.rollNumber);
-    final classNameController = TextEditingController(text: student.className);
-    final phoneController = TextEditingController(text: student.phoneNumber);
-    final addressController = TextEditingController(text: student.address);
-
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Student'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Full Name'),
-              ),
-              TextField(
-                controller: emailController,
-                decoration: const InputDecoration(labelText: 'Email'),
-                keyboardType: TextInputType.emailAddress,
-              ),
-              TextField(
-                controller: rollNumberController,
-                decoration: const InputDecoration(labelText: 'Roll Number'),
-              ),
-              TextField(
-                controller: classNameController,
-                decoration: const InputDecoration(labelText: 'Class Name'),
-              ),
-              TextField(
-                controller: phoneController,
-                decoration: const InputDecoration(labelText: 'Phone Number'),
-                keyboardType: TextInputType.phone,
-              ),
-              TextField(
-                controller: addressController,
-                decoration: const InputDecoration(labelText: 'Address'),
-                maxLines: 2,
-              ),
-            ],
-          ),
+  void _editStudent(Student student) {
+    final adminId = widget.adminId ?? widget.studentId ?? widget.teacherId ?? widget.username;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AdminStudentEditPage(
+          adminId: adminId ?? '',
+          student: student,
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              try {
-                final api = ApiService();
-                final success = await api.updateStudent(
-                  studentId: student.id,
-                  fullName: nameController.text.trim(),
-                  email: emailController.text.trim(),
-                  phoneNumber: phoneController.text.trim(),
-                  className: classNameController.text.trim(),
-                  rollNumber: rollNumberController.text.trim(),
-                  address: addressController.text.trim(),
-                );
-                api.close();
-
-                if (mounted) {
-                  Navigator.pop(context);
-                  if (success) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Student updated successfully')),
-                    );
-                    // Refresh student list
-                    _currentPage = 0;
-                    _students.clear();
-                    _loadData(refresh: true);
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Failed to update student')),
-                    );
-                  }
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Error: $e')),
-                  );
-                }
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
       ),
-    );
+    ).then((_) {
+      // Refresh student list
+      _currentPage = 0;
+      _students.clear();
+      _loadData(refresh: true);
+    });
+  }
+
+  Future<void> _testChatSocket() async {
+    final api = ApiService();
+    try {
+      setState(() => _isLoading = true);
+      final isHealthy = await api.testChatServiceHealth();
+      api.close();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isHealthy
+                  ? 'Chat socket is connected and healthy!'
+                  : 'Chat socket connection failed',
+            ),
+            backgroundColor: isHealthy ? Colors.green : Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error testing chat socket: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   void _startChatWithStudent(Student student) {

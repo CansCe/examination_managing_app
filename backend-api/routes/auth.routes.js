@@ -1,6 +1,6 @@
 import express from 'express';
 import { body } from 'express-validator';
-import { login, getCurrentUser, changePassword } from '../controllers/auth.controller.js';
+import { login, logout, getCurrentUser, changePassword } from '../controllers/auth.controller.js';
 import { authLimiter, readLimiter, writeLimiter } from '../middleware/rateLimiter.js';
 
 const router = express.Router();
@@ -14,6 +14,9 @@ router.post('/login',
   ],
   login
 );
+
+// Logout endpoint
+router.post('/logout', writeLimiter, logout);
 
 // Get current user - read rate limiting
 router.get('/user/:userId', readLimiter, getCurrentUser);

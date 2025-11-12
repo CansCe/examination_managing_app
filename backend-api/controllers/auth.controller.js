@@ -17,6 +17,10 @@ export const login = async (req, res) => {
     const sanitizedUsername = sanitizeUsername(username);
     const sanitizedPassword = sanitizePassword(password);
 
+    // Get client IP address for session tracking
+    const clientIp = req.ip || req.connection.remoteAddress || 'unknown';
+    const userAgent = req.get('user-agent') || 'unknown';
+
     // Try to find student first
     let student = await db.collection('students').findOne({
       $or: [
@@ -27,13 +31,45 @@ export const login = async (req, res) => {
     });
 
     if (student) {
+      const userId = student._id.toString();
+      const role = 'student';
+
+      // Check for existing active session
+      const existingSession = await db.collection('sessions').findOne({
+        userId: userId,
+        role: role,
+        isActive: true
+      });
+
+      if (existingSession) {
+        // User is already logged in from another device
+        return res.status(403).json({
+          success: false,
+          error: 'User is already logged in on another device. Please logout from the other device first.'
+        });
+      }
+
+      // Create new session
+      const sessionId = new ObjectId();
+      await db.collection('sessions').insertOne({
+        _id: sessionId,
+        userId: userId,
+        role: role,
+        clientIp: clientIp,
+        userAgent: userAgent,
+        isActive: true,
+        createdAt: new Date(),
+        lastActivity: new Date()
+      });
+
       return res.json({
         success: true,
         user: {
-          id: student._id.toString(),
+          id: userId,
           username: student.username || student.studentId || student.email,
-          role: 'student',
-          fullName: student.fullName || `${student.firstName || ''} ${student.lastName || ''}`.trim()
+          role: role,
+          fullName: student.fullName || `${student.firstName || ''} ${student.lastName || ''}`.trim(),
+          sessionId: sessionId.toString()
         }
       });
     }
@@ -48,13 +84,45 @@ export const login = async (req, res) => {
     });
 
     if (teacher) {
+      const userId = teacher._id.toString();
+      const role = 'teacher';
+
+      // Check for existing active session
+      const existingSession = await db.collection('sessions').findOne({
+        userId: userId,
+        role: role,
+        isActive: true
+      });
+
+      if (existingSession) {
+        // User is already logged in from another device
+        return res.status(403).json({
+          success: false,
+          error: 'User is already logged in on another device. Please logout from the other device first.'
+        });
+      }
+
+      // Create new session
+      const sessionId = new ObjectId();
+      await db.collection('sessions').insertOne({
+        _id: sessionId,
+        userId: userId,
+        role: role,
+        clientIp: clientIp,
+        userAgent: userAgent,
+        isActive: true,
+        createdAt: new Date(),
+        lastActivity: new Date()
+      });
+
       return res.json({
         success: true,
         user: {
-          id: teacher._id.toString(),
+          id: userId,
           username: teacher.username || teacher.email,
-          role: 'teacher',
-          fullName: teacher.fullName || `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim()
+          role: role,
+          fullName: teacher.fullName || `${teacher.firstName || ''} ${teacher.lastName || ''}`.trim(),
+          sessionId: sessionId.toString()
         }
       });
     }
@@ -70,13 +138,45 @@ export const login = async (req, res) => {
     });
 
     if (admin) {
+      const userId = admin._id.toString();
+      const role = 'admin';
+
+      // Check for existing active session
+      const existingSession = await db.collection('sessions').findOne({
+        userId: userId,
+        role: role,
+        isActive: true
+      });
+
+      if (existingSession) {
+        // User is already logged in from another device
+        return res.status(403).json({
+          success: false,
+          error: 'User is already logged in on another device. Please logout from the other device first.'
+        });
+      }
+
+      // Create new session
+      const sessionId = new ObjectId();
+      await db.collection('sessions').insertOne({
+        _id: sessionId,
+        userId: userId,
+        role: role,
+        clientIp: clientIp,
+        userAgent: userAgent,
+        isActive: true,
+        createdAt: new Date(),
+        lastActivity: new Date()
+      });
+
       return res.json({
         success: true,
         user: {
-          id: admin._id.toString(),
+          id: userId,
           username: admin.username || admin.email,
-          role: 'admin',
-          fullName: admin.fullName || `${admin.firstName || ''} ${admin.lastName || ''}`.trim()
+          role: role,
+          fullName: admin.fullName || `${admin.firstName || ''} ${admin.lastName || ''}`.trim(),
+          sessionId: sessionId.toString()
         }
       });
     }
@@ -152,6 +252,45 @@ export const getCurrentUser = async (req, res) => {
     });
   } catch (error) {
     console.error('Get current user error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+};
+
+export const logout = async (req, res) => {
+  try {
+    const { sessionId } = req.body;
+    const db = getDatabase();
+
+    if (!sessionId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Session ID is required'
+      });
+    }
+
+    // SECURITY: Sanitize session ID
+    let sanitizedSessionId;
+    try {
+      sanitizedSessionId = sanitizeObjectId(sessionId);
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid session ID format'
+      });
+    }
+
+    // Deactivate session
+    await db.collection('sessions').updateOne(
+      { _id: sanitizedSessionId },
+      { $set: { isActive: false, loggedOutAt: new Date() } }
+    );
+
+    return res.json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 };

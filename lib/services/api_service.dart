@@ -14,12 +14,18 @@ class ApiService {
   static final RegExp _uuidPattern = RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
   static final RegExp _mongoIdPattern = RegExp(r'^[0-9a-fA-F]{24}$');
 
+  // Persistent HTTP client for connection reuse (keep-alive)
+  static final http.Client _persistentClient = http.Client();
+  static final http.Client _persistentChatClient = http.Client();
+
   final http.Client _client;
+  final http.Client _chatClient;
   final String _baseUrl;
   final String _chatBaseUrl;
 
-  ApiService({http.Client? client, String? baseUrl, String? chatBaseUrl})
-      : _client = client ?? http.Client(),
+  ApiService({http.Client? client, http.Client? chatClient, String? baseUrl, String? chatBaseUrl})
+      : _client = client ?? _persistentClient,
+        _chatClient = chatClient ?? _persistentChatClient,
         _baseUrl = baseUrl ?? ApiConfig.baseUrl,
         _chatBaseUrl = chatBaseUrl ?? ApiConfig.chatBaseUrl;
 
@@ -35,8 +41,10 @@ class ApiService {
   Future<bool> testChatServiceHealth() async {
     try {
       final uri = _buildChatUri('/health');
-      final response = await _client.get(uri, headers: {
+      final response = await _chatClient.get(uri, headers: {
         'accept': 'application/json',
+        'accept-encoding': 'gzip', // Request compression
+        'connection': 'keep-alive', // Reuse connections
       });
       return response.statusCode == 200;
     } catch (e) {
@@ -171,6 +179,8 @@ class ApiService {
     try {
       final response = await _client.get(uri, headers: {
         'accept': 'application/json',
+        'accept-encoding': 'gzip', // Request compression
+        'connection': 'keep-alive', // Reuse connections
       });
       if (response.statusCode == 200) {
         final body = response.body.trim();
@@ -298,6 +308,8 @@ class ApiService {
         headers: {
           'content-type': 'application/json',
           'accept': 'application/json',
+          'accept-encoding': 'gzip',
+          'connection': 'keep-alive',
         },
         body: json.encode(examData),
       );
@@ -375,8 +387,10 @@ class ApiService {
     Logger.debug('  Original targetUserId: $targetUserId -> Encoded: $encodedTargetUserId', 'ApiService');
     
     try {
-      final response = await _client.get(uri, headers: {
+      final response = await _chatClient.get(uri, headers: {
         'accept': 'application/json',
+        'accept-encoding': 'gzip', // Request compression
+        'connection': 'keep-alive', // Reuse connections
       });
       
       Logger.debug('Response status: ${response.statusCode}', 'ApiService');
@@ -454,8 +468,10 @@ class ApiService {
   Future<List<Map<String, dynamic>>> getChatConversations() async {
     final uri = _buildChatUri('/api/chat/conversations');
     try {
-      final response = await _client.get(uri, headers: {
+      final response = await _chatClient.get(uri, headers: {
         'accept': 'application/json',
+        'accept-encoding': 'gzip', // Request compression
+        'connection': 'keep-alive', // Reuse connections
       });
       if (response.statusCode == 200) {
         final body = response.body.trim();
@@ -489,8 +505,10 @@ class ApiService {
   Future<List<Map<String, dynamic>>> getUnreadChatMessages() async {
     final uri = _buildChatUri('/api/chat/unread');
     try {
-      final response = await _client.get(uri, headers: {
+      final response = await _chatClient.get(uri, headers: {
         'accept': 'application/json',
+        'accept-encoding': 'gzip', // Request compression
+        'connection': 'keep-alive', // Reuse connections
       });
       if (response.statusCode == 200) {
         final body = response.body.trim();
@@ -531,8 +549,10 @@ class ApiService {
       'userRole': userRole,
     });
     try {
-      final response = await _client.get(uri, headers: {
+      final response = await _chatClient.get(uri, headers: {
         'accept': 'application/json',
+        'accept-encoding': 'gzip', // Request compression
+        'connection': 'keep-alive', // Reuse connections
       });
       if (response.statusCode == 200) {
         final body = response.body.trim();
@@ -566,11 +586,13 @@ class ApiService {
   }) async {
     final uri = _buildChatUri('/api/chat/student');
     try {
-      final response = await _client.post(
+      final response = await _chatClient.post(
         uri,
         headers: {
           'content-type': 'application/json',
           'accept': 'application/json',
+          'accept-encoding': 'gzip',
+          'connection': 'keep-alive',
         },
         body: json.encode({
           'fromUserId': _encodeChatUserId(fromUserId),
@@ -614,11 +636,13 @@ class ApiService {
   }) async {
     final uri = _buildChatUri('/api/chat/teacher');
     try {
-      final response = await _client.post(
+      final response = await _chatClient.post(
         uri,
         headers: {
           'content-type': 'application/json',
           'accept': 'application/json',
+          'accept-encoding': 'gzip',
+          'connection': 'keep-alive',
         },
         body: json.encode({
           'fromUserId': _encodeChatUserId(fromUserId),
@@ -662,11 +686,13 @@ class ApiService {
   }) async {
     final uri = _buildChatUri('/api/chat/admin');
     try {
-      final response = await _client.post(
+      final response = await _chatClient.post(
         uri,
         headers: {
           'content-type': 'application/json',
           'accept': 'application/json',
+          'accept-encoding': 'gzip',
+          'connection': 'keep-alive',
         },
         body: json.encode({
           'fromUserId': _encodeChatUserId(fromUserId),
@@ -707,6 +733,8 @@ class ApiService {
     try {
       final response = await _client.get(uri, headers: {
         'accept': 'application/json',
+        'accept-encoding': 'gzip', // Request compression
+        'connection': 'keep-alive', // Reuse connections
       });
       if (response.statusCode == 200) {
         final body = response.body.trim();
@@ -744,8 +772,10 @@ class ApiService {
     final encodedTarget = _encodeChatUserId(targetUserId);
     final uri = _buildChatUri('/api/chat/conversation/$encodedUser/$encodedTarget/metadata');
     try {
-      final response = await _client.get(uri, headers: {
+      final response = await _chatClient.get(uri, headers: {
         'accept': 'application/json',
+        'accept-encoding': 'gzip', // Request compression
+        'connection': 'keep-alive', // Reuse connections
       });
       if (response.statusCode == 200) {
         final body = response.body.trim();
@@ -796,11 +826,13 @@ class ApiService {
   }) async {
     final uri = _buildChatUri('/api/chat/conversation');
     try {
-      final response = await _client.post(
+      final response = await _chatClient.post(
         uri,
         headers: {
           'content-type': 'application/json',
           'accept': 'application/json',
+          'accept-encoding': 'gzip',
+          'connection': 'keep-alive',
         },
         body: json.encode({
           'userId': _encodeChatUserId(userId),
@@ -839,8 +871,10 @@ class ApiService {
     final encodedStudentId = _encodeChatUserId(studentId);
     final uri = _buildChatUri('/api/chat/read/$encodedStudentId');
     try {
-      final response = await _client.put(uri, headers: {
+      final response = await _chatClient.put(uri, headers: {
         'accept': 'application/json',
+        'accept-encoding': 'gzip',
+        'connection': 'keep-alive',
       });
       if (response.statusCode == 200) {
         final body = response.body.trim();
@@ -884,10 +918,12 @@ class ApiService {
     final encodedTarget = _encodeChatUserId(targetUserId);
     final uri = _buildChatUri('/api/chat/conversation/$encodedUser/$encodedTarget', queryParams);
     try {
-      final response = await _client.delete(
+      final response = await _chatClient.delete(
         uri,
         headers: {
           'accept': 'application/json',
+          'accept-encoding': 'gzip',
+          'connection': 'keep-alive',
         },
       );
       if (response.statusCode == 200) {
@@ -944,7 +980,54 @@ class ApiService {
         return null;
       }
 
+      if (response.statusCode == 403) {
+        // User already logged in on another device
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        throw ApiException(
+          decoded['error'] as String? ?? 'User is already logged in on another device',
+          response.statusCode,
+          response.body,
+        );
+      }
+
       throw ApiException('POST /api/auth/login failed', response.statusCode, response.body);
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      final errorMsg = e.toString();
+      if (errorMsg.contains('Connection refused') ||
+          errorMsg.contains('Failed host lookup') ||
+          errorMsg.contains('Network is unreachable')) {
+        throw ApiException(
+          'Main API service is not running. Please start the main API at $_baseUrl',
+          0,
+          errorMsg,
+        );
+      }
+      rethrow;
+    }
+  }
+
+  /// Logout user
+  Future<bool> logout({required String sessionId}) async {
+    final uri = _buildUri('/api/auth/logout');
+    try {
+      final response = await _client.post(
+        uri,
+        headers: {
+          'content-type': 'application/json',
+          'accept': 'application/json',
+        },
+        body: json.encode({
+          'sessionId': sessionId,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        return decoded['success'] == true;
+      }
+
+      throw ApiException('POST /api/auth/logout failed', response.statusCode, response.body);
     } catch (e) {
       if (e is ApiException) rethrow;
       final errorMsg = e.toString();
@@ -967,6 +1050,8 @@ class ApiService {
     try {
       final response = await _client.get(uri, headers: {
         'accept': 'application/json',
+        'accept-encoding': 'gzip', // Request compression
+        'connection': 'keep-alive', // Reuse connections
       });
 
       if (response.statusCode == 200) {
@@ -1011,6 +1096,8 @@ class ApiService {
         headers: {
           'content-type': 'application/json',
           'accept': 'application/json',
+          'accept-encoding': 'gzip',
+          'connection': 'keep-alive',
         },
         body: json.encode({
           'userId': userId,
@@ -1056,10 +1143,14 @@ class ApiService {
   }) async {
     final headers = {
       'accept': 'application/json',
+      'accept-encoding': 'gzip', // Request compression
+      'connection': 'keep-alive', // Reuse connections
     };
     try {
       print('🌐 API Request: GET $uri');
-      final response = await _client.get(uri, headers: headers);
+      // Use appropriate client based on whether it's a chat request
+      final client = isChat ? _chatClient : _client;
+      final response = await client.get(uri, headers: headers);
       print('📡 API Response status: ${response.statusCode}');
       
       if (response.statusCode == 200) {
@@ -1169,6 +1260,8 @@ class ApiService {
         headers: {
           'content-type': 'application/json',
           'accept': 'application/json',
+          'accept-encoding': 'gzip',
+          'connection': 'keep-alive',
         },
         body: json.encode(updates),
       );
@@ -1237,6 +1330,8 @@ class ApiService {
         headers: {
           'content-type': 'application/json',
           'accept': 'application/json',
+          'accept-encoding': 'gzip',
+          'connection': 'keep-alive',
         },
         body: json.encode(bodyData),
       );
@@ -1295,6 +1390,8 @@ class ApiService {
     try {
       final response = await _client.delete(uri, headers: {
         'accept': 'application/json',
+        'accept-encoding': 'gzip',
+        'connection': 'keep-alive',
       });
       if (response.statusCode == 200) {
         final decoded = json.decode(response.body) as Map<String, dynamic>;
@@ -1348,6 +1445,8 @@ class ApiService {
         headers: {
           'content-type': 'application/json',
           'accept': 'application/json',
+          'accept-encoding': 'gzip',
+          'connection': 'keep-alive',
         },
         body: json.encode(bodyData),
       );
@@ -1388,6 +1487,8 @@ class ApiService {
         headers: {
           'content-type': 'application/json',
           'accept': 'application/json',
+          'accept-encoding': 'gzip',
+          'connection': 'keep-alive',
         },
         body: json.encode({
           'fullName': fullName,
@@ -1442,6 +1543,8 @@ class ApiService {
     try {
       final response = await _client.get(uri, headers: {
         'accept': 'application/json',
+        'accept-encoding': 'gzip', // Request compression
+        'connection': 'keep-alive', // Reuse connections
       });
       if (response.statusCode == 200) {
         final decoded = json.decode(response.body) as Map<String, dynamic>;
@@ -1454,6 +1557,112 @@ class ApiService {
         return null;
       }
       throw ApiException('GET /api/teachers/:id failed', response.statusCode, response.body);
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      final errorMsg = e.toString();
+      if (errorMsg.contains('Connection refused') ||
+          errorMsg.contains('Failed host lookup') ||
+          errorMsg.contains('Network is unreachable')) {
+        throw ApiException(
+          'Main API service is not running. Please start the main API at $_baseUrl',
+          0,
+          errorMsg,
+        );
+      }
+      rethrow;
+    }
+  }
+
+  /// Create a new teacher
+  Future<Map<String, dynamic>?> createTeacher({
+    required String firstName,
+    required String lastName,
+    required String email,
+    required String username,
+    required String password,
+    required String department,
+    List<String>? subjects,
+  }) async {
+    final uri = _buildUri('/api/teachers');
+    try {
+      final response = await _client.post(
+        uri,
+        headers: {
+          'content-type': 'application/json',
+          'accept': 'application/json',
+          'accept-encoding': 'gzip',
+          'connection': 'keep-alive',
+        },
+        body: json.encode({
+          'firstName': firstName,
+          'lastName': lastName,
+          'email': email,
+          'username': username,
+          'password': password,
+          'department': department,
+          'subjects': subjects ?? [],
+          'createdExams': [],
+        }),
+      );
+      if (response.statusCode == 201) {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        if (decoded['success'] == true && decoded['data'] != null) {
+          return decoded['data'] as Map<String, dynamic>;
+        }
+        return null;
+      }
+      throw ApiException('POST /api/teachers failed', response.statusCode, response.body);
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      final errorMsg = e.toString();
+      if (errorMsg.contains('Connection refused') ||
+          errorMsg.contains('Failed host lookup') ||
+          errorMsg.contains('Network is unreachable')) {
+        throw ApiException(
+          'Main API service is not running. Please start the main API at $_baseUrl',
+          0,
+          errorMsg,
+        );
+      }
+      rethrow;
+    }
+  }
+
+  /// Update teacher
+  Future<bool> updateTeacher({
+    required String teacherId,
+    String? firstName,
+    String? lastName,
+    String? email,
+    String? username,
+    String? department,
+    List<String>? subjects,
+  }) async {
+    final uri = _buildUri('/api/teachers/$teacherId');
+    try {
+      final updateData = <String, dynamic>{};
+      if (firstName != null) updateData['firstName'] = firstName;
+      if (lastName != null) updateData['lastName'] = lastName;
+      if (email != null) updateData['email'] = email;
+      if (username != null) updateData['username'] = username;
+      if (department != null) updateData['department'] = department;
+      if (subjects != null) updateData['subjects'] = subjects;
+
+      final response = await _client.put(
+        uri,
+        headers: {
+          'content-type': 'application/json',
+          'accept': 'application/json',
+          'accept-encoding': 'gzip',
+          'connection': 'keep-alive',
+        },
+        body: json.encode(updateData),
+      );
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        return decoded['success'] == true;
+      }
+      throw ApiException('PUT /api/teachers/:id failed', response.statusCode, response.body);
     } catch (e) {
       if (e is ApiException) rethrow;
       final errorMsg = e.toString();
@@ -1488,6 +1697,8 @@ class ApiService {
     try {
       final response = await _client.get(uri, headers: {
         'accept': 'application/json',
+        'accept-encoding': 'gzip', // Request compression
+        'connection': 'keep-alive', // Reuse connections
       });
       if (response.statusCode == 200) {
         final decoded = json.decode(response.body) as Map<String, dynamic>;
@@ -1534,6 +1745,8 @@ class ApiService {
     try {
       final response = await _client.get(uri, headers: {
         'accept': 'application/json',
+        'accept-encoding': 'gzip', // Request compression
+        'connection': 'keep-alive', // Reuse connections
       });
       if (response.statusCode == 200) {
         final decoded = json.decode(response.body) as Map<String, dynamic>;
@@ -1580,6 +1793,8 @@ class ApiService {
         headers: {
           'content-type': 'application/json',
           'accept': 'application/json',
+          'accept-encoding': 'gzip',
+          'connection': 'keep-alive',
         },
         body: json.encode(questionData),
       );
@@ -1619,6 +1834,8 @@ class ApiService {
         headers: {
           'content-type': 'application/json',
           'accept': 'application/json',
+          'accept-encoding': 'gzip',
+          'connection': 'keep-alive',
         },
         body: json.encode(updates),
       );
@@ -1649,6 +1866,8 @@ class ApiService {
     try {
       final response = await _client.delete(uri, headers: {
         'accept': 'application/json',
+        'accept-encoding': 'gzip',
+        'connection': 'keep-alive',
       });
       if (response.statusCode == 200) {
         final decoded = json.decode(response.body) as Map<String, dynamic>;
@@ -1689,6 +1908,8 @@ class ApiService {
         headers: {
           'content-type': 'application/json',
           'accept': 'application/json',
+          'accept-encoding': 'gzip',
+          'connection': 'keep-alive',
         },
         body: json.encode({
           'examId': examId,
@@ -1723,7 +1944,25 @@ class ApiService {
   }
 
   void close() {
-    _client.close();
+    // Do NOT close persistent clients - they should remain open for connection reuse
+    // This method is kept for backward compatibility but is now a no-op
+    // when using the default persistent clients
+    // Only close if custom clients were provided
+    if (_client != _persistentClient && _client != _persistentChatClient) {
+      try {
+        _client.close();
+      } catch (e) {
+        // Ignore errors when closing custom clients
+      }
+    }
+    if (_chatClient != _persistentClient && _chatClient != _persistentChatClient && _chatClient != _client) {
+      try {
+        _chatClient.close();
+      } catch (e) {
+        // Ignore errors when closing custom clients
+      }
+    }
+    // Persistent clients are never closed - they remain open for the app lifetime
   }
 }
 
