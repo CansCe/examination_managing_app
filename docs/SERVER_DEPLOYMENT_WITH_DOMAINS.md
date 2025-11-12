@@ -207,7 +207,9 @@ sudo systemctl reload nginx
 
 ## SSL/TLS Setup
 
-### 1. Obtain SSL Certificates
+For detailed HTTPS upgrade instructions with prerequisites, troubleshooting, and best practices, see **[docs/HTTPS_UPGRADE.md](HTTPS_UPGRADE.md)**.
+
+### Quick Setup
 
 ```bash
 # For DuckDNS domains
@@ -219,13 +221,15 @@ sudo certbot --nginx -d api.yourdomain.com
 sudo certbot --nginx -d chat.yourdomain.com
 ```
 
-### 2. Auto-Renewal
+### Auto-Renewal
 
 Certbot automatically sets up renewal. Test:
 
 ```bash
 sudo certbot renew --dry-run
 ```
+
+**Note:** For comprehensive HTTPS upgrade guide including prerequisites, conditions, troubleshooting, and security best practices, refer to [HTTPS_UPGRADE.md](HTTPS_UPGRADE.md).
 
 ## Firewall Configuration
 

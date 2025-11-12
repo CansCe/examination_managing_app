@@ -206,18 +206,20 @@ sudo systemctl reload nginx
 
 ## SSL/TLS Setup
 
-### 1. Install Certbot
+For detailed HTTPS upgrade instructions with prerequisites, troubleshooting, and best practices, see **[docs/HTTPS_UPGRADE.md](HTTPS_UPGRADE.md)**.
+
+### Quick Setup
 
 ```bash
+# Install Certbot
 sudo apt install certbot python3-certbot-nginx
-```
 
-### 2. Obtain SSL Certificates
-
-```bash
+# Obtain SSL Certificates
 sudo certbot --nginx -d api.yourdomain.com
 sudo certbot --nginx -d chat.yourdomain.com
 ```
+
+**Note:** For comprehensive HTTPS upgrade guide including prerequisites, conditions, troubleshooting, and security best practices, refer to [HTTPS_UPGRADE.md](HTTPS_UPGRADE.md).
 
 ### 3. Auto-Renewal
 
