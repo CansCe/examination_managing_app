@@ -579,6 +579,6 @@ After upgrading to HTTPS, verify the following:
 
 ---
 
-**Last Updated:** 2024
-**Maintained By:** Exam Management App Team
-
+**Last Updated:** 2025
+**Maintained By:** Exam Management App Team - me NguyenCaoAnh XD
+---
