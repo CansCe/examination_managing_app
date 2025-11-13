@@ -685,3 +685,188 @@ export const getStudentsAssignedToExam = async (req, res) => {
     res.status(500).json({ success: false, error: 'Internal server error' });
   }
 };
+
+// Start exam session - record when student starts taking the exam
+export const startExamSession = async (req, res) => {
+  try {
+    const { id: examId, studentId } = req.params;
+    const db = getDatabase();
+
+    if (!isValidObjectId(examId) || !isValidObjectId(studentId)) {
+      return res.status(400).json({ success: false, error: 'Invalid exam or student ID' });
+    }
+
+    // Verify exam exists
+    const exam = await db.collection('exams').findOne({ _id: new ObjectId(examId) });
+    if (!exam) {
+      return res.status(404).json({ success: false, error: 'Exam not found' });
+    }
+
+    // Check if student is assigned to exam
+    const studentExam = await db.collection('student_exams').findOne({
+      studentId: new ObjectId(studentId),
+      examId: new ObjectId(examId)
+    });
+
+    if (!studentExam) {
+      return res.status(404).json({ success: false, error: 'Student is not assigned to this exam' });
+    }
+
+    // Update or set startedAt timestamp
+    const startedAt = new Date();
+    await db.collection('student_exams').updateOne(
+      {
+        studentId: new ObjectId(studentId),
+        examId: new ObjectId(examId)
+      },
+      {
+        $set: { startedAt: startedAt }
+      }
+    );
+
+    res.json({ 
+      success: true, 
+      message: 'Exam session started',
+      data: { startedAt: startedAt.toISOString() }
+    });
+  } catch (error) {
+    console.error('Start exam session error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+};
+
+// Get exam status with student sessions and their timers
+export const getExamStatus = async (req, res) => {
+  try {
+    const { id: examId } = req.params;
+    const db = getDatabase();
+
+    if (!isValidObjectId(examId)) {
+      return res.status(400).json({ success: false, error: 'Invalid exam ID' });
+    }
+
+    // Get exam details
+    const exam = await db.collection('exams').findOne({ _id: new ObjectId(examId) });
+    if (!exam) {
+      return res.status(404).json({ success: false, error: 'Exam not found' });
+    }
+
+    // Calculate exam state
+    const now = new Date();
+    let examState = 'scheduled'; // scheduled, in_progress, finished
+    
+    // Parse exam time
+    const examDate = new Date(exam.examDate);
+    let examStartTime = examDate;
+    
+    if (exam.examTime && typeof exam.examTime === 'string' && exam.examTime.includes(':')) {
+      const [hours, minutes] = exam.examTime.split(':').map(Number);
+      examStartTime = new Date(examDate);
+      examStartTime.setHours(hours, minutes, 0, 0);
+    }
+    
+    const examEndTime = new Date(examStartTime.getTime() + (exam.duration * 60 * 1000));
+    
+    if (now < examStartTime) {
+      examState = 'scheduled';
+    } else if (now >= examStartTime && now < examEndTime) {
+      examState = 'in_progress';
+    } else {
+      examState = 'finished';
+    }
+
+    // Get all student sessions for this exam
+    const studentExams = await db.collection('student_exams')
+      .find({ examId: new ObjectId(examId) })
+      .toArray();
+
+    const studentIds = studentExams.map(se => se.studentId);
+    const students = studentIds.length > 0
+      ? await db.collection('students')
+          .find({ _id: { $in: studentIds } })
+          .toArray()
+      : [];
+
+    // Create a map of studentId to student data
+    const studentMap = {};
+    students.forEach(student => {
+      studentMap[student._id.toString()] = student;
+    });
+
+    // Get all exam results for this exam to check completion status
+    const examResults = await db.collection('exam_results')
+      .find({ examId: new ObjectId(examId) })
+      .toArray();
+    
+    // Create a map of studentId to exam result
+    const resultMap = {};
+    examResults.forEach(result => {
+      resultMap[result.studentId.toString()] = result;
+    });
+
+    // Calculate student sessions with timers
+    const studentSessions = studentExams.map(se => {
+      const student = studentMap[se.studentId.toString()];
+      const examResult = resultMap[se.studentId.toString()];
+      let sessionStatus = 'not_started';
+      let remainingTime = null;
+      let startedAt = se.startedAt ? new Date(se.startedAt) : null;
+      let score = null;
+      let percentageScore = null;
+
+      // Check if student has completed the exam (has a result)
+      if (examResult) {
+        sessionStatus = 'completed';
+        score = examResult.earnedPoints || 0;
+        percentageScore = examResult.percentageScore || 0;
+      } else if (startedAt) {
+        sessionStatus = 'in_progress';
+        // Calculate remaining time: ExamDuration - (CurrentTime - StartTime)
+        const elapsed = now.getTime() - startedAt.getTime();
+        const totalDuration = exam.duration * 60 * 1000; // Convert minutes to milliseconds
+        const remaining = totalDuration - elapsed;
+        
+        if (remaining <= 0) {
+          sessionStatus = 'time_up';
+          remainingTime = 0;
+        } else {
+          remainingTime = Math.floor(remaining / 1000); // Convert to seconds
+        }
+      } else if (examState === 'in_progress') {
+        sessionStatus = 'not_started';
+      } else if (examState === 'finished') {
+        sessionStatus = 'finished';
+      }
+
+      return {
+        studentId: se.studentId.toString(),
+        studentName: student ? (student.name || student.studentId || 'Unknown') : 'Unknown',
+        studentRollNumber: student ? (student.rollNumber || student.studentId || '') : '',
+        sessionStatus: sessionStatus,
+        startedAt: startedAt ? startedAt.toISOString() : null,
+        remainingTime: remainingTime, // in seconds
+        assignedAt: se.assignedAt ? new Date(se.assignedAt).toISOString() : null,
+        score: score, // Exam score if completed
+        percentageScore: percentageScore, // Percentage score if completed
+        completedAt: examResult ? examResult.submittedAt : null
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        examId: exam._id.toString(),
+        examTitle: exam.title,
+        examState: examState,
+        examStartTime: examStartTime.toISOString(),
+        examEndTime: examEndTime.toISOString(),
+        examDuration: exam.duration, // in minutes
+        currentTime: now.toISOString(),
+        studentSessions: studentSessions
+      }
+    });
+  } catch (error) {
+    console.error('Get exam status error:', error);
+    res.status(500).json({ success: false, error: 'Internal server error' });
+  }
+};

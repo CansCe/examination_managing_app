@@ -3,3 +3,4 @@ export 'auth_service.dart';
 export 'api_service.dart';
 export 'chat_service.dart';
 export 'atlas_service.dart';
+export 'notification_service.dart';

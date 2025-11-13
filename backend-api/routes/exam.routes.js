@@ -11,7 +11,9 @@ import {
   updateExamStatus,
   assignStudentToExam,
   unassignStudentFromExam,
-  getStudentsAssignedToExam
+  getStudentsAssignedToExam,
+  startExamSession,
+  getExamStatus
 } from '../controllers/exam.controller.js';
 import { readLimiter, writeLimiter } from '../middleware/rateLimiter.js';
 
@@ -93,6 +95,12 @@ router.delete('/:id/assign/:studentId', writeLimiter, unassignStudentFromExam);
 
 // Get students assigned to exam
 router.get('/:id/students', readLimiter, getStudentsAssignedToExam);
+
+// Start exam session (record when student starts taking exam)
+router.post('/:id/start/:studentId', writeLimiter, startExamSession);
+
+// Get exam status with student sessions and timers
+router.get('/:id/status', readLimiter, getExamStatus);
 
 // Delete exam
 router.delete('/:id', writeLimiter, deleteExam);

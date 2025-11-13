@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/index.dart';
 import '../services/atlas_service.dart';
+import '../services/api_service.dart';
 import 'dart:async';
 
 class ExaminationPage extends StatefulWidget {
@@ -27,8 +28,11 @@ class _ExaminationPageState extends State<ExaminationPage> {
   bool _isExamSubmitted = false;
   bool _isSubmitting = false;
   bool _isTimeUp = false;
-  DateTime? _examStartDateTime;
-  DateTime? _examEndDateTime;
+  DateTime? _examStartDateTime; // Exam scheduled start time
+  DateTime? _examEndDateTime; // Exam scheduled end time
+  DateTime? _sessionStartTime; // When student actually started the exam
+  bool _sessionStarted = false;
+  
   @override
   void initState() {
     super.initState();
@@ -36,6 +40,11 @@ class _ExaminationPageState extends State<ExaminationPage> {
     // All exams (dummy and normal) use the same algorithm
     // Calculate start time and end time for all exams
     _calculateExamTimes();
+    
+    // Record exam session start time if student is taking the exam
+    if (widget.studentId != null) {
+      _startExamSession();
+    }
     
     // Check if exam has already ended - if so, auto-submit immediately
     // Otherwise, start the timer for real-time monitoring
@@ -53,6 +62,35 @@ class _ExaminationPageState extends State<ExaminationPage> {
       } else {
         // Exam is still in progress - start timer for real-time monitoring
         _startTimer();
+      }
+    }
+  }
+
+  /// Start exam session - record when student starts taking the exam
+  Future<void> _startExamSession() async {
+    if (widget.studentId == null || _sessionStarted) return;
+    
+    try {
+      final api = ApiService();
+      final examId = widget.exam.id.toHexString();
+      _sessionStartTime = await api.startExamSession(examId, widget.studentId!);
+      api.close();
+      
+      if (mounted) {
+        setState(() {
+          _sessionStarted = true;
+        });
+        // Recalculate remaining time based on session start
+        _updateRemainingTime();
+      }
+    } catch (e) {
+      // If API call fails, use current time as fallback
+      _sessionStartTime = DateTime.now();
+      if (mounted) {
+        setState(() {
+          _sessionStarted = true;
+        });
+        _updateRemainingTime();
       }
     }
   }
@@ -120,14 +158,7 @@ class _ExaminationPageState extends State<ExaminationPage> {
       
       // Calculate remaining time based on actual exam end time
       // Use real-time calculation for accuracy
-      final now = DateTime.now();
-      if (now.isBefore(_examEndDateTime!)) {
-        // Exam is still in progress - calculate remaining time
-        _remainingTime = _examEndDateTime!.difference(now);
-      } else {
-        // Exam has already ended (currentTime >= startTime + duration)
-        _remainingTime = Duration.zero;
-      }
+      _updateRemainingTime();
     } catch (e) {
       // If calculation fails, we can't determine end time
       // Timer won't start, and exam won't auto-submit
@@ -137,10 +168,36 @@ class _ExaminationPageState extends State<ExaminationPage> {
     }
   }
 
+  /// Update remaining time using formula: ExamDuration - (CurrentTime - StartTime)
+  void _updateRemainingTime() {
+    if (_sessionStartTime != null) {
+      // Use session-based timer: ExamDuration - (CurrentTime - StartTime)
+      final now = DateTime.now();
+      final elapsed = now.difference(_sessionStartTime!);
+      final totalDuration = Duration(minutes: widget.exam.duration);
+      
+      if (elapsed >= totalDuration) {
+        _remainingTime = Duration.zero;
+      } else {
+        _remainingTime = totalDuration - elapsed;
+      }
+    } else if (_examEndDateTime != null) {
+      // Fallback to end-time based calculation if session not started yet
+      final now = DateTime.now();
+      if (now.isBefore(_examEndDateTime!)) {
+        _remainingTime = _examEndDateTime!.difference(now);
+      } else {
+        _remainingTime = Duration.zero;
+      }
+    } else {
+      // Default fallback
+      _remainingTime = Duration(minutes: widget.exam.duration);
+    }
+  }
+
   void _startTimer() {
-    // Ensure we have a valid end time calculated
-    if (_examEndDateTime == null) {
-      // If end time couldn't be calculated, we can't auto-submit
+    // Ensure we have a valid end time or session start time
+    if (_examEndDateTime == null && _sessionStartTime == null) {
       return;
     }
     
@@ -153,24 +210,15 @@ class _ExaminationPageState extends State<ExaminationPage> {
       
       final now = DateTime.now();
       
-      // Safety check: ensure end time is still valid
-      if (_examEndDateTime == null) {
-        timer.cancel();
-        return;
-      }
+      // Update remaining time using session-based formula
+      _updateRemainingTime();
       
-      // Auto-submit when: currentTime >= (startTime + examDuration)
-      // This is equivalent to: currentTime >= endTime
-      // All exams use the same algorithm
-      if (now.isAfter(_examEndDateTime!) || now.isAtSameMomentAs(_examEndDateTime!)) {
+      // Auto-submit when remaining time reaches zero
+      if (_remainingTime <= Duration.zero) {
         timer.cancel();
         _submitExam(isTimeUp: true);
         return;
       }
-      
-      // Update remaining time based on actual end time (start time + duration)
-      // This ensures real-time accuracy - recalculates every second
-      _remainingTime = _examEndDateTime!.difference(now);
       
       if (mounted) {
         setState(() {
@@ -452,24 +500,48 @@ class _ExaminationPageState extends State<ExaminationPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.exam.title),
-        actions: [
-          Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: Text(
-                      _formatDuration(_remainingTime),
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: isTimeRunningOut ? Colors.red : Colors.white,
-                      ),
-                    ),
-                  ),
-          ),
-        ],
       ),
       body: Column(
         children: [
+          // Timer display in middle top
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 16.0, horizontal: 24.0),
+            decoration: BoxDecoration(
+              color: isTimeRunningOut ? Colors.red.shade50 : Colors.blue.shade50,
+              border: Border(
+                bottom: BorderSide(
+                  color: isTimeRunningOut ? Colors.red : Colors.blue,
+                  width: 2,
+                ),
+              ),
+            ),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Time Remaining',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: isTimeRunningOut ? Colors.red.shade700 : Colors.blue.shade700,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    _formatDuration(_remainingTime),
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: isTimeRunningOut ? Colors.red : Colors.blue,
+                      letterSpacing: 2,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
           // Progress indicator
           LinearProgressIndicator(
             value: (_currentQuestionIndex + 1) / widget.questions.length,

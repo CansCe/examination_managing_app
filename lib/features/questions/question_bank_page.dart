@@ -6,10 +6,12 @@ import 'question_edit_page.dart';
 
 class QuestionBankPage extends StatefulWidget {
   final String teacherId;
+  final List<String> teacherSubjects;
 
   const QuestionBankPage({
     super.key,
     required this.teacherId,
+    this.teacherSubjects = const [],
   });
 
   @override
@@ -25,13 +27,35 @@ class _QuestionBankPageState extends State<QuestionBankPage> {
   @override
   void initState() {
     super.initState();
+    // If teacher has subjects, filter by first subject by default
+    if (widget.teacherSubjects.isNotEmpty) {
+      _selectedSubject = widget.teacherSubjects.first;
+    }
     _loadQuestions();
   }
 
   Future<void> _loadQuestions() async {
     setState(() => _isLoading = true);
     try {
-      final questions = await MongoDBService.getQuestionsBySubject(_selectedSubject);
+      List<Question> questions;
+      
+      // If teacher has subjects, only show questions from those subjects
+      if (widget.teacherSubjects.isNotEmpty) {
+        // Load all questions and filter by teacher's subjects
+        final allQuestions = await MongoDBService.getAllQuestions();
+        questions = allQuestions.where((q) => 
+          widget.teacherSubjects.contains(q.subject)
+        ).toList();
+        
+        // Apply subject filter if selected
+        if (_selectedSubject.isNotEmpty) {
+          questions = questions.where((q) => q.subject == _selectedSubject).toList();
+        }
+      } else {
+        // No subject restriction, load normally
+        questions = await MongoDBService.getQuestionsBySubject(_selectedSubject);
+      }
+      
       setState(() {
         _questions = questions;
         if (_selectedDifficulty.isNotEmpty) {
@@ -106,7 +130,10 @@ class _QuestionBankPageState extends State<QuestionBankPage> {
                     ),
                     items: [
                       const DropdownMenuItem(value: '', child: Text('All Subjects')),
-                      ...['Mathematics', 'Physics', 'Chemistry', 'Biology']
+                      // If teacher has subjects, only show those; otherwise show all
+                      ...(widget.teacherSubjects.isNotEmpty
+                          ? widget.teacherSubjects
+                          : ['Mathematics', 'Physics', 'Chemistry', 'Biology'])
                           .map((subject) => DropdownMenuItem(
                                 value: subject,
                                 child: Text(subject),

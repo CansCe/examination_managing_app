@@ -7,6 +7,9 @@ import '../models/index.dart';
 import '../features/index.dart';
 import '../utils/dialog_helper.dart';
 import '../utils/logger.dart';
+import '../services/notification_service.dart';
+import 'classes/class_list_page.dart';
+import 'classes/class_detail_page.dart';
 
 final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 
@@ -37,6 +40,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   late List<Exam> _exams = [];
   late List<Student> _students = [];
   late List<Teacher> _teachers = [];
+  List<String> _classes = [];
+  Map<String, int> _classStudentCounts = {};
   bool _isLoading = true;
   bool _hasMoreData = true;
   int _currentPage = 0;
@@ -46,6 +51,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   String? _studentId;
   String? _className;
   String? _teacherId;
+  Teacher? _currentTeacher; // Store current teacher info for subject filtering
   final List<Question> _questions = [];
   // Separate lists for students: upcoming and past exams
   List<Exam> _upcomingExams = [];
@@ -65,6 +71,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               : 1,
       vsync: this,
     );
+    
+    // Initialize notifications for students
+    if (widget.userRole == UserRole.student) {
+      NotificationService().initialize();
+    }
+    
     _loadMockData();
   }
 
@@ -123,14 +135,45 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         
         // For students, separate upcoming and past exams
         final now = DateTime.now();
+        final studentId = widget.studentId ?? widget.username;
         
         final upcomingExams = <Exam>[];
         final pastExams = <Exam>[];
+        
+        // Check which exams the student has completed
+        final completedExamIds = <String>{};
+        if (studentId != null) {
+          try {
+            final api = ApiService();
+            final studentResults = await api.getStudentResults(studentId);
+            api.close();
+            
+            for (final result in studentResults) {
+              if (result['examId'] != null) {
+                // examId might be ObjectId or string
+                final examIdStr = result['examId'] is String 
+                    ? result['examId'] 
+                    : result['examId'].toString();
+                completedExamIds.add(examIdStr);
+              }
+            }
+          } catch (e) {
+            // Silently fail - results might not be available yet
+          }
+        }
         
         for (final exam in assignedExams) {
           try {
             // Skip dummy exams for students (only teachers/admins can access them)
             if (exam.isDummy || exam.examTime.toUpperCase() == 'NAN') {
+              continue;
+            }
+            
+            final examId = exam.id.toHexString();
+            
+            // If student has completed the exam, show it as past exam
+            if (completedExamIds.contains(examId)) {
+              pastExams.add(exam);
               continue;
             }
             
@@ -268,13 +311,44 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         if (widget.userRole == UserRole.student) {
           // For students, separate upcoming and past exams
           final now = DateTime.now();
+          final studentId = widget.studentId ?? widget.username;
           
           final upcomingExams = <Exam>[];
           final pastExams = <Exam>[];
           
+          // Check which exams the student has completed
+          final completedExamIds = <String>{};
+          if (studentId != null) {
+            try {
+              final api = ApiService();
+              final studentResults = await api.getStudentResults(studentId);
+              api.close();
+              
+              for (final result in studentResults) {
+                if (result['examId'] != null) {
+                  // examId might be ObjectId or string
+                  final examIdStr = result['examId'] is String 
+                      ? result['examId'] 
+                      : result['examId'].toString();
+                  completedExamIds.add(examIdStr);
+                }
+              }
+            } catch (e) {
+              // Silently fail - results might not be available yet
+            }
+          }
+          
           for (final exam in studentExams) {
             // Skip dummy exams for students (only teachers/admins can access them)
             if (exam.isDummy || exam.examTime.toUpperCase() == 'NAN') {
+              continue;
+            }
+            
+            final examId = exam.id.toHexString();
+            
+            // If student has completed the exam, show it as past exam
+            if (completedExamIds.contains(examId)) {
+              pastExams.add(exam);
               continue;
             }
             
@@ -343,6 +417,21 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               _exams = _pastExams;
             }
             _hasMoreData = studentExams.length == _pageSize;
+            
+            // Schedule notifications for upcoming exams (only for students)
+            if (widget.userRole == UserRole.student && studentId != null && _upcomingExams.isNotEmpty) {
+              try {
+                final notificationService = NotificationService();
+                await notificationService.initialize();
+                await notificationService.scheduleNotificationsForExams(
+                  exams: _upcomingExams,
+                  studentId: studentId,
+                );
+              } catch (e) {
+                Logger.warning('Failed to schedule notifications: $e', 'HomePage');
+                // Don't show error to user - notifications are not critical
+              }
+            }
             _currentPage++;
           });
         } else {
@@ -390,12 +479,29 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         return;
       }
       Logger.debug('_loadTeacherData called for teacherId: $teacherId', 'HomePage');
+      
+      // Get teacher's info to filter questions by subject
+      try {
+        final api = ApiService();
+        final teacherData = await api.getTeacher(teacherId);
+        api.close();
+        if (teacherData != null) {
+          _currentTeacher = Teacher.fromMap(teacherData);
+        }
+      } catch (e) {
+        Logger.warning('Could not load teacher info: $e', 'HomePage');
+      }
+      
       // Get teacher's exams using their ID
       final exams = await AtlasService.getTeacherExams(
         teacherId: teacherId,
         page: _currentPage,
         limit: _pageSize,
       );
+      
+      // Load classes
+      await _loadClasses();
+      
       if (!mounted) return;
       setState(() {
         if (_currentPage == 0) {
@@ -418,6 +524,36 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           message: 'An error occurred while loading teacher data: $e',
         );
       }
+    }
+  }
+
+  Future<void> _loadClasses() async {
+    try {
+      final classes = await AtlasService.getAllClasses();
+      
+      // Get student count for each class
+      final counts = <String, int>{};
+      for (final className in classes) {
+        try {
+          final allStudents = await AtlasService.getStudentsByClass(
+            className: className,
+            page: 0,
+            limit: 1000,
+          );
+          counts[className] = allStudents.length;
+        } catch (e) {
+          counts[className] = 0;
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _classes = classes;
+          _classStudentCounts = counts;
+        });
+      }
+    } catch (e) {
+      Logger.warning('Could not load classes: $e', 'HomePage');
     }
   }
 
@@ -556,7 +692,21 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     );
                   },
                 ),
-              if (widget.userRole == UserRole.teacher)
+              if (widget.userRole == UserRole.teacher) ...[
+                IconButton(
+                  icon: const Icon(Icons.class_),
+                  tooltip: 'Classes',
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ClassListPage(
+                          teacherId: widget.teacherId,
+                        ),
+                      ),
+                    );
+                  },
+                ),
                 IconButton(
                   icon: const Icon(Icons.support_agent),
                   tooltip: 'Contact Admin',
@@ -581,6 +731,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     );
                   },
                 ),
+              ],
               if (widget.userRole == UserRole.admin)
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.admin_panel_settings),
@@ -700,9 +851,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.school),
+                          const Icon(Icons.class_),
                           if (MediaQuery.of(context).size.width >= 600) const SizedBox(width: 8),
-                          if (MediaQuery.of(context).size.width >= 600) const Text('Teachers'),
+                          if (MediaQuery.of(context).size.width >= 600) const Text('Classes'),
                         ],
                       ),
                     ),
@@ -719,7 +870,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     if (widget.userRole == UserRole.teacher || widget.userRole == UserRole.admin) ...[
                       _buildStudentsList(MediaQuery.of(context).size.width < 600),
                       if (widget.userRole == UserRole.teacher)
-                        _buildTeachersList(MediaQuery.of(context).size.width < 600),
+                        _buildClassesList(MediaQuery.of(context).size.width < 600),
                     ],
                   ],
                 ),
@@ -1493,103 +1644,70 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  Widget _buildTeachersList(bool isSmallScreen) {
-    return NotificationListener<ScrollNotification>(
-      onNotification: (ScrollNotification scrollInfo) {
-        if (scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent) {
-          _loadMoreData();
-        }
-        return true;
-      },
-      child: isSmallScreen
-          ? ListView.builder(
-              itemCount: _teachers.length + (_hasMoreData ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (index == _teachers.length) {
-                  return const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(16.0),
-                      child: CircularProgressIndicator(),
-                    ),
-                  );
-                }
-
-                final teacher = _teachers[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  child: ListTile(
-                    title: Text(
-                      teacher.fullName,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    subtitle: Text(
-                      teacher.department,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    trailing: Text(
-                      teacher.subjects.join(', '),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                );
-              },
-            )
-          : GridView.builder(
-              padding: const EdgeInsets.only(bottom: 80, top: 16, left: 16, right: 16),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 1.5,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-              ),
-              itemCount: _teachers.length + (_hasMoreData ? 1 : 0),
-              itemBuilder: (context, index) {
-                if (index == _teachers.length) {
-                  return const Center(
-                    child: CircularProgressIndicator(),
-                  );
-                }
-
-                final teacher = _teachers[index];
-                return Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            teacher.fullName,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 2,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Flexible(
-                          child: Text(
-                            'Department: ${teacher.department}',
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        Flexible(
-                          child: Text(
-                            'Subjects: ${teacher.subjects.join(', ')}',
-                            overflow: TextOverflow.ellipsis,
-                            maxLines: 2,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
+  Widget _buildClassesList(bool isSmallScreen) {
+    return _classes.isEmpty && !_isLoading
+        ? const Center(
+            child: Text(
+              'No classes found',
+              style: TextStyle(fontSize: 16, color: Colors.grey),
             ),
-    );
+          )
+        : ListView.builder(
+            padding: const EdgeInsets.all(8),
+            itemCount: _classes.length,
+            itemBuilder: (context, index) {
+              final className = _classes[index];
+              final studentCount = _classStudentCounts[className] ?? 0;
+
+              return Card(
+                margin: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 4,
+                ),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: Theme.of(context).primaryColor,
+                    child: Text(
+                      className.isNotEmpty
+                          ? className[0].toUpperCase()
+                          : '?',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  title: Text(
+                    className,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
+                  ),
+                  subtitle: Text(
+                    '$studentCount ${studentCount == 1 ? 'student' : 'students'}',
+                    style: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 14,
+                    ),
+                  ),
+                  trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ClassDetailPage(
+                          className: className,
+                          teacherId: widget.teacherId,
+                          adminId: widget.adminId,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              );
+            },
+          );
   }
 
   void _navigateToExamDetails(Exam exam) {
@@ -2113,6 +2231,39 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ),
           ),
         ).then((_) => _loadData(refresh: true));
+      } else if (widget.userRole == UserRole.teacher) {
+        // Teacher editing exam - get teacher's subjects
+        final teacherId = _teacherId ?? widget.teacherId;
+        if (teacherId == null || teacherId.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Unable to edit exam: missing teacher ID.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+        
+        // Get teacher's subjects if not already loaded
+        if (_currentTeacher == null) {
+          _loadTeacherInfoAndEditExam(teacherId, examId);
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ExamEditPage(
+                examId: examId,
+                teacherId: teacherId,
+                teacherSubjects: _currentTeacher?.subjects ?? [],
+              ),
+            ),
+          ).then((_) {
+            if (!mounted) return;
+            _currentPage = 0;
+            _exams.clear();
+            _loadTeacherData();
+          });
+        }
       } else {
         Navigator.pushNamed(
           context,
@@ -2209,10 +2360,27 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
       return;
     }
 
+    // Get teacher's subjects if not already loaded
+    if (_currentTeacher == null) {
+      try {
+        final api = ApiService();
+        final teacherData = await api.getTeacher(teacherId);
+        api.close();
+        if (teacherData != null) {
+          _currentTeacher = Teacher.fromMap(teacherData);
+        }
+      } catch (e) {
+        Logger.warning('Could not load teacher info: $e', 'HomePage');
+      }
+    }
+
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => QuestionBankPage(teacherId: teacherId),
+        builder: (_) => QuestionBankPage(
+          teacherId: teacherId,
+          teacherSubjects: _currentTeacher?.subjects ?? [],
+        ),
       ),
     );
 

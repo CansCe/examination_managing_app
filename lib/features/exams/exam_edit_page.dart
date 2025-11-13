@@ -3,6 +3,7 @@ import 'package:flutter/material.dart' as material;
 import 'package:mongo_dart/mongo_dart.dart'  hide Center;
 import '../../models/index.dart';
 import '../../services/mongodb_service.dart';
+import '../../services/api_service.dart';
 import '../../utils/dialog_helper.dart';
 import '../admin/admin_student_exam_assignment_page.dart';
 import '../questions/question_edit_page.dart';
@@ -12,12 +13,14 @@ class ExamEditPage extends StatefulWidget {
   final String? examId; // If null, we're creating a new exam
   final String? teacherId; // Optional - for teachers
   final String? adminId; // Optional - for admins
+  final List<String> teacherSubjects; // Teacher's assigned subjects for filtering questions
 
   const ExamEditPage({
     super.key,
     this.examId,
     this.teacherId,
     this.adminId,
+    this.teacherSubjects = const [],
   });
 
   @override
@@ -58,6 +61,7 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
   late int _duration;
   late int _maxStudents;
   Exam? _exam; // Store loaded exam if editing
+  List<String> _teacherSubjects = []; // Store teacher subjects for filtering
 
   @override
   void initState() {
@@ -68,6 +72,7 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
     _maxStudentsController = TextEditingController();
     _searchController = TextEditingController();
     _searchController.addListener(_filterQuestions);
+    _teacherSubjects = List<String>.from(widget.teacherSubjects);
     if (widget.examId != null) {
       _fetchExamAndInit();
     } else {
@@ -132,7 +137,39 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
     setState(() => _isLoading = true);
     try {
       // Load all questions from the collection
-      final questions = await MongoDBService.getAllQuestions();
+      List<Question> questions = await MongoDBService.getAllQuestions();
+      
+      // Get teacher's subjects for filtering
+      List<String> subjectsToFilter = _teacherSubjects;
+      
+      // If teacherSubjects is empty but teacherId is available, try to load it
+      if (subjectsToFilter.isEmpty && widget.teacherId != null && widget.teacherId!.isNotEmpty) {
+        try {
+          final api = ApiService();
+          final teacherData = await api.getTeacher(widget.teacherId!);
+          api.close();
+          if (teacherData != null) {
+            final teacher = Teacher.fromMap(teacherData);
+            subjectsToFilter = teacher.subjects;
+            // Update state so dropdown reflects the change
+            if (mounted) {
+              setState(() {
+                _teacherSubjects = List<String>.from(subjectsToFilter);
+              });
+            }
+          }
+        } catch (e) {
+          // Continue without subject filtering if error
+        }
+      }
+      
+      // Filter by teacher's subjects if available
+      if (subjectsToFilter.isNotEmpty && widget.teacherId != null) {
+        questions = questions.where((q) => 
+          subjectsToFilter.contains(q.subject)
+        ).toList();
+      }
+      
       setState(() {
         _availableQuestions = questions;
         _filteredQuestions = questions;
@@ -226,7 +263,8 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
         final createdExam = await MongoDBService.createExam(exam);
         _exam = createdExam;
         if (mounted) {
-          Navigator.pop(context, true);
+          // Return the exam ID so the caller can use it
+          Navigator.pop(context, createdExam.id.toHexString());
         }
       } else {
         final success = await MongoDBService.updateExam(exam);
@@ -452,18 +490,29 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
                       border: OutlineInputBorder(),
                     ),
                     items: () {
-                      // Base list of subjects
-                      final baseSubjects = ['Mathematics', 'Physics', 'Chemistry', 'Biology'];
+                      List<String> subjectsToShow;
                       
-                      // If editing an exam with a subject not in the base list, add it
-                      final allSubjects = <String>[...baseSubjects];
-                      if (_selectedSubject != null && 
-                          !baseSubjects.contains(_selectedSubject)) {
-                        allSubjects.add(_selectedSubject!);
+                      // If teacher has subjects assigned, only show those
+                      if (_teacherSubjects.isNotEmpty && widget.teacherId != null) {
+                        subjectsToShow = List<String>.from(_teacherSubjects);
+                        // If editing an exam with a subject not in teacher's subjects, add it
+                        if (_selectedSubject != null && 
+                            !subjectsToShow.contains(_selectedSubject)) {
+                          subjectsToShow.add(_selectedSubject!);
+                        }
+                      } else {
+                        // Base list of subjects
+                        final baseSubjects = ['Mathematics', 'Physics', 'Chemistry', 'Biology'];
+                        subjectsToShow = <String>[...baseSubjects];
+                        // If editing an exam with a subject not in the base list, add it
+                        if (_selectedSubject != null && 
+                            !baseSubjects.contains(_selectedSubject)) {
+                          subjectsToShow.add(_selectedSubject!);
+                        }
                       }
                       
                       // Remove duplicates and sort
-                      final uniqueSubjects = allSubjects.toSet().toList()..sort();
+                      final uniqueSubjects = subjectsToShow.toSet().toList()..sort();
                       
                       return [
                         const DropdownMenuItem<String>(
@@ -646,20 +695,29 @@ class _ExamEditPageState extends material.State<ExamEditPage> {
                                         .toSet()
                                         .toList();
                                     
-                                    // Base list of subjects
-                                    final baseSubjects = ['Mathematics', 'Physics', 'Chemistry', 'Biology'];
-                                    
-                                    // Combine and remove duplicates
-                                    final allSubjects = <String>{...baseSubjects, ...questionSubjects}
-                                        .toList()
-                                      ..sort();
+                                    // If teacher has subjects assigned, only show those
+                                    List<String> subjectsToShow;
+                                    if (widget.teacherSubjects.isNotEmpty && widget.teacherId != null) {
+                                      // Only show teacher's subjects that are in the available questions
+                                      subjectsToShow = widget.teacherSubjects
+                                          .where((s) => questionSubjects.contains(s))
+                                          .toList()
+                                        ..sort();
+                                    } else {
+                                      // Base list of subjects
+                                      final baseSubjects = ['Mathematics', 'Physics', 'Chemistry', 'Biology'];
+                                      // Combine and remove duplicates
+                                      subjectsToShow = <String>{...baseSubjects, ...questionSubjects}
+                                          .toList()
+                                        ..sort();
+                                    }
                                     
                                     return [
                                       const DropdownMenuItem<String>(
                                         value: null,
                                         child: Text('All Subjects'),
                                       ),
-                                      ...allSubjects.map((subject) => DropdownMenuItem(
+                                      ...subjectsToShow.map((subject) => DropdownMenuItem(
                                             value: subject,
                                             child: Text(subject),
                                           ))

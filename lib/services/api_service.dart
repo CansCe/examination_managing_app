@@ -1365,6 +1365,77 @@ class ApiService {
     }
   }
 
+  /// Start exam session - record when student starts taking the exam
+  Future<DateTime> startExamSession(String examId, String studentId) async {
+    final uri = _buildUri('/api/exams/$examId/start/$studentId');
+    try {
+      final response = await _client.post(
+        uri,
+        headers: {
+          'content-type': 'application/json',
+          'accept': 'application/json',
+          'accept-encoding': 'gzip',
+          'connection': 'keep-alive',
+        },
+      );
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        if (decoded['success'] == true && decoded['data'] != null) {
+          final data = decoded['data'] as Map<String, dynamic>;
+          return DateTime.parse(data['startedAt'] as String);
+        }
+        throw ApiException('POST /api/exams/start failed: Invalid response', response.statusCode, response.body);
+      }
+      throw ApiException('POST /api/exams/start failed', response.statusCode, response.body);
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      final errorMsg = e.toString();
+      if (errorMsg.contains('Connection refused') ||
+          errorMsg.contains('Failed host lookup') ||
+          errorMsg.contains('Network is unreachable')) {
+        throw ApiException(
+          'Main API service is not running. Please start the main API at $_baseUrl',
+          0,
+          '',
+        );
+      }
+      throw ApiException('POST /api/exams/start failed: $errorMsg', 0, '');
+    }
+  }
+
+  /// Get exam status with student sessions and their timers
+  Future<Map<String, dynamic>> getExamStatus(String examId) async {
+    final uri = _buildUri('/api/exams/$examId/status');
+    try {
+      final response = await _client.get(uri, headers: {
+        'accept': 'application/json',
+        'accept-encoding': 'gzip',
+        'connection': 'keep-alive',
+      });
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        if (decoded['success'] == true && decoded['data'] != null) {
+          return decoded['data'] as Map<String, dynamic>;
+        }
+        throw ApiException('GET /api/exams/status failed: Invalid response', response.statusCode, response.body);
+      }
+      throw ApiException('GET /api/exams/status failed', response.statusCode, response.body);
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      final errorMsg = e.toString();
+      if (errorMsg.contains('Connection refused') ||
+          errorMsg.contains('Failed host lookup') ||
+          errorMsg.contains('Network is unreachable')) {
+        throw ApiException(
+          'Main API service is not running. Please start the main API at $_baseUrl',
+          0,
+          '',
+        );
+      }
+      throw ApiException('GET /api/exams/status failed: $errorMsg', 0, '');
+    }
+  }
+
   /// Assign student to an exam
   Future<bool> assignStudentToExam(String examId, String studentId) async {
     final uri = _buildUri('/api/exams/$examId/assign/$studentId');
@@ -1736,6 +1807,55 @@ class ApiService {
     }
   }
 
+  /// Get all unique class names
+  Future<List<String>> getAllClasses() async {
+    final uri = _buildUri('/api/students/classes/all');
+    try {
+      final response = await _client.get(uri, headers: {
+        'accept': 'application/json',
+        'accept-encoding': 'gzip',
+        'connection': 'keep-alive',
+      });
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        if (decoded['success'] == true && decoded['data'] != null) {
+          final data = decoded['data'] as List;
+          return data.map((e) => e.toString()).toList();
+        }
+        return [];
+      }
+      throw ApiException('GET /api/students/classes/all failed', response.statusCode, response.body);
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      final errorMsg = e.toString();
+      if (errorMsg.contains('Connection refused') ||
+          errorMsg.contains('Failed host lookup') ||
+          errorMsg.contains('Network is unreachable')) {
+        throw ApiException(
+          'Main API service is not running. Please start the main API at $_baseUrl',
+          0,
+          errorMsg,
+        );
+      }
+      rethrow;
+    }
+  }
+
+  /// Get students by class name
+  Future<List<Map<String, dynamic>>> getStudentsByClass({
+    required String className,
+    int page = 0,
+    int limit = 100,
+  }) async {
+    // URL encode the class name to handle special characters
+    final encodedClassName = Uri.encodeComponent(className);
+    final uri = _buildUri('/api/students/class/$encodedClassName', {
+      'page': '$page',
+      'limit': '$limit',
+    });
+    return _getPaginatedData(uri, operation: 'GET /api/students/class/:className');
+  }
+
   /// Fetch questions
   Future<List<Map<String, dynamic>>> getQuestions({
     int page = 0,
@@ -2021,6 +2141,39 @@ class ApiService {
         );
       }
       rethrow;
+    }
+  }
+
+  /// Get all exam results for a specific exam
+  Future<List<Map<String, dynamic>>> getExamResults(String examId) async {
+    final uri = _buildUri('/api/exam-results/exam/$examId');
+    try {
+      final response = await _client.get(uri, headers: {
+        'accept': 'application/json',
+        'accept-encoding': 'gzip',
+        'connection': 'keep-alive',
+      });
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        if (decoded['success'] == true && decoded['data'] != null) {
+          return List<Map<String, dynamic>>.from(decoded['data'] as List);
+        }
+        return [];
+      }
+      throw ApiException('GET /api/exam-results/exam failed', response.statusCode, response.body);
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      final errorMsg = e.toString();
+      if (errorMsg.contains('Connection refused') ||
+          errorMsg.contains('Failed host lookup') ||
+          errorMsg.contains('Network is unreachable')) {
+        throw ApiException(
+          'Main API service is not running. Please start the main API at $_baseUrl',
+          0,
+          '',
+        );
+      }
+      throw ApiException('GET /api/exam-results/exam failed: $errorMsg', 0, '');
     }
   }
 

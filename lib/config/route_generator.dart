@@ -8,6 +8,7 @@ import '../features/exams/exam_edit_page.dart';
 import '../features/exam_details_page.dart';
 import '../features/examination_page.dart';
 import '../features/questions/question_edit_page.dart';
+import '../services/api_service.dart';
 
 class RouteGenerator {
   static Route<dynamic> generateRoute(RouteSettings settings) {
@@ -44,10 +45,14 @@ class RouteGenerator {
           }
           final String? examId = args['examId'] as String?;
           final String teacherId = args['teacherId'] as String;
+          
+          // ExamEditPage will load teacher subjects in initState if not provided
+          // We pass empty list here and let the page load it asynchronously
           return MaterialPageRoute(
             builder: (_) => ExamEditPage(
               examId: examId,
               teacherId: teacherId,
+              teacherSubjects: const [], // Will be loaded in ExamEditPage if needed
             ),
           );
         }

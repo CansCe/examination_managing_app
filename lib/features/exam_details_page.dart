@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:math';
+import 'dart:io';
 import '../config/routes.dart';
 import '../models/index.dart';
 import '../services/index.dart';
+import '../utils/pdf_export_service.dart';
 
 
 class ExamDetailsPage extends StatefulWidget {
@@ -33,6 +35,8 @@ class _ExamDetailsPageState extends State<ExamDetailsPage> {
   bool _shouldShowAvailabilityNotification = false;
   Exam? _currentExam; // Store the current exam (may be updated from API)
   Map<String, dynamic>? _examResult; // Store exam result if available (for past exams)
+  Map<String, dynamic>? _examStatus; // Store exam status with student sessions (for teachers)
+  Timer? _statusRefreshTimer; // Timer to refresh exam status periodically
 
   @override
   void initState() {
@@ -47,6 +51,17 @@ class _ExamDetailsPageState extends State<ExamDetailsPage> {
         _checkExamAvailability();
       }
     });
+    
+    // For teachers/admins, load exam status and refresh periodically
+    if (widget.userRole == UserRole.teacher || widget.userRole == UserRole.admin) {
+      _loadExamStatus();
+      // Refresh status every 5 seconds to update student timers
+      _statusRefreshTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+        if (mounted) {
+          _loadExamStatus();
+        }
+      });
+    }
   }
 
   /// Initialize exam data by loading latest from API, then calculating times and checking availability
@@ -57,10 +72,9 @@ class _ExamDetailsPageState extends State<ExamDetailsPage> {
     _calculateExamStartTime();
     _checkExamAvailability(suppressNotification: true);
     
-    // If this is a past exam for a student, try to load their result
-    if (widget.userRole == UserRole.student && 
-        widget.studentId != null && 
-        (_currentExam ?? widget.exam).isExamFinished()) {
+    // For students, always try to load their result (if they've completed the exam)
+    // This allows students to view past exams and see their scores
+    if (widget.userRole == UserRole.student && widget.studentId != null) {
       await _loadExamResult();
     }
   }
@@ -86,6 +100,36 @@ class _ExamDetailsPageState extends State<ExamDetailsPage> {
       }
     } catch (e) {
       // Silently fail - result might not exist yet
+    }
+  }
+
+  @override
+  void dispose() {
+    _availabilityTimer?.cancel();
+    _statusRefreshTimer?.cancel();
+    super.dispose();
+  }
+
+  /// Load exam status with student sessions and timers (for teachers)
+  Future<void> _loadExamStatus() async {
+    if (widget.userRole != UserRole.teacher && widget.userRole != UserRole.admin) {
+      return;
+    }
+    
+    try {
+      final exam = _currentExam ?? widget.exam;
+      final examId = exam.id.toHexString();
+      final api = ApiService();
+      final status = await api.getExamStatus(examId);
+      api.close();
+      
+      if (mounted) {
+        setState(() {
+          _examStatus = status;
+        });
+      }
+    } catch (e) {
+      // Silently fail - status might not be available
     }
   }
 
@@ -134,11 +178,6 @@ class _ExamDetailsPageState extends State<ExamDetailsPage> {
     }
   }
 
-  @override
-  void dispose() {
-    _availabilityTimer?.cancel();
-    super.dispose();
-  }
 
   void _calculateExamStartTime() {
     // Use current exam (from API) if available, otherwise use widget.exam
@@ -225,6 +264,17 @@ class _ExamDetailsPageState extends State<ExamDetailsPage> {
       return;
     }
     
+    // If student has already completed the exam, they can view it but not start it again
+    if (widget.userRole == UserRole.student && _examResult != null) {
+      if (mounted) {
+        setState(() {
+          _canStartExam = false;
+          _examAvailabilityMessage = 'You have already completed this exam. View your results below.';
+        });
+      }
+      return;
+    }
+    
     final now = DateTime.now();
     
     if (_examStartDateTime == null) {
@@ -245,7 +295,12 @@ class _ExamDetailsPageState extends State<ExamDetailsPage> {
       if (mounted) {
         setState(() {
           _canStartExam = false;
-          _examAvailabilityMessage = 'This exam has finished and is no longer available';
+          // If student has completed it, show different message
+          if (widget.userRole == UserRole.student && _examResult != null) {
+            _examAvailabilityMessage = 'This exam has finished. View your results below.';
+          } else {
+            _examAvailabilityMessage = 'This exam has finished and is no longer available';
+          }
         });
       }
       return;
@@ -556,9 +611,19 @@ class _ExamDetailsPageState extends State<ExamDetailsPage> {
               _calculateExamStartTime();
               _checkExamAvailability();
               _loadQuestions();
+              if (widget.userRole == UserRole.teacher || widget.userRole == UserRole.admin) {
+                _loadExamStatus();
+              }
             },
             tooltip: 'Refresh Exam Data',
           ),
+          // Export PDF button for teachers/admins
+          if ((widget.userRole == UserRole.teacher || widget.userRole == UserRole.admin) && _examStatus != null)
+            IconButton(
+              icon: const Icon(Icons.picture_as_pdf),
+              onPressed: _exportExamScoresToPdf,
+              tooltip: 'Export Exam Scores to PDF',
+            ),
           if (_canDeleteExam)
             IconButton(
               icon: const Icon(Icons.delete),
@@ -708,10 +773,83 @@ class _ExamDetailsPageState extends State<ExamDetailsPage> {
                                           ),
                                         ),
                                       ),
-                                    // Display exam result if available (for past exams)
+                                    // Exam Status and Student Sessions (for teachers/admins)
+                                    if ((widget.userRole == UserRole.teacher || widget.userRole == UserRole.admin) && _examStatus != null)
+                                      Card(
+                                        margin: const EdgeInsets.only(top: 16, bottom: 16),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(16.0),
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  const Icon(Icons.info_outline, color: Colors.blue),
+                                                  const SizedBox(width: 8),
+                                                  Text(
+                                                    'Exam Status',
+                                                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 16),
+                                              // Current Exam State
+                                              Container(
+                                                padding: const EdgeInsets.all(12),
+                                                decoration: BoxDecoration(
+                                                  color: _getStateColor(_examStatus!['examState'] as String).withOpacity(0.1),
+                                                  borderRadius: BorderRadius.circular(8),
+                                                  border: Border.all(
+                                                    color: _getStateColor(_examStatus!['examState'] as String),
+                                                    width: 2,
+                                                  ),
+                                                ),
+                                                child: Row(
+                                                  children: [
+                                                    Icon(
+                                                      _getStateIcon(_examStatus!['examState'] as String),
+                                                      color: _getStateColor(_examStatus!['examState'] as String),
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    Text(
+                                                      'State: ${_formatExamState(_examStatus!['examState'] as String)}',
+                                                      style: TextStyle(
+                                                        fontSize: 16,
+                                                        fontWeight: FontWeight.bold,
+                                                        color: _getStateColor(_examStatus!['examState'] as String),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              const SizedBox(height: 16),
+                                              // Student Sessions
+                                              Text(
+                                                'Student Sessions (${(_examStatus!['studentSessions'] as List).length} students)',
+                                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              if ((_examStatus!['studentSessions'] as List).isEmpty)
+                                                const Padding(
+                                                  padding: EdgeInsets.all(16.0),
+                                                  child: Text('No students assigned to this exam.'),
+                                                )
+                                              else
+                                                ...(_examStatus!['studentSessions'] as List).map((session) {
+                                                  return _buildStudentSessionCard(session);
+                                                }).toList(),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    // Display exam result if available (for students who completed the exam)
                                     if (_examResult != null && widget.userRole == UserRole.student)
                                       Card(
-                                        color: Colors.blue.withOpacity(0.1),
+                                        color: Colors.green.withOpacity(0.1),
                                         margin: const EdgeInsets.only(bottom: 16),
                                         child: Padding(
                                           padding: const EdgeInsets.all(16.0),
@@ -720,18 +858,28 @@ class _ExamDetailsPageState extends State<ExamDetailsPage> {
                                             children: [
                                               Row(
                                                 children: [
-                                                  Icon(Icons.assessment, color: Colors.blue[700]),
+                                                  Icon(Icons.check_circle, color: Colors.green[700]),
                                                   const SizedBox(width: 8),
                                                   Text(
-                                                    'Your Exam Result',
+                                                    'Exam Completed',
                                                     style: TextStyle(
                                                       fontSize: 18,
                                                       fontWeight: FontWeight.bold,
-                                                      color: Colors.blue[900],
+                                                      color: Colors.green[900],
                                                     ),
                                                   ),
                                                 ],
                                               ),
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                'You have completed this exam. Your results are shown below.',
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  color: Colors.green[800],
+                                                ),
+                                              ),
+                                              const SizedBox(height: 16),
+                                              const Divider(),
                                               const SizedBox(height: 16),
                                               Row(
                                                 mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -771,21 +919,50 @@ class _ExamDetailsPageState extends State<ExamDetailsPage> {
                                           ),
                                         ),
                                       ),
-                                    const SizedBox(height: 16),
-                                    SizedBox(
-                                      width: double.infinity,
-                                      child: ElevatedButton.icon(
-                                        onPressed: _canStartExam && !_isLoading && _questions.isNotEmpty
-                                            ? _startExam
-                                            : null,
-                                        icon: const Icon(Icons.play_arrow),
-                                        label: const Text('Start Exam'),
-                                        style: ElevatedButton.styleFrom(
-                                          padding: const EdgeInsets.symmetric(vertical: 16),
-                                          disabledBackgroundColor: Colors.grey,
+                                    // Show message if student hasn't completed a past exam
+                                    if (_examResult == null && 
+                                        widget.userRole == UserRole.student && 
+                                        _examAvailabilityMessage.contains('finished'))
+                                      Card(
+                                        color: Colors.orange.withOpacity(0.1),
+                                        margin: const EdgeInsets.only(bottom: 16),
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(16.0),
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.info_outline, color: Colors.orange[700]),
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: Text(
+                                                  'This exam has ended. You did not complete this exam.',
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    color: Colors.orange[900],
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ),
-                                    ),
+                                    const SizedBox(height: 16),
+                                    // Only show Start Exam button for students, not teachers
+                                    if (widget.userRole == UserRole.student || widget.userRole == UserRole.admin)
+                                      SizedBox(
+                                        width: double.infinity,
+                                        child: ElevatedButton.icon(
+                                          onPressed: _canStartExam && !_isLoading && _questions.isNotEmpty
+                                              ? _startExam
+                                              : null,
+                                          icon: const Icon(Icons.play_arrow),
+                                          label: const Text('Start Exam'),
+                                          style: ElevatedButton.styleFrom(
+                                            padding: const EdgeInsets.symmetric(vertical: 16),
+                                            disabledBackgroundColor: Colors.grey,
+                                          ),
+                                        ),
+                                      ),
                                     if (!_canStartExam && !_examAvailabilityMessage.contains('finished'))
                                       Padding(
                                         padding: const EdgeInsets.only(top: 8.0),
@@ -799,7 +976,8 @@ class _ExamDetailsPageState extends State<ExamDetailsPage> {
                                           textAlign: TextAlign.center,
                                         ),
                                       ),
-                                    if (_examAvailabilityMessage.contains('finished'))
+                                    if (_examAvailabilityMessage.contains('finished') && 
+                                        !(_examResult != null && widget.userRole == UserRole.student))
                                       Padding(
                                         padding: const EdgeInsets.only(top: 8.0),
                                         child: Text(
@@ -888,6 +1066,303 @@ class _ExamDetailsPageState extends State<ExamDetailsPage> {
       return 'N/A';
     } catch (e) {
       return 'N/A';
+    }
+  }
+
+  Color _getStateColor(String state) {
+    switch (state) {
+      case 'scheduled':
+        return Colors.blue;
+      case 'in_progress':
+        return Colors.green;
+      case 'finished':
+        return Colors.grey;
+      default:
+        return Colors.orange;
+    }
+  }
+
+  IconData _getStateIcon(String state) {
+    switch (state) {
+      case 'scheduled':
+        return Icons.schedule;
+      case 'in_progress':
+        return Icons.play_circle_outline;
+      case 'finished':
+        return Icons.check_circle_outline;
+      default:
+        return Icons.help_outline;
+    }
+  }
+
+  String _formatExamState(String state) {
+    switch (state) {
+      case 'scheduled':
+        return 'Scheduled';
+      case 'in_progress':
+        return 'In Progress';
+      case 'finished':
+        return 'Finished';
+      default:
+        return state;
+    }
+  }
+
+  String _formatSessionStatus(String status) {
+    switch (status) {
+      case 'not_started':
+        return 'Not Started';
+      case 'in_progress':
+        return 'In Progress';
+      case 'time_up':
+        return 'Time Up';
+      case 'finished':
+        return 'Finished';
+      default:
+        return status;
+    }
+  }
+
+  String _formatDurationFromSeconds(int? seconds) {
+    if (seconds == null || seconds <= 0) return '00:00:00';
+    final duration = Duration(seconds: seconds);
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final hours = twoDigits(duration.inHours);
+    final minutes = twoDigits(duration.inMinutes.remainder(60));
+    final secs = twoDigits(duration.inSeconds.remainder(60));
+    return '$hours:$minutes:$secs';
+  }
+
+  Widget _buildStudentSessionCard(Map<String, dynamic> session) {
+    final status = session['sessionStatus'] as String;
+    final remainingTime = session['remainingTime'] as int?;
+    final isInProgress = status == 'in_progress';
+    final isTimeUp = status == 'time_up';
+    final isCompleted = status == 'completed';
+    final score = session['score'] as int?;
+    final percentageScore = session['percentageScore'] as double?;
+    
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      color: isCompleted
+          ? Colors.blue.shade50
+          : isTimeUp 
+              ? Colors.red.shade50 
+              : isInProgress 
+                  ? Colors.green.shade50 
+                  : Colors.grey.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    session['studentName'] as String? ?? 'Unknown',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                  if ((session['studentRollNumber'] as String?)?.isNotEmpty == true)
+                    Text(
+                      'Roll: ${session['studentRollNumber']}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        isCompleted 
+                            ? Icons.check_circle 
+                            : isInProgress 
+                                ? Icons.play_circle 
+                                : Icons.pause_circle,
+                        size: 16,
+                        color: isCompleted 
+                            ? Colors.blue 
+                            : isInProgress 
+                                ? Colors.green 
+                                : Colors.grey,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        isCompleted ? 'Done Exam' : _formatSessionStatus(status),
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: isCompleted 
+                              ? Colors.blue 
+                              : isTimeUp 
+                                  ? Colors.red 
+                                  : (isInProgress ? Colors.green : Colors.grey),
+                          fontWeight: (isInProgress || isCompleted) ? FontWeight.bold : FontWeight.normal,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            if (isCompleted && score != null && percentageScore != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: Colors.blue,
+                    width: 2,
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Score',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$score',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                    Text(
+                      '${percentageScore.toStringAsFixed(1)}%',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.blue.shade700,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else if (isInProgress && remainingTime != null)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: remainingTime < 300 ? Colors.red.shade100 : Colors.blue.shade100,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: remainingTime < 300 ? Colors.red : Colors.blue,
+                    width: 2,
+                  ),
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text(
+                      'Time Remaining',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _formatDurationFromSeconds(remainingTime),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: remainingTime < 300 ? Colors.red : Colors.blue,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Export exam scores to PDF
+  Future<void> _exportExamScoresToPdf() async {
+    if (_examStatus == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Exam status not available. Please refresh.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    try {
+      setState(() {
+        _isLoading = true;
+      });
+
+      final exam = _currentExam ?? widget.exam;
+      final examId = exam.id.toHexString();
+
+      // Get all exam results
+      final api = ApiService();
+      final examResults = await api.getExamResults(examId);
+      api.close();
+
+      // Get student sessions from exam status
+      final studentSessions = (_examStatus!['studentSessions'] as List)
+          .map((s) => s as Map<String, dynamic>)
+          .toList();
+
+      // Export to PDF
+      final filePath = await PdfExportService.exportExamScores(
+        examTitle: exam.title,
+        examSubject: exam.subject,
+        examDate: exam.examDate,
+        examTime: exam.examTime,
+        examDuration: exam.duration,
+        studentSessions: studentSessions,
+        examResults: examResults,
+      );
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('PDF exported successfully to:\n$filePath'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'OK',
+              textColor: Colors.white,
+              onPressed: () {},
+            ),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error exporting PDF: $e'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
     }
   }
 } 

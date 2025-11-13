@@ -5,7 +5,9 @@ import {
   getStudentById,
   createStudent,
   updateStudent,
-  deleteStudent
+  deleteStudent,
+  getStudentsByClass,
+  getAllClasses
 } from '../controllers/student.controller.js';
 import { readLimiter, writeLimiter } from '../middleware/rateLimiter.js';
 
@@ -18,6 +20,16 @@ router.get('/',
     query('limit').optional().isInt({ min: 1, max: 100 })
   ],
   getAllStudents
+);
+
+router.get('/classes/all', readLimiter, getAllClasses);
+router.get('/class/:className',
+  readLimiter,
+  [
+    query('page').optional().isInt({ min: 0 }),
+    query('limit').optional().isInt({ min: 1, max: 100 })
+  ],
+  getStudentsByClass
 );
 
 router.get('/:id', readLimiter, getStudentById);

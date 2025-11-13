@@ -348,6 +348,40 @@ class AtlasService {
     }
   }
 
+  // Get all unique class names
+  static Future<List<String>> getAllClasses() async {
+    try {
+      final api = ApiService();
+      final classes = await api.getAllClasses();
+      api.close();
+      return classes;
+    } catch (e) {
+      print('Error getting all classes: $e');
+      rethrow;
+    }
+  }
+
+  // Get students by class name
+  static Future<List<Student>> getStudentsByClass({
+    required String className,
+    int page = 0,
+    int limit = 100,
+  }) async {
+    try {
+      final api = ApiService();
+      final data = await api.getStudentsByClass(
+        className: className,
+        page: page,
+        limit: limit,
+      );
+      api.close();
+      return data.map((doc) => Student.fromMap(doc)).toList();
+    } catch (e) {
+      print('Error getting students by class: $e');
+      rethrow;
+    }
+  }
+
   static Future<DummyExamSetup> createDummyExamScenario({
     required String teacherId,
     bool assignSampleStudent = true,
