@@ -613,7 +613,15 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   Future<void> _loadClasses() async {
     try {
-      final classes = await AtlasService.getAllClasses();
+      // For teachers, only load classes they teach
+      String? teacherId;
+      if (widget.userRole == UserRole.teacher) {
+        teacherId = _teacherId ?? widget.teacherId;
+      }
+      
+      final classes = await AtlasService.getAllClasses(
+        teacherId: teacherId,
+      );
       
       // Extract class names and student counts from class objects
       final counts = <String, int>{};

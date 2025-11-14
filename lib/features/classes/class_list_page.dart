@@ -46,7 +46,10 @@ class _ClassListPageState extends State<ClassListPage> {
     });
 
     try {
-      final classes = await AtlasService.getAllClasses();
+      // For teachers, only load classes they teach
+      final classes = await AtlasService.getAllClasses(
+        teacherId: widget.teacherId,
+      );
       
       // Extract class names and student counts from class objects
       final counts = <String, int>{};
