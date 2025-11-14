@@ -1807,9 +1807,26 @@ class ApiService {
     }
   }
 
-  /// Get all unique class names
-  Future<List<String>> getAllClasses() async {
-    final uri = _buildUri('/api/students/classes/all');
+  /// Get all classes
+  Future<List<Map<String, dynamic>>> getAllClasses({
+    int page = 0,
+    int limit = 100,
+    String? teacherId,
+    String? subject,
+  }) async {
+    final query = {
+      'page': '$page',
+      'limit': '$limit',
+      if (teacherId != null) 'teacherId': teacherId,
+      if (subject != null) 'subject': subject,
+    };
+    final uri = _buildUri('/api/classes', query);
+    return _getPaginatedData(uri, operation: 'GET /api/classes');
+  }
+
+  /// Get class by ID
+  Future<Map<String, dynamic>?> getClassById(String classId) async {
+    final uri = _buildUri('/api/classes/$classId');
     try {
       final response = await _client.get(uri, headers: {
         'accept': 'application/json',
@@ -1819,12 +1836,14 @@ class ApiService {
       if (response.statusCode == 200) {
         final decoded = json.decode(response.body) as Map<String, dynamic>;
         if (decoded['success'] == true && decoded['data'] != null) {
-          final data = decoded['data'] as List;
-          return data.map((e) => e.toString()).toList();
+          return decoded['data'] as Map<String, dynamic>;
         }
-        return [];
+        return null;
       }
-      throw ApiException('GET /api/students/classes/all failed', response.statusCode, response.body);
+      if (response.statusCode == 404) {
+        return null;
+      }
+      throw ApiException('GET /api/classes/:id failed', response.statusCode, response.body);
     } catch (e) {
       if (e is ApiException) rethrow;
       final errorMsg = e.toString();
@@ -1839,6 +1858,56 @@ class ApiService {
       }
       rethrow;
     }
+  }
+
+  /// Get class by name
+  Future<Map<String, dynamic>?> getClassByName(String className) async {
+    final encodedClassName = Uri.encodeComponent(className);
+    final uri = _buildUri('/api/classes/name/$encodedClassName');
+    try {
+      final response = await _client.get(uri, headers: {
+        'accept': 'application/json',
+        'accept-encoding': 'gzip',
+        'connection': 'keep-alive',
+      });
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body) as Map<String, dynamic>;
+        if (decoded['success'] == true && decoded['data'] != null) {
+          return decoded['data'] as Map<String, dynamic>;
+        }
+        return null;
+      }
+      if (response.statusCode == 404) {
+        return null;
+      }
+      throw ApiException('GET /api/classes/name/:className failed', response.statusCode, response.body);
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      final errorMsg = e.toString();
+      if (errorMsg.contains('Connection refused') ||
+          errorMsg.contains('Failed host lookup') ||
+          errorMsg.contains('Network is unreachable')) {
+        throw ApiException(
+          'Main API service is not running. Please start the main API at $_baseUrl',
+          0,
+          errorMsg,
+        );
+      }
+      rethrow;
+    }
+  }
+
+  /// Get students in a class
+  Future<List<Map<String, dynamic>>> getClassStudents({
+    required String classId,
+    int page = 0,
+    int limit = 100,
+  }) async {
+    final uri = _buildUri('/api/classes/$classId/students', {
+      'page': '$page',
+      'limit': '$limit',
+    });
+    return _getPaginatedData(uri, operation: 'GET /api/classes/:id/students');
   }
 
   /// Get students by class name

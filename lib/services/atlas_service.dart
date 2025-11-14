@@ -348,11 +348,17 @@ class AtlasService {
     }
   }
 
-  // Get all unique class names
-  static Future<List<String>> getAllClasses() async {
+  // Get all classes (returns full class objects with numStudent, studentList, etc.)
+  static Future<List<Map<String, dynamic>>> getAllClasses({
+    String? teacherId,
+    String? subject,
+  }) async {
     try {
       final api = ApiService();
-      final classes = await api.getAllClasses();
+      final classes = await api.getAllClasses(
+        teacherId: teacherId,
+        subject: subject,
+      );
       api.close();
       return classes;
     } catch (e) {
@@ -361,7 +367,20 @@ class AtlasService {
     }
   }
 
-  // Get students by class name
+  // Get class by name
+  static Future<Map<String, dynamic>?> getClassByName(String className) async {
+    try {
+      final api = ApiService();
+      final classData = await api.getClassByName(className);
+      api.close();
+      return classData;
+    } catch (e) {
+      print('Error getting class by name: $e');
+      rethrow;
+    }
+  }
+
+  // Get students by class name (uses the classes collection)
   static Future<List<Student>> getStudentsByClass({
     required String className,
     int page = 0,
@@ -369,8 +388,20 @@ class AtlasService {
   }) async {
     try {
       final api = ApiService();
-      final data = await api.getStudentsByClass(
-        className: className,
+      // First, get the class by name to get its ID
+      final classData = await api.getClassByName(className);
+      if (classData == null) {
+        return [];
+      }
+      
+      final classId = classData['_id']?.toString();
+      if (classId == null) {
+        return [];
+      }
+      
+      // Get students from the class
+      final data = await api.getClassStudents(
+        classId: classId,
         page: page,
         limit: limit,
       );
@@ -378,7 +409,20 @@ class AtlasService {
       return data.map((doc) => Student.fromMap(doc)).toList();
     } catch (e) {
       print('Error getting students by class: $e');
-      rethrow;
+      // Fallback to old method if class not found in classes collection
+      try {
+        final api = ApiService();
+        final data = await api.getStudentsByClass(
+          className: className,
+          page: page,
+          limit: limit,
+        );
+        api.close();
+        return data.map((doc) => Student.fromMap(doc)).toList();
+      } catch (e2) {
+        print('Error in fallback getStudentsByClass: $e2');
+        rethrow;
+      }
     }
   }
 

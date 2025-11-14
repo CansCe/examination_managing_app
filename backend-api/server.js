@@ -77,6 +77,7 @@ import studentRoutes from './routes/student.routes.js';
 import teacherRoutes from './routes/teacher.routes.js';
 import questionRoutes from './routes/question.routes.js';
 import examResultRoutes from './routes/examResult.routes.js';
+import classRoutes from './routes/class.routes.js';
 // Chat routes removed - handled by separate chat service (backend-chat)
 
 const app = express();
@@ -160,7 +161,8 @@ app.get('/health', healthLimiter, async (req, res) => {
         students: '/api/students',
         teachers: '/api/teachers',
         questions: '/api/questions',
-        examResults: '/api/exam-results'
+        examResults: '/api/exam-results',
+        classes: '/api/classes'
       }
     });
   } catch (e) {
@@ -186,6 +188,7 @@ app.use('/api/students', studentRoutes);
 app.use('/api/teachers', teacherRoutes);
 app.use('/api/questions', questionRoutes);
 app.use('/api/exam-results', examResultRoutes);
+app.use('/api/classes', classRoutes);
 // Chat API removed - use separate chat service (backend-chat)
 
 // Root endpoint
@@ -193,16 +196,17 @@ app.get('/', (req, res) => {
   res.json({
     message: 'Exam Management API',
     version: '1.0.0',
-    endpoints: {
-      health: '/health',
-      auth: '/api/auth',
-      exams: '/api/exams',
-      students: '/api/students',
-      teachers: '/api/teachers',
-      questions: '/api/questions',
-      examResults: '/api/exam-results',
-      note: 'Chat API is handled by separate service (backend-chat)'
-    }
+      endpoints: {
+        health: '/health',
+        auth: '/api/auth',
+        exams: '/api/exams',
+        students: '/api/students',
+        teachers: '/api/teachers',
+        questions: '/api/questions',
+        examResults: '/api/exam-results',
+        classes: '/api/classes',
+        note: 'Chat API is handled by separate service (backend-chat)'
+      }
   });
 });
 
@@ -237,6 +241,7 @@ async function startServer() {
       console.log(`   - Teachers: http://localhost:${PORT}/api/teachers`);
       console.log(`   - Questions: http://localhost:${PORT}/api/questions`);
       console.log(`   - Exam Results: http://localhost:${PORT}/api/exam-results`);
+      console.log(`   - Classes: http://localhost:${PORT}/api/classes`);
       console.log('\n💡 Note: Chat API is handled by separate service (backend-chat)\n');
     });
   } catch (error) {

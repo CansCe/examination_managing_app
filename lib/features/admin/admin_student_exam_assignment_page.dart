@@ -284,7 +284,8 @@ class _AdminStudentExamAssignmentPageState
               shrinkWrap: true,
               itemCount: classes.length,
               itemBuilder: (context, index) {
-                final className = classes[index];
+                final classData = classes[index];
+                final className = classData['className'] as String? ?? '';
                 return ListTile(
                   title: Text(className),
                   onTap: () => Navigator.pop(context, className),

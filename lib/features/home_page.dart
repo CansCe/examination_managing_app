@@ -40,7 +40,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
   late List<Exam> _exams = [];
   late List<Student> _students = [];
   late List<Teacher> _teachers = [];
-  List<String> _classes = [];
+  List<Map<String, dynamic>> _classes = [];
   Map<String, int> _classStudentCounts = {};
   bool _isLoading = true;
   bool _hasMoreData = true;
@@ -219,8 +219,34 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           _exams = pastExams; // Use _exams for past exams list
           _hasMoreData = assignedExams.length == _pageSize;
         });
+      } else if (widget.userRole == UserRole.teacher) {
+        // For teachers, load only their own exams
+        final teacherId = _teacherId ?? widget.teacherId;
+        if (teacherId == null) {
+          setState(() {
+            _exams = [];
+            _isLoading = false;
+          });
+          return;
+        }
+        
+        // Load teacher's exams
+        final exams = await AtlasService.getTeacherExams(
+          teacherId: teacherId,
+          page: _currentPage,
+          limit: _pageSize,
+        );
+        
+        // Load classes
+        await _loadClasses();
+        
+        setState(() {
+          _exams = exams;
+          _hasMoreData = exams.length == _pageSize;
+          _isLoading = false;
+        });
       } else {
-        // For teachers and admins, load all relevant data in parallel for faster loading
+        // For admins, load all relevant data in parallel for faster loading
         final results = await Future.wait([
           AtlasService.findTeachers(),
           AtlasService.findStudents(),
@@ -589,19 +615,12 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     try {
       final classes = await AtlasService.getAllClasses();
       
-      // Get student count for each class
+      // Extract class names and student counts from class objects
       final counts = <String, int>{};
-      for (final className in classes) {
-        try {
-          final allStudents = await AtlasService.getStudentsByClass(
-            className: className,
-            page: 0,
-            limit: 1000,
-          );
-          counts[className] = allStudents.length;
-        } catch (e) {
-          counts[className] = 0;
-        }
+      for (final classData in classes) {
+        final className = classData['className'] as String? ?? '';
+        final numStudent = classData['numStudent'] as int? ?? 0;
+        counts[className] = numStudent;
       }
 
       if (mounted) {
@@ -697,12 +716,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 ),
               if (widget.userRole == UserRole.teacher || widget.userRole == UserRole.admin)
                 IconButton(
-                  icon: const Icon(Icons.add_circle_outline),
-                  tooltip: 'Create Exam',
-                  onPressed: _createNewExam,
-                ),
-              if (widget.userRole == UserRole.teacher || widget.userRole == UserRole.admin)
-                IconButton(
                   icon: const Icon(Icons.auto_mode),
                   tooltip: 'Generate Demo Exam',
                   onPressed: _generateDummyExamScenario,
@@ -750,21 +763,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     );
                   },
                 ),
-              if (widget.userRole == UserRole.teacher) ...[
-                IconButton(
-                  icon: const Icon(Icons.class_),
-                  tooltip: 'Classes',
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ClassListPage(
-                          teacherId: widget.teacherId,
-                        ),
-                      ),
-                    );
-                  },
-                ),
+              if (widget.userRole == UserRole.teacher)
                 IconButton(
                   icon: const Icon(Icons.support_agent),
                   tooltip: 'Contact Admin',
@@ -789,7 +788,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     );
                   },
                 ),
-              ],
               if (widget.userRole == UserRole.admin)
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.admin_panel_settings),
@@ -1713,7 +1711,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             padding: const EdgeInsets.all(8),
             itemCount: _classes.length,
             itemBuilder: (context, index) {
-              final className = _classes[index];
+              final classData = _classes[index];
+              final className = classData['className'] as String? ?? '';
               final studentCount = _classStudentCounts[className] ?? 0;
 
               return Card(

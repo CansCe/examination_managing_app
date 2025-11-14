@@ -22,7 +22,7 @@ class ClassListPage extends StatefulWidget {
 }
 
 class _ClassListPageState extends State<ClassListPage> {
-  List<String> _classes = [];
+  List<Map<String, dynamic>> _classes = [];
   Map<String, int> _classStudentCounts = {};
   bool _isLoading = true;
   final TextEditingController _searchController = TextEditingController();
@@ -48,26 +48,12 @@ class _ClassListPageState extends State<ClassListPage> {
     try {
       final classes = await AtlasService.getAllClasses();
       
-      // Get student count for each class
+      // Extract class names and student counts from class objects
       final counts = <String, int>{};
-      for (final className in classes) {
-        try {
-          final students = await AtlasService.getStudentsByClass(
-            className: className,
-            page: 0,
-            limit: 1, // Just to get the count
-          );
-          // We need to get the actual count from the API
-          // For now, let's fetch all students for the class to get the count
-          final allStudents = await AtlasService.getStudentsByClass(
-            className: className,
-            page: 0,
-            limit: 1000, // Large limit to get all students
-          );
-          counts[className] = allStudents.length;
-        } catch (e) {
-          counts[className] = 0;
-        }
+      for (final classData in classes) {
+        final className = classData['className'] as String? ?? '';
+        final numStudent = classData['numStudent'] as int? ?? 0;
+        counts[className] = numStudent;
       }
 
       if (mounted) {
@@ -97,12 +83,13 @@ class _ClassListPageState extends State<ClassListPage> {
     });
   }
 
-  List<String> get _filteredClasses {
+  List<Map<String, dynamic>> get _filteredClasses {
     final query = _searchController.text.toLowerCase().trim();
     if (query.isEmpty) {
       return _classes;
     }
-    return _classes.where((className) {
+    return _classes.where((classData) {
+      final className = classData['className'] as String? ?? '';
       return className.toLowerCase().contains(query);
     }).toList();
   }
@@ -363,7 +350,8 @@ class _ClassListPageState extends State<ClassListPage> {
                         padding: const EdgeInsets.all(8),
                         itemCount: _filteredClasses.length,
                         itemBuilder: (context, index) {
-                          final className = _filteredClasses[index];
+                          final classData = _filteredClasses[index];
+                          final className = classData['className'] as String? ?? '';
                           final studentCount = _classStudentCounts[className] ?? 0;
 
                           return Card(
