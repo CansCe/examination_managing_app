@@ -45,7 +45,6 @@ class RouteGenerator {
           }
           final String? examId = args['examId'] as String?;
           final String teacherId = args['teacherId'] as String;
-          
           // ExamEditPage will load teacher subjects in initState if not provided
           // We pass empty list here and let the page load it asynchronously
           return MaterialPageRoute(

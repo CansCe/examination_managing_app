@@ -65,7 +65,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     super.initState();
     _tabController = TabController(
       length: widget.userRole == UserRole.teacher
-          ? 3
+          ? 2  // Exams and Classes only (removed Students)
           : widget.userRole == UserRole.admin
               ? 2
               : 1,
@@ -417,23 +417,13 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               _exams = _pastExams;
             }
             _hasMoreData = studentExams.length == _pageSize;
-            
-            // Schedule notifications for upcoming exams (only for students)
-            if (widget.userRole == UserRole.student && studentId != null && _upcomingExams.isNotEmpty) {
-              try {
-                final notificationService = NotificationService();
-                await notificationService.initialize();
-                await notificationService.scheduleNotificationsForExams(
-                  exams: _upcomingExams,
-                  studentId: studentId,
-                );
-              } catch (e) {
-                Logger.warning('Failed to schedule notifications: $e', 'HomePage');
-                // Don't show error to user - notifications are not critical
-              }
-            }
             _currentPage++;
           });
+
+          // Schedule notifications for upcoming exams (only for students) - outside setState
+          if (widget.userRole == UserRole.student && studentId != null && _upcomingExams.isNotEmpty) {
+            _scheduleNotificationsForUpcomingExams(studentId);
+          }
         } else {
           // For teachers, show all exams
           setState(() {
@@ -522,6 +512,74 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           context: context,
           title: 'Error Loading Teacher Data',
           message: 'An error occurred while loading teacher data: $e',
+        );
+      }
+    }
+  }
+
+  /// Schedule notifications for upcoming exams (async helper method)
+  Future<void> _scheduleNotificationsForUpcomingExams(String studentId) async {
+    try {
+      final notificationService = NotificationService();
+      await notificationService.initialize();
+      await notificationService.scheduleNotificationsForExams(
+        exams: _upcomingExams,
+        studentId: studentId,
+      );
+    } catch (e) {
+      Logger.warning('Failed to schedule notifications: $e', 'HomePage');
+      // Don't show error to user - notifications are not critical
+    }
+  }
+
+  /// Load teacher info and navigate to exam edit page
+  Future<void> _loadTeacherInfoAndEditExam(String teacherId, String examId) async {
+    try {
+      final api = ApiService();
+      final teacherData = await api.getTeacher(teacherId);
+      api.close();
+      
+      if (teacherData != null) {
+        setState(() {
+          _currentTeacher = Teacher.fromMap(teacherData);
+        });
+        
+        // Now navigate to exam edit page
+        if (mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ExamEditPage(
+                examId: examId,
+                teacherId: teacherId,
+                teacherSubjects: _currentTeacher?.subjects ?? [],
+              ),
+            ),
+          ).then((_) {
+            if (!mounted) return;
+            _currentPage = 0;
+            _exams.clear();
+            _loadTeacherData();
+          });
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Unable to load teacher information.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      Logger.warning('Failed to load teacher info: $e', 'HomePage');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading teacher info: $e'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     }
@@ -835,7 +893,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     ],
                   ),
                 ),
-                if (widget.userRole == UserRole.teacher || widget.userRole == UserRole.admin) ...[
+                if (widget.userRole == UserRole.admin) ...[
                   Tab(
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
@@ -846,18 +904,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       ],
                     ),
                   ),
-                  if (widget.userRole == UserRole.teacher)
-                    Tab(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.class_),
-                          if (MediaQuery.of(context).size.width >= 600) const SizedBox(width: 8),
-                          if (MediaQuery.of(context).size.width >= 600) const Text('Classes'),
-                        ],
-                      ),
-                    ),
                 ],
+                if (widget.userRole == UserRole.teacher)
+                  Tab(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.class_),
+                        if (MediaQuery.of(context).size.width >= 600) const SizedBox(width: 8),
+                        if (MediaQuery.of(context).size.width >= 600) const Text('Classes'),
+                      ],
+                    ),
+                  ),
               ],
             ),
           ),
@@ -867,11 +925,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   controller: _tabController,
                   children: [
                     _buildExamsList(MediaQuery.of(context).size.width < 600),
-                    if (widget.userRole == UserRole.teacher || widget.userRole == UserRole.admin) ...[
+                    if (widget.userRole == UserRole.admin)
                       _buildStudentsList(MediaQuery.of(context).size.width < 600),
-                      if (widget.userRole == UserRole.teacher)
-                        _buildClassesList(MediaQuery.of(context).size.width < 600),
-                    ],
+                    if (widget.userRole == UserRole.teacher)
+                      _buildClassesList(MediaQuery.of(context).size.width < 600),
                   ],
                 ),
           floatingActionButton: Column(
@@ -2188,7 +2245,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     );
   }
 
-  void _editExam(Exam exam) {
+  Future<void> _editExam(Exam exam) async {
     String? examId;
     try {
       examId = exam.id.toHexString();
@@ -2246,7 +2303,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         
         // Get teacher's subjects if not already loaded
         if (_currentTeacher == null) {
-          _loadTeacherInfoAndEditExam(teacherId, examId);
+          await _loadTeacherInfoAndEditExam(teacherId, examId);
         } else {
           Navigator.push(
             context,
