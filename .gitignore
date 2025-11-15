@@ -29,7 +29,7 @@ default.env
 # VS Code which you may wish to be included in version control, so this line
 # is commented out by default.
 #.vscode/
-
+.Báo cáo/
 # Flutter/Dart/Pub related
 **/doc/api/
 **/ios/Flutter/.last_build_id
@@ -58,3 +58,4 @@ README.md
 # ignoring mock database 
 /lib/database/mock_data/
 
+Báo Cáo
