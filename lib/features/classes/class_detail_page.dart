@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:mongo_dart/mongo_dart.dart' hide State, Center;
 import '../../models/index.dart';
 import '../../services/atlas_service.dart';
 import '../../services/api_service.dart';
 import '../../utils/dialog_helper.dart';
 import '../exams/exam_edit_page.dart';
-import '../admin/admin_student_exam_assignment_page.dart';
 
 class ClassDetailPage extends StatefulWidget {
   final String className;

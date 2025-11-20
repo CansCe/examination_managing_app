@@ -7,8 +7,6 @@ import '../models/index.dart';
 import '../features/index.dart';
 import '../utils/dialog_helper.dart';
 import '../utils/logger.dart';
-import '../services/notification_service.dart';
-import 'classes/class_list_page.dart';
 import 'classes/class_detail_page.dart';
 
 final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();

@@ -334,9 +334,7 @@ List<Map<String, dynamic>> _generateClasses(List<Map<String, dynamic>> teachers)
     }
     
     // If still no teacher, assign randomly (shouldn't happen with 10 teachers and 10 classes)
-    if (assignedTeacher == null) {
-      assignedTeacher = teachers[_random.nextInt(teachers.length)];
-    }
+    assignedTeacher ??= teachers[_random.nextInt(teachers.length)];
     
     classes.add({
       'className': className,

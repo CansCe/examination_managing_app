@@ -383,7 +383,7 @@ class PdfExportService {
                       ),
                     ],
                   );
-                }).toList(),
+                }),
               ],
             ),
             pw.SizedBox(height: 20),

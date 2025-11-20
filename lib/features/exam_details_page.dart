@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:math';
-import 'dart:io';
 import '../config/routes.dart';
 import '../models/index.dart';
 import '../services/index.dart';
@@ -841,7 +840,7 @@ class _ExamDetailsPageState extends State<ExamDetailsPage> {
                                               else
                                                 ...(_examStatus!['studentSessions'] as List).map((session) {
                                                   return _buildStudentSessionCard(session);
-                                                }).toList(),
+                                                }),
                                             ],
                                           ),
                                         ),
